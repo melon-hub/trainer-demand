@@ -999,20 +999,6 @@ function renderPrioritySettingsTable() {
     html += `
             </tbody>
         </table>
-        <div class="priority-info" style="margin-top: 20px; padding: 15px; background-color: #f0f8ff; border-radius: 5px;">
-            <h4>How Priority Allocation Works:</h4>
-            <ul style="margin-top: 10px; padding-left: 20px;">
-                <li><strong>P1 (${priorityConfig[0].trainingType}):</strong> Served first by ${priorityConfig[0].primaryTrainers.join(', ')}</li>
-                <li><strong>P2 (${priorityConfig[1].trainingType}):</strong> Served by ${priorityConfig[1].primaryTrainers.join(', ')} + any surplus from P1 trainers</li>
-                <li><strong>P3 (${priorityConfig[2].trainingType}):</strong> Served by ${priorityConfig[2].primaryTrainers.join(', ')} + any surplus from all other trainers</li>
-            </ul>
-            <h4 style="margin-top: 15px;">Trainer Capabilities:</h4>
-            <ul style="margin-top: 10px; padding-left: 20px;">
-                <li><strong>CATB, CATA, STP:</strong> Can perform all line training types (LT-CAD, LT-CP, LT-FO)</li>
-                <li><strong>RHS:</strong> Can perform LT-CP and LT-FO only (cannot do LT-CAD)</li>
-                <li><strong>LHS:</strong> Can perform LT-FO only</li>
-            </ul>
-        </div>
     `;
     
     container.innerHTML = html;

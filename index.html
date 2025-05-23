@@ -93,7 +93,24 @@
         <div id="settings-view" class="view">
             <section class="priority-settings-section">
                 <div class="section-header">
-                    <h2>Priority Settings</h2>
+                    <h2>Priority Settings
+                        <span class="info-icon">i
+                            <div class="tooltip-content">
+                                <h4>How Priority Allocation Works:</h4>
+                                <ul>
+                                    <li><strong>P1 (LT-CAD):</strong> Served first by CATB, CATA, STP</li>
+                                    <li><strong>P2 (LT-CP):</strong> Served by RHS + any surplus from P1 trainers</li>
+                                    <li><strong>P3 (LT-FO):</strong> Served by LHS + any surplus from all other trainers</li>
+                                </ul>
+                                <h4>Trainer Capabilities:</h4>
+                                <ul>
+                                    <li><strong>CATB, CATA, STP:</strong> Can perform all line training types (LT-CAD, LT-CP, LT-FO)</li>
+                                    <li><strong>RHS:</strong> Can perform LT-CP and LT-FO only (cannot do LT-CAD)</li>
+                                    <li><strong>LHS:</strong> Can perform LT-FO only</li>
+                                </ul>
+                            </div>
+                        </span>
+                    </h2>
                     <button id="edit-priority-btn" class="btn btn-secondary">Edit Priorities</button>
                 </div>
                 <div id="priority-settings-container" class="table-container">
