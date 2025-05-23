@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Table Column Test</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .debug-info {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background: white;
+            border: 2px solid #333;
+            padding: 10px;
+            z-index: 9999;
+            max-width: 300px;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .debug-info h3 {
+            margin: 0 0 10px 0;
+        }
+        .debug-info pre {
+            margin: 5px 0;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Table Column Test</h1>
+        
+        <div class="filters-section">
+            <select id="date-range-filter" class="filter-select">
+                <option value="all">All Time</option>
+                <option value="next6months">Next 6 Months</option>
+                <option value="next12months">Next 12 Months</option>
+                <option value="2025q1">2025 Q1</option>
+                <option value="2025q2">2025 Q2</option>
+            </select>
+        </div>
+        
+        <div class="debug-info" id="debug-info">
+            <h3>Debug Info</h3>
+            <pre id="debug-content"></pre>
+        </div>
+        
+        <!-- FTE Summary Table -->
+        <section class="table-section">
+            <h2>FTE Summary</h2>
+            <div id="fte-summary-table-container"></div>
+        </section>
+        
+        <!-- Demand Table -->
+        <section class="table-section">
+            <h2>Demand</h2>
+            <div id="demand-table-container"></div>
+        </section>
+    </div>
+    
+    <script src="extracted-pathways.js"></script>
+    <script src="app.js"></script>
+    <script>
+        // Override console.log to also display in debug panel
+        const originalLog = console.log;
+        const debugContent = document.getElementById('debug-content');
+        let debugLines = [];
+        
+        console.log = function(...args) {
+            originalLog.apply(console, args);
+            const line = args.map(arg => 
+                typeof arg === 'object' ? JSON.stringify(arg, null, 2) : arg
+            ).join(' ');
+            debugLines.push(line);
+            if (debugLines.length > 20) debugLines.shift();
+            debugContent.textContent = debugLines.join('\n');
+        };
+        
+        // Initialize
+        window.addEventListener('DOMContentLoaded', () => {
+            console.log('Test page loaded');
+            initialize();
+        });
+    </script>
+</body>
+</html>

@@ -223,6 +223,12 @@ let activeCohorts = [
 ];
 let nextCohortId = 2;
 
+// View state for filters and grouping
+let viewState = {
+    groupBy: 'none',
+    collapsedGroups: []
+};
+
 // DOM Elements
 const plannerView = document.getElementById('planner-view');
 const settingsView = document.getElementById('settings-view');
@@ -354,6 +360,12 @@ function setupEventListeners() {
     
     // Cohort Edit form
     document.getElementById('cohort-edit-form').addEventListener('submit', handleCohortUpdate);
+    
+    // Group by filter
+    const groupByFilter = document.getElementById('group-by-filter');
+    if (groupByFilter) {
+        groupByFilter.addEventListener('change', handleGroupByChange);
+    }
 }
 
 // View Management
@@ -376,11 +388,33 @@ function switchView(viewName) {
 // Populate Pathway Select
 function populatePathwaySelect() {
     pathwaySelect.innerHTML = '<option value="">Select a pathway</option>';
+    
+    // Group pathways by type
+    const pathwaysByType = {};
     pathways.forEach(pathway => {
-        const option = document.createElement('option');
-        option.value = pathway.id;
-        option.textContent = pathway.name;
-        pathwaySelect.appendChild(option);
+        const type = pathway.type || 'Other';
+        if (!pathwaysByType[type]) {
+            pathwaysByType[type] = [];
+        }
+        pathwaysByType[type].push(pathway);
+    });
+    
+    // Add pathways by type with optgroups
+    const typeOrder = ['CP', 'FO', 'CAD', 'Other'];
+    typeOrder.forEach(type => {
+        if (pathwaysByType[type] && pathwaysByType[type].length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = type;
+            
+            pathwaysByType[type].forEach(pathway => {
+                const option = document.createElement('option');
+                option.value = pathway.id;
+                option.textContent = pathway.name;
+                optgroup.appendChild(option);
+            });
+            
+            pathwaySelect.appendChild(optgroup);
+        }
     });
 }
 
@@ -403,7 +437,10 @@ function populateFortnightSelect() {
     for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
         const option = document.createElement('option');
         option.value = fn;
-        option.textContent = `FN${String(fn).padStart(2, '0')}`;
+        const monthIndex = FORTNIGHT_TO_MONTH[fn];
+        const monthName = MONTHS[monthIndex];
+        const isFirstHalf = fn % 2 === 1;
+        option.textContent = `FN${String(fn).padStart(2, '0')} - ${monthName} ${isFirstHalf ? '(1st half)' : '(2nd half)'}`;
         fortnightSelect.appendChild(option);
     }
 }
@@ -803,13 +840,40 @@ function renderGanttChart() {
         return;
     }
     
-    // Sort cohorts by start year and fortnight
-    const sortedCohorts = [...activeCohorts].sort((a, b) => {
-        if (a.startYear !== b.startYear) {
-            return a.startYear - b.startYear;
-        }
-        return a.startFortnight - b.startFortnight;
-    });
+    // Sort and group cohorts
+    let cohortGroups = {};
+    
+    if (viewState.groupBy === 'type') {
+        // Group cohorts by pathway type
+        activeCohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            const type = pathway.type || 'Other';
+            if (!cohortGroups[type]) {
+                cohortGroups[type] = [];
+            }
+            cohortGroups[type].push(cohort);
+        });
+        
+        // Sort cohorts within each group
+        Object.keys(cohortGroups).forEach(type => {
+            cohortGroups[type].sort((a, b) => {
+                if (a.startYear !== b.startYear) {
+                    return a.startYear - b.startYear;
+                }
+                return a.startFortnight - b.startFortnight;
+            });
+        });
+    } else {
+        // No grouping - just sort all cohorts
+        cohortGroups['All'] = [...activeCohorts].sort((a, b) => {
+            if (a.startYear !== b.startYear) {
+                return a.startYear - b.startYear;
+            }
+            return a.startFortnight - b.startFortnight;
+        });
+    }
     
     // Calculate the total fortnights needed for the chart
     const totalYears = END_YEAR - START_YEAR + 1;
@@ -859,10 +923,41 @@ function renderGanttChart() {
     
     html += '<tbody>';
     
-    // Render each cohort
-    sortedCohorts.forEach((cohort, index) => {
-        const pathway = pathways.find(p => p.id === cohort.pathwayId);
-        if (!pathway) return;
+    // Render cohorts by group
+    const groupOrder = ['CP', 'FO', 'CAD', 'All', 'Other'];
+    const sortedGroups = Object.keys(cohortGroups).sort((a, b) => {
+        return groupOrder.indexOf(a) - groupOrder.indexOf(b);
+    });
+    
+    sortedGroups.forEach(groupName => {
+        const cohorts = cohortGroups[groupName];
+        
+        // Add group header if grouping is enabled
+        if (viewState.groupBy === 'type' && groupName !== 'All') {
+            const isCollapsed = viewState.collapsedGroups.includes(groupName);
+            html += `<tr class="group-header">`;
+            html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
+            html += `<button class="group-toggle-btn" onclick="toggleGroup('${groupName}')">`;
+            html += `<span class="toggle-icon">${isCollapsed ? '+' : '−'}</span> `;
+            html += `${groupName} (${cohorts.length} cohorts)</button>`;
+            html += `</td>`;
+            
+            // Fill remaining cells
+            for (let year = START_YEAR; year <= END_YEAR; year++) {
+                for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+                    html += `<td class="group-header-cell"></td>`;
+                }
+            }
+            html += '</tr>';
+            
+            // Skip cohorts if group is collapsed
+            if (isCollapsed) return;
+        }
+        
+        // Render cohorts in this group
+        cohorts.forEach((cohort, index) => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
         
         html += '<tr>';
         
@@ -958,6 +1053,7 @@ function renderGanttChart() {
         }
         
         html += '</tr>';
+        });
     });
     
     html += '</tbody>';
@@ -1538,12 +1634,34 @@ function editCohort(cohortId) {
     // Populate the edit form dropdowns
     const editPathwaySelect = document.getElementById('edit-pathway');
     editPathwaySelect.innerHTML = '<option value="">Select a pathway</option>';
+    
+    // Group pathways by type
+    const pathwaysByType = {};
     pathways.forEach(pathway => {
-        const option = document.createElement('option');
-        option.value = pathway.id;
-        option.textContent = pathway.name;
-        option.selected = pathway.id === cohort.pathwayId;
-        editPathwaySelect.appendChild(option);
+        const type = pathway.type || 'Other';
+        if (!pathwaysByType[type]) {
+            pathwaysByType[type] = [];
+        }
+        pathwaysByType[type].push(pathway);
+    });
+    
+    // Add pathways by type with optgroups
+    const typeOrder = ['CP', 'FO', 'CAD', 'Other'];
+    typeOrder.forEach(type => {
+        if (pathwaysByType[type] && pathwaysByType[type].length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = type;
+            
+            pathwaysByType[type].forEach(pathway => {
+                const option = document.createElement('option');
+                option.value = pathway.id;
+                option.textContent = pathway.name;
+                option.selected = pathway.id === cohort.pathwayId;
+                optgroup.appendChild(option);
+            });
+            
+            editPathwaySelect.appendChild(optgroup);
+        }
     });
     
     const editYearSelect = document.getElementById('edit-start-year');
@@ -1561,7 +1679,10 @@ function editCohort(cohortId) {
     for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
         const option = document.createElement('option');
         option.value = fn;
-        option.textContent = `FN${String(fn).padStart(2, '0')}`;
+        const monthIndex = FORTNIGHT_TO_MONTH[fn];
+        const monthName = MONTHS[monthIndex];
+        const isFirstHalf = fn % 2 === 1;
+        option.textContent = `FN${String(fn).padStart(2, '0')} - ${monthName} ${isFirstHalf ? '(1st half)' : '(2nd half)'}`;
         option.selected = fn === cohort.startFortnight;
         editFortnightSelect.appendChild(option);
     }
@@ -1614,12 +1735,31 @@ function removeCohort(cohortId) {
     }
 }
 
+// Handle group by change
+function handleGroupByChange(e) {
+    viewState.groupBy = e.target.value;
+    viewState.collapsedGroups = []; // Reset collapsed groups when changing grouping
+    renderGanttChart();
+}
+
+// Toggle group collapse/expand
+function toggleGroup(groupName) {
+    const index = viewState.collapsedGroups.indexOf(groupName);
+    if (index > -1) {
+        viewState.collapsedGroups.splice(index, 1);
+    } else {
+        viewState.collapsedGroups.push(groupName);
+    }
+    renderGanttChart();
+}
+
 // Make functions available globally for inline onclick
 window.removeCohort = removeCohort;
 window.editCohort = editCohort;
 window.editPathway = editPathway;
 window.removePhase = removePhase;
 window.quickFillFTE = quickFillFTE;
+window.toggleGroup = toggleGroup;
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);

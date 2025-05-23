@@ -66,7 +66,15 @@
 
             <!-- Gantt Chart Section -->
             <section class="gantt-chart-section">
-                <h2>Training Timeline (Gantt Chart)</h2>
+                <div class="section-header">
+                    <h2>Training Timeline (Gantt Chart)</h2>
+                    <div class="gantt-controls">
+                        <select id="group-by-filter" class="filter-select">
+                            <option value="none">No Grouping</option>
+                            <option value="type">Group by Type</option>
+                        </select>
+                    </div>
+                </div>
                 <div id="gantt-chart-container" class="gantt-container">
                     <!-- Gantt chart will be generated here -->
                 </div>
