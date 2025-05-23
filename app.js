@@ -1907,8 +1907,18 @@ function validateBulkInput() {
     
     let html = '';
     
+    // Show parsing summary
+    if (!inputText.trim()) {
+        html = '<div class="validation-info">Enter cohort schedules to validate</div>';
+    } else {
+        html += '<div class="validation-summary">';
+        html += `<p>Parsed ${cohorts.length} cohorts from ${inputText.trim().split('\n').filter(l => l.trim()).length} lines</p>`;
+        html += '</div>';
+    }
+    
     if (errors.length > 0) {
         html += '<div class="validation-errors">';
+        html += '<h4>Parsing Errors:</h4>';
         errors.forEach(error => {
             html += `<div class="validation-error">❌ ${error}</div>`;
         });
@@ -1919,52 +1929,96 @@ function validateBulkInput() {
         // Check constraints
         const warnings = [];
         const groupedByTime = {};
+        const totalTrainees = { cp: 0, fo: 0, cad: 0 };
         
-        // Group cohorts by year-fortnight
+        // Group cohorts by year-fortnight and count totals
         cohorts.forEach(cohort => {
             const key = `${cohort.year}-${cohort.fortnight}`;
             if (!groupedByTime[key]) {
-                groupedByTime[key] = { fo: 0, cad: 0, cp: 0 };
+                groupedByTime[key] = { fo: 0, cad: 0, cp: 0, month: '', year: cohort.year };
             }
             groupedByTime[key][cohort.type.toLowerCase()] += cohort.numTrainees;
+            groupedByTime[key].month = MONTHS[Math.floor((cohort.fortnight - 1) / 2)];
+            totalTrainees[cohort.type.toLowerCase()] += cohort.numTrainees;
         });
         
         // Check GS+SIM constraint (16 FO/CAD max)
-        Object.entries(groupedByTime).forEach(([key, counts]) => {
-            const total = counts.fo + counts.cad;
+        Object.entries(groupedByTime).forEach(([key, data]) => {
+            const total = data.fo + data.cad;
             if (total > 16) {
-                const [year, fn] = key.split('-');
-                warnings.push(`${MONTHS[Math.floor((parseInt(fn) - 1) / 2)]} ${year}: ${total} FO/CAD exceeds limit of 16`);
+                warnings.push(`${data.month} ${data.year}: ${total} FO/CAD exceeds GS+SIM limit of 16 (${data.fo} FO + ${data.cad} CAD)`);
+            }
+        });
+        
+        // Check trainer capacity
+        Object.entries(groupedByTime).forEach(([key, data]) => {
+            const cpDemand = data.cp * 3; // Rough estimate: CP needs more trainer hours
+            const foDemand = data.fo * 2;
+            const cadDemand = data.cad * 2;
+            const totalDemand = cpDemand + foDemand + cadDemand;
+            
+            if (totalDemand > 100) { // Arbitrary threshold
+                warnings.push(`${data.month} ${data.year}: High trainer demand (${totalDemand} trainer-hours)`);
             }
         });
         
         if (warnings.length > 0) {
             html += '<div class="validation-warnings">';
+            html += '<h4>Warnings:</h4>';
             warnings.forEach(warning => {
                 html += `<div class="validation-warning">⚠️ ${warning}</div>`;
             });
             html += '</div>';
         }
         
+        // Show totals
+        html += '<div class="validation-totals">';
+        html += '<h4>Total Trainees by Type:</h4>';
+        html += '<div class="totals-grid">';
+        html += `<div class="total-item">CP: ${totalTrainees.cp}</div>`;
+        html += `<div class="total-item">FO: ${totalTrainees.fo}</div>`;
+        html += `<div class="total-item">CAD: ${totalTrainees.cad}</div>`;
+        html += `<div class="total-item">Total: ${totalTrainees.cp + totalTrainees.fo + totalTrainees.cad}</div>`;
+        html += '</div>';
+        html += '</div>';
+        
         // Show preview
         html += '<div class="validation-preview">';
-        html += '<h4>Preview: ' + cohorts.length + ' cohorts to add</h4>';
-        Object.entries(groupedByTime).forEach(([key, counts]) => {
-            const [year, fn] = key.split('-');
-            const month = MONTHS[Math.floor((parseInt(fn) - 1) / 2)];
+        html += '<h4>Schedule Preview:</h4>';
+        const sortedTimes = Object.entries(groupedByTime).sort((a, b) => {
+            const [aKey] = a;
+            const [bKey] = b;
+            const [aYear, aFn] = aKey.split('-').map(Number);
+            const [bYear, bFn] = bKey.split('-').map(Number);
+            if (aYear !== bYear) return aYear - bYear;
+            return aFn - bFn;
+        });
+        
+        sortedTimes.forEach(([key, data]) => {
             const parts = [];
-            if (counts.fo > 0) parts.push(`${counts.fo} FO`);
-            if (counts.cp > 0) parts.push(`${counts.cp} CP`);
-            if (counts.cad > 0) parts.push(`${counts.cad} CAD`);
-            html += `<div class="schedule-item">${month} ${year}: ${parts.join(', ')}</div>`;
+            if (data.cp > 0) parts.push(`${data.cp} CP`);
+            if (data.fo > 0) parts.push(`${data.fo} FO`);
+            if (data.cad > 0) parts.push(`${data.cad} CAD`);
+            html += `<div class="schedule-item">
+                <strong>${data.month} ${data.year}:</strong> ${parts.join(', ')}
+            </div>`;
         });
         html += '</div>';
         
-        if (errors.length === 0) {
-            html += '<div class="validation-success">✅ Validation complete. Ready to apply.</div>';
+        if (errors.length === 0 && warnings.length === 0) {
+            html += '<div class="validation-success">✅ All checks passed. Ready to apply schedule.</div>';
             applyBtn.disabled = false;
             window.pendingBulkCohorts = cohorts;
+        } else if (errors.length === 0) {
+            html += '<div class="validation-info">⚠️ Schedule has warnings but can be applied.</div>';
+            applyBtn.disabled = false;
+            window.pendingBulkCohorts = cohorts;
+        } else {
+            applyBtn.disabled = true;
         }
+    } else if (inputText.trim() && errors.length === 0) {
+        html += '<div class="validation-info">No valid cohorts found</div>';
+        applyBtn.disabled = true;
     }
     
     validationDiv.innerHTML = html;
@@ -2000,10 +2054,18 @@ function applyBulkSchedule() {
 function optimizeForTarget(e) {
     e.preventDefault();
     
-    const targetCP = parseInt(document.getElementById('target-cp').value) || 0;
-    const targetFO = parseInt(document.getElementById('target-fo').value) || 0;
-    const targetCAD = parseInt(document.getElementById('target-cad').value) || 0;
-    const targetDate = new Date(document.getElementById('target-date').value);
+    const cpInput = document.getElementById('target-cp');
+    const foInput = document.getElementById('target-fo');
+    const cadInput = document.getElementById('target-cad');
+    const dateInput = document.getElementById('target-date');
+    
+    // Debug logging
+    console.log('CP Input:', cpInput.value, 'Parsed:', parseInt(cpInput.value) || 0);
+    
+    const targetCP = parseInt(cpInput.value) || 0;
+    const targetFO = parseInt(foInput.value) || 0;
+    const targetCAD = parseInt(cadInput.value) || 0;
+    const targetDate = new Date(dateInput.value);
     const considerExisting = document.getElementById('consider-existing')?.checked ?? true;
     
     if (targetCP + targetFO + targetCAD === 0) {
