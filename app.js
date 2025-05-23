@@ -7,7 +7,9 @@ const FORTNIGHTS_PER_YEAR = 24;
 let viewState = {
     dateRange: 'all',
     startFortnight: null,
-    endFortnight: null
+    endFortnight: null,
+    groupBy: 'none',
+    collapsedGroups: []
 };
 
 // Month mapping for fortnights
@@ -26,6 +28,14 @@ const FORTNIGHT_TO_MONTH = {
     21: 10, 22: 10,   // Nov
     23: 11, 24: 11    // Dec
 };
+
+// Generate all fortnight names for the full date range
+const FORTNIGHT_NAMES = [];
+for (let year = START_YEAR; year <= END_YEAR; year++) {
+    for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        FORTNIGHT_NAMES.push(`FN${String(fn).padStart(2, '0')}-${year}`);
+    }
+}
 
 // Trainer categories
 const TRAINER_CATEGORIES = ['CATB', 'CATA', 'STP', 'RHS', 'LHS'];
@@ -392,6 +402,12 @@ function setupEventListeners() {
     if (todayBtn) {
         todayBtn.addEventListener('click', scrollToToday);
     }
+    
+    // Group by filter
+    const groupByFilter = document.getElementById('group-by-filter');
+    if (groupByFilter) {
+        groupByFilter.addEventListener('change', handleGroupByChange);
+    }
 }
 
 // View Management
@@ -474,6 +490,8 @@ function updateAllTables() {
     renderFTESummaryTable();
     renderDemandTable();
     renderSurplusDeficitTable();
+    // Re-setup syncing after tables are re-rendered
+    setupSynchronizedScrolling();
 }
 
 // Setup synchronized horizontal scrolling for all tables
@@ -487,12 +505,28 @@ function setupSynchronizedScrolling() {
     
     let isScrolling = false;
     
+    // Remove old listeners first
     containers.forEach(container => {
+        if (container) {
+            const newContainer = container.cloneNode(true);
+            container.parentNode.replaceChild(newContainer, container);
+        }
+    });
+    
+    // Get fresh references after cloning
+    const freshContainers = [
+        document.getElementById('fte-summary-table-container'),
+        document.getElementById('gantt-chart-container'),
+        document.getElementById('demand-table-container'),
+        document.getElementById('surplus-deficit-container')
+    ];
+    
+    freshContainers.forEach(container => {
         if (container) {
             container.addEventListener('scroll', function(e) {
                 if (!isScrolling) {
                     isScrolling = true;
-                    containers.forEach(otherContainer => {
+                    freshContainers.forEach(otherContainer => {
                         if (otherContainer && otherContainer !== e.target) {
                             otherContainer.scrollLeft = e.target.scrollLeft;
                         }
@@ -569,10 +603,14 @@ function renderFTESummaryTable() {
             html += '<tr class="category-detail">';
             html += `<td class="sticky-first-column category-detail-cell">${category} Supply</td>`;
             
-            for (let year = START_YEAR; year <= END_YEAR; year++) {
+            for (let year = startYear; year <= endYear; year++) {
                 const fortnightlyFTE = (trainerFTE[year][category] / FORTNIGHTS_PER_YEAR).toFixed(2);
-                for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
-                    html += `<td class="data-cell category-detail-cell">${fortnightlyFTE}</td>`;
+                const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+                const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+                
+                for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+                    const isToday = isCurrentFortnight(year, fn);
+                    html += `<td class="data-cell category-detail-cell${isToday ? ' today' : ''}">${fortnightlyFTE}</td>`;
                 }
             }
             
@@ -597,16 +635,29 @@ function renderDemandTable() {
     html += '</thead>';
     html += '<tbody>';
     
+    // Determine the year and fortnight range based on viewState
+    let startYear = START_YEAR;
+    let endYear = END_YEAR;
+    
+    if (viewState.dateRange !== 'all' && viewState.startYear) {
+        startYear = viewState.startYear;
+        endYear = viewState.endYear;
+    }
+    
     // Demand rows by training type (using priority config order)
     priorityConfig.forEach(config => {
         html += '<tr>';
         html += `<td class="sticky-first-column">${config.trainingType} Demand</td>`;
         
-        for (let year = START_YEAR; year <= END_YEAR; year++) {
-            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        for (let year = startYear; year <= endYear; year++) {
+            const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+            const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+            
+            for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                 const demandData = demand[year]?.[fn] || { byTrainingType: {} };
                 const value = demandData.byTrainingType[config.trainingType] || 0;
-                html += `<td class="data-cell">${value.toFixed(2)}</td>`;
+                const isToday = isCurrentFortnight(year, fn);
+                html += `<td class="data-cell${isToday ? ' today' : ''}">${value.toFixed(2)}</td>`;
             }
         }
         
@@ -617,10 +668,14 @@ function renderDemandTable() {
     html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Demand</td>';
     
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+    for (let year = startYear; year <= endYear; year++) {
+        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const demandData = demand[year]?.[fn] || { total: 0 };
-            html += `<td class="data-cell total-row">${demandData.total.toFixed(2)}</td>`;
+            const isToday = isCurrentFortnight(year, fn);
+            html += `<td class="data-cell total-row${isToday ? ' today' : ''}">${demandData.total.toFixed(2)}</td>`;
         }
     }
     
@@ -642,18 +697,31 @@ function renderSurplusDeficitTable() {
     html += '</thead>';
     html += '<tbody>';
     
+    // Determine the year and fortnight range based on viewState
+    let startYear = START_YEAR;
+    let endYear = END_YEAR;
+    
+    if (viewState.dateRange !== 'all' && viewState.startYear) {
+        startYear = viewState.startYear;
+        endYear = viewState.endYear;
+    }
+    
     // Category-specific surplus/deficit rows
-    TRAINER_CATEGORIES.forEach(category => {
-        html += '<tr>';
+    TRAINER_CATEGORIES.forEach((category, catIndex) => {
+        html += `<tr class="${catIndex % 2 === 1 ? 'alt-row' : ''}">`;
         html += `<td class="sticky-first-column">${category} S/D</td>`;
         
-        for (let year = START_YEAR; year <= END_YEAR; year++) {
+        for (let year = startYear; year <= endYear; year++) {
             const categorySupply = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
-            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+            const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+            const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+            
+            for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                 const allocated = demand[year]?.[fn]?.allocated?.[category] || 0;
                 const difference = categorySupply - allocated;
                 const isDeficit = difference < 0;
-                html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}">${difference.toFixed(2)}</td>`;
+                const isToday = isCurrentFortnight(year, fn);
+                html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}${isToday ? ' today' : ''}">${difference.toFixed(2)}</td>`;
             }
         }
         
@@ -661,29 +729,35 @@ function renderSurplusDeficitTable() {
     });
     
     // LT-CP Training Deficit row
-    html += '<tr>';
+    html += `<tr class="${TRAINER_CATEGORIES.length % 2 === 1 ? 'alt-row' : ''}">`;
     html += '<td class="sticky-first-column">LT-CP Training Deficit</td>';
     
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+    for (let year = startYear; year <= endYear; year++) {
+        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const deficit = ltCpDeficit[year]?.[fn] || 0;
             const hasDeficit = deficit > 0;
-            html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}">${deficit.toFixed(2)}</td>`;
+            const isToday = isCurrentFortnight(year, fn);
+            html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}${isToday ? ' today' : ''}">${deficit.toFixed(2)}</td>`;
         }
     }
     
     html += '</tr>';
     
     // Total Net S/D row (Total Initial FTE - Total Line Training Demand)
-    html += '<tr>';
+    html += '<tr class="total-row">';
     html += '<td class="sticky-first-column total-row">Total Net S/D</td>';
     
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
+    for (let year = startYear; year <= endYear; year++) {
         // Calculate total initial FTE for the year (sum of all categories)
         const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + trainerFTE[year][cat], 0);
         const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             // Get total line training demand (sum of all training types)
             const demandData = demand[year]?.[fn] || { byTrainingType: {} };
             const totalLineTrainingDemand = 
@@ -694,7 +768,8 @@ function renderSurplusDeficitTable() {
             // Total Net S/D = Total Initial FTE - Total Line Training Demand
             const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
             const isDeficit = totalNetSD < 0;
-            html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(2)}</td>`;
+            const isToday = isCurrentFortnight(year, fn);
+            html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}${isToday ? ' today' : ''}">${totalNetSD.toFixed(2)}</td>`;
         }
     }
     
@@ -1782,12 +1857,56 @@ function isCurrentFortnight(year, fortnight) {
     return year === currentYear && fortnight === currentFn;
 }
 
+// Helper function to get CSS class for today column
+function getTodayClass(fortnightIndex) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentFn = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    
+    const yearIndex = Math.floor(fortnightIndex / FORTNIGHTS_PER_YEAR);
+    const fnInYear = (fortnightIndex % FORTNIGHTS_PER_YEAR) + 1;
+    const year = START_YEAR + yearIndex;
+    
+    return (year === currentYear && fnInYear === currentFn) ? 'today' : '';
+}
+
+// Helper function to get date range indices
+function getDateRangeIndices() {
+    if (viewState.dateRange === 'all') {
+        return { start: 0, end: FORTNIGHT_NAMES.length };
+    }
+    
+    const startIdx = (viewState.startYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.startFortnight - 1;
+    const endIdx = (viewState.endYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.endFortnight;
+    
+    return { start: startIdx, end: endIdx };
+}
+
+// Handle group by change
+function handleGroupByChange(e) {
+    viewState.groupBy = e.target.value;
+    renderGanttChart();
+}
+
+// Toggle group collapse/expand
+function toggleGroup(groupType) {
+    const index = viewState.collapsedGroups.indexOf(groupType);
+    if (index > -1) {
+        viewState.collapsedGroups.splice(index, 1);
+    } else {
+        viewState.collapsedGroups.push(groupType);
+    }
+    renderGanttChart();
+}
+
 // Make functions available globally for inline onclick
 window.removeCohort = removeCohort;
 window.editCohort = editCohort;
 window.editPathway = editPathway;
 window.removePhase = removePhase;
 window.quickFillFTE = quickFillFTE;
+window.toggleGroup = toggleGroup;
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);

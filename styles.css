@@ -532,6 +532,45 @@ th[colspan] {
     background-color: white;
 }
 
+/* Alternating row colors */
+.data-table tbody tr:nth-child(even),
+.gantt-table tbody tr:nth-child(even) {
+    background-color: #f8f9fa;
+}
+
+.data-table tbody tr:hover,
+.gantt-table tbody tr:hover {
+    background-color: #e8f4fd;
+}
+
+/* Group headers in Gantt */
+.gantt-group-header {
+    background-color: #e9ecef;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.gantt-group-header:hover {
+    background-color: #dee2e6;
+}
+
+.gantt-group-toggle {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 8px;
+    text-align: center;
+    line-height: 16px;
+    font-size: 12px;
+    background-color: #6c757d;
+    color: white;
+    border-radius: 3px;
+}
+
+.gantt-group-collapsed {
+    display: none;
+}
+
 #gantt-chart-container {
     max-height: 500px;
 }
