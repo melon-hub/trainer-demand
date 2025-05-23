@@ -1908,21 +1908,36 @@ function handleDateRangeChange(e) {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentFortnight = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    const currentDay = today.getDate();
+    
+    // Calculate current fortnight more accurately
+    // Fortnights 1-2 are Jan, 3-4 are Feb, etc.
+    const currentFortnight = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
     
     switch(range) {
         case 'all':
             viewState.dateRange = 'all';
             viewState.startFortnight = null;
             viewState.endFortnight = null;
+            viewState.startYear = null;
+            viewState.endYear = null;
             break;
             
         case 'next6months':
             viewState.dateRange = 'next6months';
             viewState.startYear = currentYear;
             viewState.startFortnight = currentFortnight;
-            viewState.endYear = currentMonth + 6 > 11 ? currentYear + 1 : currentYear;
-            viewState.endFortnight = ((currentMonth + 6) % 12) * 2 + 2;
+            
+            // Calculate end date 6 months from now
+            let endMonth = currentMonth + 6;
+            let endYear = currentYear;
+            if (endMonth > 11) {
+                endMonth = endMonth - 12;
+                endYear = currentYear + 1;
+            }
+            viewState.endYear = endYear;
+            // Last fortnight of the end month
+            viewState.endFortnight = (endMonth * 2) + 2;
             break;
             
         case 'next12months':
@@ -1930,7 +1945,7 @@ function handleDateRangeChange(e) {
             viewState.startYear = currentYear;
             viewState.startFortnight = currentFortnight;
             viewState.endYear = currentYear + 1;
-            viewState.endFortnight = currentFortnight;
+            viewState.endFortnight = currentFortnight - 1 || 24; // One fortnight before current, next year
             break;
             
         case '2025q1':
@@ -1975,7 +1990,10 @@ function scrollToToday() {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentFortnight = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    const currentDay = today.getDate();
+    
+    // Calculate current fortnight more accurately
+    const currentFortnight = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
     
     // Calculate the column index for today
     const yearsSinceStart = currentYear - START_YEAR;
@@ -2013,7 +2031,10 @@ function isCurrentFortnight(year, fortnight) {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentFn = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    const currentDay = today.getDate();
+    
+    // Calculate current fortnight more accurately
+    const currentFn = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
     
     return year === currentYear && fortnight === currentFn;
 }
@@ -2023,7 +2044,10 @@ function getTodayClass(fortnightIndex) {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
-    const currentFn = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    const currentDay = today.getDate();
+    
+    // Calculate current fortnight more accurately
+    const currentFn = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
     
     const yearIndex = Math.floor(fortnightIndex / FORTNIGHTS_PER_YEAR);
     const fnInYear = (fortnightIndex % FORTNIGHTS_PER_YEAR) + 1;
