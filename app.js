@@ -226,8 +226,13 @@ let nextCohortId = 2;
 // View state for filters and grouping
 let viewState = {
     groupBy: 'none',
-    collapsedGroups: []
+    collapsedGroups: [],
+    currentScenarioId: null,
+    isDirty: false // Track if current state has unsaved changes
 };
+
+// Scenarios storage
+let scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios')) || [];
 
 // DOM Elements
 const plannerView = document.getElementById('planner-view');
@@ -366,6 +371,65 @@ function setupEventListeners() {
     if (groupByFilter) {
         groupByFilter.addEventListener('change', handleGroupByChange);
     }
+    
+    // Scenarios panel
+    const scenariosBtn = document.getElementById('scenarios-btn');
+    const closeScenarios = document.getElementById('close-scenarios');
+    const scenariosOverlay = document.getElementById('scenarios-overlay');
+    const saveCurrentBtn = document.getElementById('save-current-scenario');
+    
+    if (scenariosBtn) {
+        scenariosBtn.addEventListener('click', openScenariosPanel);
+    }
+    
+    if (closeScenarios) {
+        closeScenarios.addEventListener('click', closeScenariosPanel);
+    }
+    
+    if (scenariosOverlay) {
+        scenariosOverlay.addEventListener('click', closeScenariosPanel);
+    }
+    
+    if (saveCurrentBtn) {
+        saveCurrentBtn.addEventListener('click', saveCurrentScenario);
+    }
+    
+    // Training Planner
+    const trainingPlannerBtn = document.getElementById('training-planner-btn');
+    const trainingPlannerModal = document.getElementById('training-planner-modal');
+    const plannerTabs = document.querySelectorAll('.planner-tab');
+    const validateBulkBtn = document.getElementById('validate-bulk');
+    const applyBulkBtn = document.getElementById('apply-bulk');
+    const targetForm = document.getElementById('target-form');
+    const applyOptimizedBtn = document.getElementById('apply-optimized');
+    
+    if (trainingPlannerBtn) {
+        trainingPlannerBtn.addEventListener('click', () => {
+            trainingPlannerModal.style.display = 'flex';
+        });
+    }
+    
+    plannerTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            switchPlannerTab(e.target.dataset.tab);
+        });
+    });
+    
+    if (validateBulkBtn) {
+        validateBulkBtn.addEventListener('click', validateBulkInput);
+    }
+    
+    if (applyBulkBtn) {
+        applyBulkBtn.addEventListener('click', applyBulkSchedule);
+    }
+    
+    if (targetForm) {
+        targetForm.addEventListener('submit', optimizeForTarget);
+    }
+    
+    if (applyOptimizedBtn) {
+        applyOptimizedBtn.addEventListener('click', applyOptimizedSchedule);
+    }
 }
 
 // View Management
@@ -466,6 +530,7 @@ function handleAddCohort(e) {
     
     updateAllTables();
     renderGanttChart();
+    markDirty();
 }
 
 // Update All Tables
@@ -1384,6 +1449,7 @@ function handleFTEUpdate(e) {
     
     // Ensure FTE summary is re-rendered with current state
     renderFTESummaryTable();
+    markDirty();
 }
 
 // Handle Priority Update
@@ -1722,6 +1788,7 @@ function handleCohortUpdate(e) {
         closeModals();
         updateAllTables();
         renderGanttChart();
+        markDirty();
     }
 }
 
@@ -1732,6 +1799,7 @@ function removeCohort(cohortId) {
         updateAllTables();
         renderGanttChart();
         setupSynchronizedScrolling();
+        markDirty();
     }
 }
 
@@ -1753,6 +1821,511 @@ function toggleGroup(groupName) {
     renderGanttChart();
 }
 
+// Training Planner Functions
+function switchPlannerTab(tabName) {
+    document.querySelectorAll('.planner-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.planner-content').forEach(content => {
+        content.classList.toggle('active', content.id === `${tabName}-tab`);
+    });
+}
+
+// Parse bulk input text
+function parseBulkInput(inputText) {
+    const lines = inputText.trim().split('\n');
+    const cohorts = [];
+    const errors = [];
+    
+    const monthMap = {
+        'jan': 0, 'january': 0, 'feb': 1, 'february': 1, 'mar': 2, 'march': 2,
+        'apr': 3, 'april': 3, 'may': 4, 'jun': 5, 'june': 5,
+        'jul': 6, 'july': 6, 'aug': 7, 'august': 7, 'sep': 8, 'september': 8,
+        'oct': 9, 'october': 9, 'nov': 10, 'november': 10, 'dec': 11, 'december': 11
+    };
+    
+    lines.forEach((line, index) => {
+        if (!line.trim()) return;
+        
+        // Parse format: "Month Year: X FO, Y CP, Z CAD"
+        const match = line.match(/^(\w+)\s+(\d{4}):\s*(.+)$/i);
+        if (!match) {
+            errors.push(`Line ${index + 1}: Invalid format`);
+            return;
+        }
+        
+        const monthStr = match[1].toLowerCase();
+        const year = parseInt(match[2]);
+        const traineesStr = match[3];
+        
+        if (!monthMap.hasOwnProperty(monthStr)) {
+            errors.push(`Line ${index + 1}: Invalid month "${match[1]}"`);
+            return;
+        }
+        
+        const month = monthMap[monthStr];
+        const startFortnight = (month * 2) + 1; // Start at first fortnight of month
+        
+        // Parse trainees
+        const traineeParts = traineesStr.split(',');
+        traineeParts.forEach(part => {
+            const traineeMatch = part.trim().match(/^(\d+)\s+(FO|CP|CAD)$/i);
+            if (!traineeMatch) {
+                errors.push(`Line ${index + 1}: Invalid trainee format "${part.trim()}"`);
+                return;
+            }
+            
+            const count = parseInt(traineeMatch[1]);
+            const type = traineeMatch[2].toUpperCase();
+            
+            // Find matching pathway
+            const pathway = pathways.find(p => p.type === type);
+            if (!pathway) {
+                errors.push(`Line ${index + 1}: No pathway found for type ${type}`);
+                return;
+            }
+            
+            cohorts.push({
+                year: year,
+                fortnight: startFortnight,
+                numTrainees: count,
+                pathwayId: pathway.id,
+                type: type
+            });
+        });
+    });
+    
+    return { cohorts, errors };
+}
+
+// Validate bulk input
+function validateBulkInput() {
+    const inputText = document.getElementById('bulk-input').value;
+    const { cohorts, errors } = parseBulkInput(inputText);
+    const validationDiv = document.getElementById('bulk-validation');
+    const applyBtn = document.getElementById('apply-bulk');
+    
+    let html = '';
+    
+    if (errors.length > 0) {
+        html += '<div class="validation-errors">';
+        errors.forEach(error => {
+            html += `<div class="validation-error">❌ ${error}</div>`;
+        });
+        html += '</div>';
+    }
+    
+    if (cohorts.length > 0) {
+        // Check constraints
+        const warnings = [];
+        const groupedByTime = {};
+        
+        // Group cohorts by year-fortnight
+        cohorts.forEach(cohort => {
+            const key = `${cohort.year}-${cohort.fortnight}`;
+            if (!groupedByTime[key]) {
+                groupedByTime[key] = { fo: 0, cad: 0, cp: 0 };
+            }
+            groupedByTime[key][cohort.type.toLowerCase()] += cohort.numTrainees;
+        });
+        
+        // Check GS+SIM constraint (16 FO/CAD max)
+        Object.entries(groupedByTime).forEach(([key, counts]) => {
+            const total = counts.fo + counts.cad;
+            if (total > 16) {
+                const [year, fn] = key.split('-');
+                warnings.push(`${MONTHS[Math.floor((parseInt(fn) - 1) / 2)]} ${year}: ${total} FO/CAD exceeds limit of 16`);
+            }
+        });
+        
+        if (warnings.length > 0) {
+            html += '<div class="validation-warnings">';
+            warnings.forEach(warning => {
+                html += `<div class="validation-warning">⚠️ ${warning}</div>`;
+            });
+            html += '</div>';
+        }
+        
+        // Show preview
+        html += '<div class="validation-preview">';
+        html += '<h4>Preview: ' + cohorts.length + ' cohorts to add</h4>';
+        Object.entries(groupedByTime).forEach(([key, counts]) => {
+            const [year, fn] = key.split('-');
+            const month = MONTHS[Math.floor((parseInt(fn) - 1) / 2)];
+            const parts = [];
+            if (counts.fo > 0) parts.push(`${counts.fo} FO`);
+            if (counts.cp > 0) parts.push(`${counts.cp} CP`);
+            if (counts.cad > 0) parts.push(`${counts.cad} CAD`);
+            html += `<div class="schedule-item">${month} ${year}: ${parts.join(', ')}</div>`;
+        });
+        html += '</div>';
+        
+        if (errors.length === 0) {
+            html += '<div class="validation-success">✅ Validation complete. Ready to apply.</div>';
+            applyBtn.disabled = false;
+            window.pendingBulkCohorts = cohorts;
+        }
+    }
+    
+    validationDiv.innerHTML = html;
+}
+
+// Apply bulk schedule
+function applyBulkSchedule() {
+    if (!window.pendingBulkCohorts) return;
+    
+    window.pendingBulkCohorts.forEach(cohort => {
+        activeCohorts.push({
+            id: nextCohortId++,
+            numTrainees: cohort.numTrainees,
+            pathwayId: cohort.pathwayId,
+            startYear: cohort.year,
+            startFortnight: cohort.fortnight
+        });
+    });
+    
+    updateAllTables();
+    renderGanttChart();
+    markDirty();
+    
+    // Close modal and reset
+    document.getElementById('training-planner-modal').style.display = 'none';
+    document.getElementById('bulk-input').value = '';
+    document.getElementById('bulk-validation').innerHTML = '';
+    document.getElementById('apply-bulk').disabled = true;
+    window.pendingBulkCohorts = null;
+}
+
+// Optimize for target
+function optimizeForTarget(e) {
+    e.preventDefault();
+    
+    const targetCP = parseInt(document.getElementById('target-cp').value) || 0;
+    const targetFO = parseInt(document.getElementById('target-fo').value) || 0;
+    const targetCAD = parseInt(document.getElementById('target-cad').value) || 0;
+    const targetDate = new Date(document.getElementById('target-date').value);
+    
+    if (targetCP + targetFO + targetCAD === 0) {
+        alert('Please enter at least one target');
+        return;
+    }
+    
+    // Calculate optimal schedule
+    const schedule = calculateOptimalSchedule({
+        cp: targetCP,
+        fo: targetFO,
+        cad: targetCAD
+    }, targetDate);
+    
+    // Display results
+    const resultsDiv = document.getElementById('optimization-results');
+    let html = '<h4>Optimized Schedule</h4>';
+    
+    if (schedule.feasible) {
+        html += '<div class="validation-success">✅ Target is achievable</div>';
+        html += '<div class="optimization-schedule">';
+        
+        schedule.cohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            const month = MONTHS[Math.floor((cohort.startFortnight - 1) / 2)];
+            html += `
+                <div class="schedule-item">
+                    <div class="schedule-item-header">
+                        <span>${month} ${cohort.startYear}</span>
+                        <span>${cohort.numTrainees} x ${pathway.name}</span>
+                    </div>
+                    <div class="schedule-item-details">
+                        Start: FN${cohort.startFortnight} | Completes: ${cohort.completionDate}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        html += `<div class="validation-info">Total cohorts: ${schedule.cohorts.length}</div>`;
+        
+        document.getElementById('apply-optimized').disabled = false;
+        window.pendingOptimizedSchedule = schedule.cohorts;
+    } else {
+        html += '<div class="validation-error">❌ Target not achievable by this date</div>';
+        html += '<div class="validation-info">' + schedule.reason + '</div>';
+        document.getElementById('apply-optimized').disabled = true;
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+// Calculate optimal schedule
+function calculateOptimalSchedule(targets, targetDate) {
+    const today = new Date();
+    const cohorts = [];
+    const remaining = { ...targets };
+    
+    // Get pathway durations
+    const pathwayDurations = {};
+    pathways.forEach(p => {
+        const totalDuration = p.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        pathwayDurations[p.type] = totalDuration;
+    });
+    
+    // Calculate latest start dates
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth();
+    const targetFortnight = (targetMonth * 2) + 2; // End of month
+    
+    // Work backwards from target date
+    ['CP', 'FO', 'CAD'].forEach(type => {
+        if (remaining[type.toLowerCase()] === 0) return;
+        
+        const pathway = pathways.find(p => p.type === type);
+        if (!pathway) return;
+        
+        const duration = pathwayDurations[type];
+        let traineesLeft = remaining[type.toLowerCase()];
+        
+        while (traineesLeft > 0) {
+            // Calculate when this cohort needs to start
+            let startFortnight = targetFortnight - duration;
+            let startYear = targetYear;
+            
+            while (startFortnight < 1) {
+                startFortnight += FORTNIGHTS_PER_YEAR;
+                startYear--;
+            }
+            
+            // Check if start date is in the past
+            const currentYear = today.getFullYear();
+            const currentMonth = today.getMonth();
+            const currentFortnight = (currentMonth * 2) + (today.getDate() <= 14 ? 1 : 2);
+            
+            if (startYear < currentYear || 
+                (startYear === currentYear && startFortnight < currentFortnight)) {
+                return {
+                    feasible: false,
+                    reason: `${type} training takes ${duration} fortnights. Would need to start in the past.`
+                };
+            }
+            
+            // Determine cohort size (respecting constraints)
+            let cohortSize = Math.min(traineesLeft, type === 'CP' ? 12 : 16);
+            
+            // Calculate completion date
+            let endFortnight = startFortnight + duration - 1;
+            let endYear = startYear;
+            while (endFortnight > FORTNIGHTS_PER_YEAR) {
+                endFortnight -= FORTNIGHTS_PER_YEAR;
+                endYear++;
+            }
+            
+            const completionMonth = MONTHS[Math.floor((endFortnight - 1) / 2)];
+            const completionDate = `${completionMonth} ${endYear}`;
+            
+            cohorts.push({
+                startYear,
+                startFortnight,
+                numTrainees: cohortSize,
+                pathwayId: pathway.id,
+                completionDate
+            });
+            
+            traineesLeft -= cohortSize;
+            
+            // Move to next available slot (2 fortnights later for spacing)
+            targetFortnight = startFortnight - 2;
+        }
+    });
+    
+    // Sort chronologically
+    cohorts.sort((a, b) => {
+        if (a.startYear !== b.startYear) return a.startYear - b.startYear;
+        return a.startFortnight - b.startFortnight;
+    });
+    
+    return { feasible: true, cohorts };
+}
+
+// Apply optimized schedule
+function applyOptimizedSchedule() {
+    if (!window.pendingOptimizedSchedule) return;
+    
+    window.pendingOptimizedSchedule.forEach(cohort => {
+        activeCohorts.push({
+            id: nextCohortId++,
+            numTrainees: cohort.numTrainees,
+            pathwayId: cohort.pathwayId,
+            startYear: cohort.startYear,
+            startFortnight: cohort.startFortnight
+        });
+    });
+    
+    updateAllTables();
+    renderGanttChart();
+    markDirty();
+    
+    // Close modal and reset
+    document.getElementById('training-planner-modal').style.display = 'none';
+    document.getElementById('target-form').reset();
+    document.getElementById('optimization-results').innerHTML = '';
+    document.getElementById('apply-optimized').disabled = true;
+    window.pendingOptimizedSchedule = null;
+}
+
+// Scenario Management Functions
+function openScenariosPanel() {
+    const panel = document.getElementById('scenarios-panel');
+    const overlay = document.getElementById('scenarios-overlay');
+    panel.classList.add('active');
+    overlay.classList.add('active');
+    renderScenarioList();
+}
+
+function closeScenariosPanel() {
+    const panel = document.getElementById('scenarios-panel');
+    const overlay = document.getElementById('scenarios-overlay');
+    panel.classList.remove('active');
+    overlay.classList.remove('active');
+}
+
+function getCurrentState() {
+    return {
+        cohorts: activeCohorts,
+        trainerFTE: trainerFTE,
+        pathways: pathways,
+        priorityConfig: priorityConfig,
+        viewState: {
+            groupBy: viewState.groupBy,
+            collapsedGroups: viewState.collapsedGroups
+        }
+    };
+}
+
+function saveCurrentScenario() {
+    const name = prompt('Enter a name for this scenario:');
+    if (!name) return;
+    
+    const scenario = {
+        id: Date.now(),
+        name: name,
+        date: new Date().toISOString(),
+        state: getCurrentState(),
+        stats: {
+            totalCohorts: activeCohorts.length,
+            totalTrainees: activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0)
+        }
+    };
+    
+    scenarios.push(scenario);
+    localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+    
+    viewState.currentScenarioId = scenario.id;
+    viewState.isDirty = false;
+    
+    updateCurrentScenarioDisplay();
+    renderScenarioList();
+}
+
+function loadScenario(scenarioId) {
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+    
+    if (viewState.isDirty) {
+        if (!confirm('You have unsaved changes. Load scenario anyway?')) {
+            return;
+        }
+    }
+    
+    // Load the scenario state
+    activeCohorts = [...scenario.state.cohorts];
+    trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+    pathways = [...scenario.state.pathways];
+    priorityConfig = [...scenario.state.priorityConfig];
+    viewState.groupBy = scenario.state.viewState.groupBy;
+    viewState.collapsedGroups = [...scenario.state.viewState.collapsedGroups];
+    
+    // Update current scenario tracking
+    viewState.currentScenarioId = scenarioId;
+    viewState.isDirty = false;
+    
+    // Refresh all views
+    updateAllTables();
+    renderGanttChart();
+    populatePathwaySelect();
+    setupSynchronizedScrolling();
+    
+    updateCurrentScenarioDisplay();
+    closeScenariosPanel();
+}
+
+function deleteScenario(scenarioId) {
+    if (!confirm('Are you sure you want to delete this scenario?')) return;
+    
+    scenarios = scenarios.filter(s => s.id !== scenarioId);
+    localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+    
+    if (viewState.currentScenarioId === scenarioId) {
+        viewState.currentScenarioId = null;
+    }
+    
+    renderScenarioList();
+}
+
+function renderScenarioList() {
+    const container = document.getElementById('scenario-list');
+    
+    if (scenarios.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999;">No saved scenarios yet</p>';
+        return;
+    }
+    
+    container.innerHTML = scenarios.map(scenario => {
+        const date = new Date(scenario.date);
+        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        return `
+            <div class="scenario-card">
+                <div class="scenario-card-header">
+                    <div>
+                        <div class="scenario-name">${scenario.name}</div>
+                        <div class="scenario-date">${dateStr}</div>
+                    </div>
+                </div>
+                <div class="scenario-stats">
+                    <div class="scenario-stat">
+                        <span>Cohorts:</span>
+                        <strong>${scenario.stats.totalCohorts}</strong>
+                    </div>
+                    <div class="scenario-stat">
+                        <span>Trainees:</span>
+                        <strong>${scenario.stats.totalTrainees}</strong>
+                    </div>
+                </div>
+                <div class="scenario-actions">
+                    <button class="load-btn" onclick="loadScenario(${scenario.id})">Load</button>
+                    <button class="delete-btn" onclick="deleteScenario(${scenario.id})">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateCurrentScenarioDisplay() {
+    const nameSpan = document.getElementById('current-scenario-name');
+    if (viewState.currentScenarioId) {
+        const scenario = scenarios.find(s => s.id === viewState.currentScenarioId);
+        if (scenario) {
+            nameSpan.textContent = scenario.name + (viewState.isDirty ? ' (modified)' : '');
+        }
+    } else {
+        nameSpan.textContent = viewState.isDirty ? 'Unsaved Changes' : 'New Scenario';
+    }
+}
+
+// Mark state as dirty when changes are made
+function markDirty() {
+    viewState.isDirty = true;
+    updateCurrentScenarioDisplay();
+}
+
 // Make functions available globally for inline onclick
 window.removeCohort = removeCohort;
 window.editCohort = editCohort;
@@ -1760,6 +2333,8 @@ window.editPathway = editPathway;
 window.removePhase = removePhase;
 window.quickFillFTE = quickFillFTE;
 window.toggleGroup = toggleGroup;
+window.loadScenario = loadScenario;
+window.deleteScenario = deleteScenario;
 
 // Initialize the app when DOM is loaded
 document.addEventListener('DOMContentLoaded', init);

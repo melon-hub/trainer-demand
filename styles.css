@@ -32,6 +32,12 @@ h1 {
     margin-bottom: 20px;
 }
 
+.header-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
 /* Navigation */
 .main-nav {
     display: flex;
@@ -1003,4 +1009,292 @@ th[colspan] {
     .phase-fields {
         grid-template-columns: 1fr;
     }
+}
+
+/* Scenarios Panel */
+.scenarios-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 400px;
+    height: 100vh;
+    background-color: white;
+    box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+    transition: right 0.3s ease;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+}
+
+.scenarios-panel.active {
+    right: 0;
+}
+
+.scenarios-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+    z-index: 1000;
+}
+
+.scenarios-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.scenarios-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #ddd;
+    background-color: #f8f9fa;
+}
+
+.scenarios-header h2 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.close-panel-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    cursor: pointer;
+    color: #666;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.close-panel-btn:hover {
+    color: #333;
+}
+
+.scenarios-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.current-scenario {
+    margin-bottom: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.current-scenario h3,
+.saved-scenarios h3 {
+    margin-bottom: 15px;
+    color: #333;
+    font-size: 16px;
+}
+
+.scenario-info {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+#current-scenario-name {
+    font-weight: 500;
+    color: #666;
+}
+
+.btn-sm {
+    padding: 5px 15px;
+    font-size: 14px;
+}
+
+/* Scenario Cards */
+.scenario-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.scenario-card {
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 15px;
+    transition: box-shadow 0.2s ease;
+}
+
+.scenario-card:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.scenario-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: start;
+    margin-bottom: 10px;
+}
+
+.scenario-name {
+    font-weight: 600;
+    color: #2c3e50;
+    font-size: 16px;
+}
+
+.scenario-date {
+    font-size: 12px;
+    color: #999;
+}
+
+.scenario-stats {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    color: #666;
+}
+
+.scenario-stat {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.scenario-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.scenario-actions button {
+    padding: 6px 12px;
+    font-size: 13px;
+    border: 1px solid #ddd;
+    background-color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.scenario-actions button:hover {
+    background-color: #f8f9fa;
+}
+
+.scenario-actions .load-btn {
+    background-color: #007bff;
+    color: white;
+    border-color: #007bff;
+}
+
+.scenario-actions .load-btn:hover {
+    background-color: #0056b3;
+}
+
+.scenario-actions .delete-btn {
+    color: #dc3545;
+    border-color: #dc3545;
+}
+
+.scenario-actions .delete-btn:hover {
+    background-color: #dc3545;
+    color: white;
+}
+
+/* Training Planner Styles */
+.planner-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.planner-tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    font-size: 16px;
+    cursor: pointer;
+    border-bottom: 3px solid transparent;
+    transition: all 0.3s;
+}
+
+.planner-tab:hover {
+    background-color: #f8f9fa;
+}
+
+.planner-tab.active {
+    color: #007bff;
+    border-bottom-color: #007bff;
+}
+
+.planner-content {
+    display: none;
+    padding: 20px 0;
+}
+
+.planner-content.active {
+    display: block;
+}
+
+.target-inputs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.validation-results,
+.optimization-results {
+    margin: 20px 0;
+    padding: 15px;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    min-height: 100px;
+}
+
+.validation-error {
+    color: #dc3545;
+    margin-bottom: 10px;
+}
+
+.validation-warning {
+    color: #ffc107;
+    margin-bottom: 10px;
+}
+
+.validation-success {
+    color: #28a745;
+    margin-bottom: 10px;
+}
+
+.optimization-schedule {
+    margin-top: 15px;
+}
+
+.schedule-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+}
+
+.schedule-item-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 600;
+    margin-bottom: 5px;
+}
+
+.schedule-item-details {
+    font-size: 14px;
+    color: #666;
 }
