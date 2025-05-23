@@ -299,13 +299,15 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         endFn = viewState.endFortnight;
     }
     
+    
     // Generate month headers with proper year iteration
     for (let year = startYear; year <= endYear; year++) {
         // Process fortnights for this year
         let monthCounts = new Array(12).fill(0);
         
-        const yearStartFn = (year === startYear) ? startFn : 1;
-        const yearEndFn = (year === endYear) ? endFn : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? startFn : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? endFn : FORTNIGHTS_PER_YEAR;
+        
         
         // Count fortnights per month
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
@@ -323,8 +325,8 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
     
     // Generate fortnight headers
     for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear) ? startFn : 1;
-        const yearEndFn = (year === endYear) ? endFn : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? startFn : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? endFn : FORTNIGHTS_PER_YEAR;
         
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             fortnightHeaders += `<th class="fortnight-header">FN${String(fn).padStart(2, '0')}</th>`;
@@ -627,8 +629,8 @@ function renderFTESummaryTable() {
         const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + trainerFTE[year][cat], 0);
         const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(2);
         
-        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const isToday = isCurrentFortnight(year, fn);
@@ -645,8 +647,8 @@ function renderFTESummaryTable() {
             
             for (let year = startYear; year <= endYear; year++) {
                 const fortnightlyFTE = (trainerFTE[year][category] / FORTNIGHTS_PER_YEAR).toFixed(2);
-                const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-                const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+                const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+                const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
                 
                 for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                     const isToday = isCurrentFortnight(year, fn);
@@ -690,8 +692,8 @@ function renderDemandTable() {
         html += `<td class="sticky-first-column">${config.trainingType} Demand</td>`;
         
         for (let year = startYear; year <= endYear; year++) {
-            const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-            const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+            const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+            const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
             
             for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                 const demandData = demand[year]?.[fn] || { byTrainingType: {} };
@@ -709,8 +711,8 @@ function renderDemandTable() {
     html += '<td class="sticky-first-column total-row">Total Demand</td>';
     
     for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const demandData = demand[year]?.[fn] || { total: 0 };
@@ -753,8 +755,8 @@ function renderSurplusDeficitTable() {
         
         for (let year = startYear; year <= endYear; year++) {
             const categorySupply = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
-            const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-            const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+            const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+            const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
             
             for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                 const allocated = demand[year]?.[fn]?.allocated?.[category] || 0;
@@ -773,8 +775,8 @@ function renderSurplusDeficitTable() {
     html += '<td class="sticky-first-column">LT-CP Training Deficit</td>';
     
     for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const deficit = ltCpDeficit[year]?.[fn] || 0;
@@ -794,8 +796,8 @@ function renderSurplusDeficitTable() {
         // Calculate total initial FTE for the year (sum of all categories)
         const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + trainerFTE[year][cat], 0);
         const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
-        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             // Get total line training demand (sum of all training types)
@@ -1031,8 +1033,8 @@ function renderGanttChart() {
     for (let year = startYear; year <= endYear; year++) {
         let monthCounts = new Array(12).fill(0);
         
-        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
         // Count fortnights per month for this year's range
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
@@ -1053,8 +1055,8 @@ function renderGanttChart() {
     html += '<tr>';
     
     for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
         for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const isToday = isCurrentFortnight(year, fn);
@@ -1087,8 +1089,8 @@ function renderGanttChart() {
             
             // Fill remaining cells
             for (let year = startYear; year <= endYear; year++) {
-                const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-                const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+                const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+                const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
                 
                 for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                     html += `<td class="group-header-cell"></td>`;
@@ -1157,8 +1159,8 @@ function renderGanttChart() {
         
         // Render cells respecting date range
         for (let year = startYear; year <= endYear; year++) {
-            const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
-            const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+            const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
+            const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
             
             for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                 const cellKey = `${year}-${fn}`;
@@ -1938,6 +1940,7 @@ function handleDateRangeChange(e) {
             viewState.endYear = endYear;
             // Last fortnight of the end month
             viewState.endFortnight = (endMonth * 2) + 2;
+            
             break;
             
         case 'next12months':
@@ -2093,5 +2096,56 @@ window.removePhase = removePhase;
 window.quickFillFTE = quickFillFTE;
 window.toggleGroup = toggleGroup;
 
+// Debug function for testing
+window.debugViewState = function() {
+    console.log('Current viewState:', viewState);
+    console.log('Tables should show:');
+    if (viewState.dateRange === 'all') {
+        console.log('All years from', START_YEAR, 'to', END_YEAR);
+    } else {
+        console.log(`From: ${viewState.startYear} FN${viewState.startFortnight}`);
+        console.log(`To: ${viewState.endYear} FN${viewState.endFortnight}`);
+        
+        // Calculate what months should be shown
+        let months = [];
+        for (let year = viewState.startYear; year <= viewState.endYear; year++) {
+            const startFn = (year === viewState.startYear) ? viewState.startFortnight : 1;
+            const endFn = (year === viewState.endYear) ? viewState.endFortnight : 24;
+            
+            for (let fn = startFn; fn <= endFn; fn++) {
+                const month = MONTHS[FORTNIGHT_TO_MONTH[fn]];
+                const key = `${month}-${year}`;
+                if (!months.includes(key)) {
+                    months.push(key);
+                }
+            }
+        }
+        console.log('Months:', months.join(', '));
+    }
+};
+
+// Debug function to test date calculations
+function debugDateCalculations() {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentDay = today.getDate();
+    const currentFortnight = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
+    
+    console.log('Debug Date Calculations:', {
+        today: today.toDateString(),
+        currentYear,
+        currentMonth,
+        currentMonthName: MONTHS[currentMonth],
+        currentDay,
+        currentFortnight,
+        fortnightMonth: MONTHS[FORTNIGHT_TO_MONTH[currentFortnight]],
+        viewState
+    });
+}
+
 // Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', () => {
+    init();
+    debugDateCalculations();
+});
