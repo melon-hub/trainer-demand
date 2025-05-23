@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilot Trainer Supply/Demand Planner</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .table-header { background-color: #f3f4f6; font-weight: bold; padding: 0.5rem; text-align: center; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;}
+        .table-cell { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        .total-row td { font-weight: bold; background-color: #f9fafb; border-top: 2px solid #e5e7eb;}
+        .deficit { color: #ef4444; font-weight: bold; }
+        .surplus { color: #22c55e; }
+
+        .gantt-bar { color: white; padding: 0.1rem 0.25rem; border-radius: 0.25rem; display: inline-block; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center;}
+        .gantt-bar-ltcad { background-color: #3b82f6; } 
+        .gantt-bar-ltcp { background-color: #10b981; } 
+        .gantt-bar-ltfo { background-color: #f59e0b; } 
+        .gantt-bar-gssim { background-color: #a855f7; } 
+        
+        .gantt-cell { min-width: 70px; height: 2.5rem; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; font-size: 0.75rem; line-height: 1rem; text-align: center; position: relative; padding: 0.1rem; }
+        .fn-header-cell { min-width: 70px; text-align: center; padding: 0.5rem; background-color: #f3f4f6; border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; font-weight: bold; }
+        .month-header-cell { text-align: center; padding: 0.5rem; background-color: #e5e7eb; border-right: 1px solid #d1d5db; border-bottom: 1px solid #d1d5db; font-weight: bold; font-size: 0.875rem; }
+        
+        /* Consistent width for the first descriptive column in all tables */
+        .desc-col-header { min-width: 180px; max-width: 180px; text-align: left; padding-left: 0.75rem; }
+        .desc-col-cell { min-width: 180px; max-width: 180px; text-align: left; padding-left: 0.75rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pathway-info-cell { /* Specifically for Gantt's first column */
+            min-width: 180px; max-width: 180px; padding: 0.5rem; background-color: #f9fafb; 
+            border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; 
+            font-size: 0.875rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+
+        
+        .sticky-header { position: sticky; top: 0; z-index: 10; }
+        .sticky-col { position: sticky; left: 0; z-index: 5; }
+        
+        input[type=number]::-webkit-inner-spin-button, 
+        input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type=number] { -moz-appearance: textfield; }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #888; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .modal {
+            display: none; 
+            position: fixed; z-index: 20; left: 0; top: 0; width: 100%; height: 100%;
+            overflow: auto; background-color: rgba(0,0,0,0.5);
+            align-items: center; justify-content: center; padding: 1rem;
+        }
+        .modal.is-open { display: flex; }
+        .modal-content { background-color: #fefefe; padding: 2rem; border-radius: 0.5rem; box-shadow: 0 10px 25px rgba(0,0,0,0.15); width: auto; min-width: 300px; max-width: 90%; position: relative; }
+        .fte-modal-content { max-width: 1000px; } 
+        .settings-modal-content { max-width: 650px; } 
+
+
+        .close-button { position: absolute; top: 0.75rem; right: 1rem; color: #9ca3af; font-size: 28px; font-weight: bold; background: none; border: none; cursor: pointer;}
+        .close-button:hover, .close-button:focus { color: #1f2937; }
+
+        .nav-button { padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 500; cursor: pointer; transition: background-color 0.2s; }
+        .nav-button.active { background-color: #4f46e5; color: white; } 
+        .nav-button:not(.active):hover { background-color: #e0e7ff; } 
+
+        .phase-input-group { border: 1px solid #d1d5db; padding: 0.75rem; margin-bottom: 0.75rem; border-radius: 0.375rem; background-color: #f9fafb; }
+        .phase-input-group label { margin-bottom: 0.25rem; }
+        .phase-input-group input, .phase-input-group select { margin-bottom: 0.5rem; }
+
+        #confirmationButtons button { padding: 0.5rem 1rem; border-radius: 0.375rem; font-weight: 600; }
+
+        .scrollable-table-container {
+            overflow-x: auto;
+        }
+
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+
+    <div class="container mx-auto bg-white p-6 rounded-lg shadow-xl">
+        <header class="mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 text-center">Pilot Trainer Supply/Demand Planner</h1>
+        </header>
+
+        <nav class="mb-8 flex justify-center space-x-4 border-b pb-4">
+            <button id="navPlanner" class="nav-button active">Planner</button>
+            <button id="navSettings" class="nav-button">Settings</button>
+        </nav>
+
+        <div id="plannerSection">
+            <section id="inputsSection" class="mb-10 p-6 bg-gray-50 rounded-lg shadow">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6">Inputs</h2>
+                <div class="mb-8 border-b pb-6">
+                    <h3 class="text-xl font-medium text-gray-700 mb-4">Add New Training Cohort</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
+                        <div>
+                            <label for="numTrainees" class="block text-sm font-medium text-gray-600 mb-1">Number of Trainees:</label>
+                            <input type="number" id="numTrainees" value="2" min="1" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                        </div>
+                        <div>
+                            <label for="pathwaySelect" class="block text-sm font-medium text-gray-600 mb-1">Training Pathway:</label>
+                            <select id="pathwaySelect" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                        </div>
+                        <div>
+                            <label for="startYearSelect" class="block text-sm font-medium text-gray-600 mb-1">Start Year:</label>
+                            <select id="startYearSelect" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                        </div>
+                        <div>
+                            <label for="startFNSelect" class="block text-sm font-medium text-gray-600 mb-1">Start Fortnight:</label>
+                            <select id="startFNSelect" class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"></select>
+                        </div>
+                        <button id="addCohortButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md shadow focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 h-10">Add Cohort</button>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-medium text-gray-700 mb-2">Trainer FTE Availability</h3>
+                    <button id="openFteModalButton" class="mb-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 px-4 rounded-md shadow focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">Edit Detailed FTE</button>
+                    <p class="text-sm text-gray-500 mb-2">Summary of total available trainers per fortnight:</p>
+                    <div id="fteSummaryContainer" class="scrollable-table-container rounded-md shadow border border-gray-200"></div>
+                </div>
+            </section>
+            <section id="outputsSection" class="mt-10 mb-10 p-6 bg-gray-50 rounded-lg shadow">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6">Outputs</h2>
+                <div class="mb-8">
+                    <h3 class="text-xl font-medium text-gray-700 mb-4">Training Pathway Timeline (Gantt)</h3>
+                    <p class="text-sm text-gray-500 mb-2">Cohorts are displayed in order of their start date.</p>
+                    <div id="ganttChartContainer" class="scrollable-table-container border border-gray-300 rounded-md bg-white shadow"><table class="min-w-full"><thead id="ganttChartHead" class="sticky-header"></thead><tbody id="ganttChartBody"></tbody></table></div>
+                </div>
+                <div class="mb-8">
+                    <h3 class="text-xl font-medium text-gray-700 mb-4">Calculated Trainer Demand (per Fortnight)</h3>
+                    <div id="demandTableContainer" class="scrollable-table-container rounded-md shadow"><table id="demandTable" class="min-w-full divide-y divide-gray-200"><thead id="demandTableHead" class="bg-gray-200 sticky-header"></thead><tbody id="demandTableBody" class="bg-white divide-y divide-gray-200"></tbody></table></div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-medium text-gray-700 mb-4">Trainer Surplus / Deficit (per Fortnight)</h3>
+                    <div id="surplusDeficitTableContainer" class="scrollable-table-container rounded-md shadow"><table id="surplusDeficitTable" class="min-w-full divide-y divide-gray-200"><thead id="surplusDeficitTableHead" class="bg-gray-200 sticky-header"></thead><tbody id="surplusDeficitTableBody" class="bg-white divide-y divide-gray-200"></tbody></table></div>
+                </div>
+            </section>
+        </div>
+
+        <div id="settingsSection" style="display: none;">
+            <section class="p-6 bg-gray-50 rounded-lg shadow">
+                <h2 class="text-2xl font-semibold text-gray-700 mb-6">Pathway Settings</h2>
+                
+                <div class="mb-8">
+                    <h3 class="text-xl font-medium text-gray-700 mb-4">Manage Training Pathways</h3>
+                    <button id="showAddPathwayFormButton" class="mb-4 bg-green-500 hover:bg-green-600 text-white font-semibold py-2 px-4 rounded-md shadow">Add New Pathway</button>
+                    <div class="overflow-x-auto rounded-md shadow border border-gray-200">
+                        <table id="pathwaysTable" class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="table-header">ID</th>
+                                    <th class="table-header">Name</th>
+                                    <th class="table-header">Group Size</th>
+                                    <th class="table-header">Type</th>
+                                    <th class="table-header">Phases</th>
+                                    <th class="table-header">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pathwaysTableBody" class="bg-white divide-y divide-gray-200"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div id="pathwayModal" class="modal">
+                    <div class="modal-content settings-modal-content">
+                        <button id="closePathwayModalButton" class="close-button">&times;</button>
+                        <h4 id="pathwayModalTitle" class="text-xl font-semibold mb-6 text-gray-800">Add/Edit Pathway</h4>
+                        <form id="pathwayForm">
+                            <input type="hidden" id="editPathwayId" value="">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                                <div>
+                                    <label for="pathwayIdInput" class="block text-sm font-medium text-gray-700 mb-1">Pathway ID (e.g., AXXX):</label>
+                                    <input type="text" id="pathwayIdInput" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label for="pathwayNameInput" class="block text-sm font-medium text-gray-700 mb-1">Pathway Name:</label>
+                                    <input type="text" id="pathwayNameInput" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label for="pathwayGroupSizeInput" class="block text-sm font-medium text-gray-700 mb-1">Group Size:</label>
+                                    <input type="number" id="pathwayGroupSizeInput" min="1" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                </div>
+                                <div>
+                                    <label for="pathwayTypeInput" class="block text-sm font-medium text-gray-700 mb-1">Trainee Type:</label>
+                                    <select id="pathwayTypeInput" required class="w-full p-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500">
+                                        <option value="CP">CP (Captain)</option>
+                                        <option value="FO">FO (First Officer)</option>
+                                        <option value="CAD">CAD (Cadet)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            
+                            <h5 class="text-md font-medium text-gray-700 mb-1">Phases:</h5>
+                            <p class="text-xs text-gray-500 mb-3">Define the sequence of training events. Duration is in fortnights.</p>
+                            <div id="phasesContainer" class="mb-4"></div>
+                            <button type="button" id="addPhaseButton" class="mb-6 bg-blue-500 hover:bg-blue-600 text-white text-sm py-2 px-3 rounded-md shadow-sm flex items-center">
+                                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
+                                Add Phase
+                            </button>
+                            
+                            <div class="flex justify-end space-x-3 pt-4 border-t">
+                                <button type="button" id="cancelPathwayFormButton" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold py-2 px-4 rounded-md shadow-sm">Cancel</button>
+                                <button type="submit" id="savePathwayButton" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-md shadow-sm">Save Pathway</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <div id="fteModal" class="modal">
+            <div class="modal-content fte-modal-content"> <button id="closeFteModalButton" class="close-button">&times;</button>
+                <h4 class="text-lg font-semibold mb-4 text-gray-800">Detailed Trainer FTE (per Fortnight)</h4>
+                <p class="text-sm text-gray-500 mb-2">Edit FTE values below. Default values are provided.</p>
+                <div class="overflow-x-auto rounded-md shadow">
+                    <table id="fteInputTable" class="min-w-full divide-y divide-gray-200"><thead id="fteInputTableHead" class="bg-gray-200 sticky-header"></thead><tbody id="fteInputTableBody" class="bg-white divide-y divide-gray-200"></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <div id="messageModal" class="modal">
+            <div class="modal-content max-w-md"> <button id="closeMessageModalButton" class="close-button">&times;</button> 
+                <p id="modalMessageText" class="text-gray-700 text-base mb-4"></p>
+                <div id="confirmationButtons" class="mt-6 flex justify-end space-x-3" style="display: none;">
+                    <button id="confirmNoButton" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-semibold">Cancel</button>
+                    <button id="confirmYesButton" class="bg-red-500 hover:bg-red-600 text-white font-semibold">Yes, Delete</button>
+                </div>
+            </div>
+        </div>
+
+    <script>
+        // --- CONFIGURATION & DATA ---
+        let pathways = { 
+            "A202": { name: "A202 (2xCP)", groupSize: 2, type: "CP", phases: [
+                { phase: "GS+SIM", duration: 2, trainerDemandType: null }, { phase: "LT-CP", duration: 6, trainerDemandType: "LTCP" }
+            ]},
+            "A210": { name: "A210 (2xFO)", groupSize: 2, type: "FO", phases: [
+                { phase: "GS+SIM", duration: 4, trainerDemandType: null }, { phase: "LT-FO", duration: 4, trainerDemandType: "LTFO" },
+                { phase: "LT-FO", duration: 3, trainerDemandType: "LTFO" }
+            ]},
+            "A209": { name: "A209 (2xCAD)", groupSize: 2, type: "CAD", phases: [
+                { phase: "GS+SIM", duration: 4, trainerDemandType: null }, { phase: "LT-CAD", duration: 4, trainerDemandType: "LTCAD" },
+                { phase: "LT-FO", duration: 3, trainerDemandType: "LTFO" } 
+            ]},
+            "A212": { name: "A212 (2xCAD)", groupSize: 2, type: "CAD", phases: [
+                { phase: "GS+SIM", duration: 4, trainerDemandType: null }, { phase: "LT-CAD", duration: 3, trainerDemandType: "LTCAD" },
+                { phase: "LT-FO", duration: 5, trainerDemandType: "LTFO" } 
+            ]},
+            "A211": { name: "A211 (2xCAD)", groupSize: 2, type: "CAD", phases: [
+                { phase: "GS+SIM", duration: 4, trainerDemandType: null }, { phase: "LT-CAD", duration: 2, trainerDemandType: "LTCAD" },
+                { phase: "LT-FO", duration: 2, trainerDemandType: "LTFO" }
+            ]},
+            "A203": { name: "A203 (4xCP)", groupSize: 4, type: "CP", phases: [
+                { phase: "GS+SIM", duration: 2, trainerDemandType: null }, { phase: "LT-CP", duration: 1, trainerDemandType: "LTCP" }
+            ]}
+        };
+        
+        for (const key in pathways) { 
+            if (pathways[key] && pathways[key].phases) { 
+                pathways[key].phases = pathways[key].phases.filter(phase => phase.phase && !phase.phase.toLowerCase().includes("hr"));
+                pathways[key].phases.forEach(phase => delete phase.isMilestone);
+            }
+        }
+
+        const trainerCategories = ["CATB", "CATA", "STP", "RHS", "LHS"]; 
+        const demandPriorityOrder = ["Demand_P1_LTCAD", "Demand_P2_LTCP", "Demand_P3_LTFO"];
+         const demandKeyToNameMapping = { 
+            "Demand_P1_LTCAD": "LT-CAD (P1)",
+            "Demand_P2_LTCP": "LT-CP (P2)",
+            "Demand_P3_LTFO": "LT-FO (P3)"
+        };
+        const pathwayEventTypes = [
+            { value: "GS+SIM", text: "GS+SIM", demandType: null },
+            { value: "LT-CAD", text: "LT-CAD", demandType: "LTCAD" },
+            { value: "LT-CP", text: "LT-CP", demandType: "LTCP" },
+            { value: "LT-FO", text: "LT-FO", demandType: "LTFO" },
+            { value: "Custom", text: "Custom/Placeholder", demandType: null } 
+        ];
+
+        const trainerQualifications = {
+            "LTCAD": ["CATB", "CATA", "STP"], 
+            "LTCP": ["CATB", "CATA", "STP", "RHS"],
+            "LTFO": ["CATB", "CATA", "STP", "RHS", "LHS"]
+        };
+
+        let activeCohorts = [];
+        let trainerFTE = {}; 
+        
+        const START_YEAR = 2024;
+        const END_YEAR = 2025; 
+        const FORTNIGHTS_PER_YEAR = 26; 
+        const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+        const allFortnights = [];
+        for (let y = START_YEAR; y <= END_YEAR; y++) {
+            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+                allFortnights.push(generateFortnightID(y, fn));
+            }
+        }
+        
+        function generateFortnightID(year, fnNumber) {
+            return `${year}-FN${String(fnNumber).padStart(2, '0')}`;
+        }
+
+        function getFortnightIndex(fortnightID) {
+            const parts = fortnightID.split('-FN');
+            if (parts.length !== 2) return -1; 
+            const year = parseInt(parts[0]);
+            const fnNum = parseInt(parts[1]);
+            if (isNaN(year) || isNaN(fnNum) || fnNum < 1 || fnNum > FORTNIGHTS_PER_YEAR) return -1;
+            return (year - START_YEAR) * FORTNIGHTS_PER_YEAR + (fnNum - 1);
+        }
+        
+        function getFortnightIDFromIndex(index) {
+            const year = START_YEAR + Math.floor(index / FORTNIGHTS_PER_YEAR);
+            const fnNumber = (index % FORTNIGHTS_PER_YEAR) + 1;
+            return generateFortnightID(year, fnNumber);
+        }
+
+        function getMonthForFortnight(fnNumberInYearOneBased) { 
+            const zeroBasedIndex = fnNumberInYearOneBased - 1;
+            if (zeroBasedIndex >= 22) return MONTH_NAMES[11]; 
+            return MONTH_NAMES[Math.floor(zeroBasedIndex / 2)];
+        }
+        
+        function showUserMessage(message, isConfirmation = false, callback = null) { 
+            const modalEl = document.getElementById('messageModal');
+            document.getElementById('modalMessageText').innerHTML = message; 
+            const confirmationButtons = document.getElementById('confirmationButtons');
+            const messageModalContent = modalEl.querySelector('.modal-content');
+
+            if (isConfirmation && callback) {
+                confirmationButtons.style.display = 'flex';
+                messageModalContent.classList.add('max-w-md'); 
+                document.getElementById('confirmYesButton').onclick = () => {
+                    callback(true);
+                    modalEl.classList.remove('is-open');
+                    confirmationButtons.style.display = 'none';
+                };
+                document.getElementById('confirmNoButton').onclick = () => {
+                    callback(false);
+                    modalEl.classList.remove('is-open');
+                    confirmationButtons.style.display = 'none';
+                };
+            } else {
+                confirmationButtons.style.display = 'none';
+                messageModalContent.classList.remove('max-w-md'); 
+                messageModalContent.classList.add('max-w-lg'); 
+            }
+            modalEl.classList.add('is-open');
+        }
+        
+        const plannerSectionEl = document.getElementById('plannerSection');
+        const settingsSectionEl = document.getElementById('settingsSection');
+        const navPlannerBtn = document.getElementById('navPlanner');
+        const navSettingsBtn = document.getElementById('navSettings');
+        const pathwayModalEl = document.getElementById('pathwayModal');
+        const pathwayFormEl = document.getElementById('pathwayForm');
+        const phasesContainerEl = document.getElementById('phasesContainer');
+        const fteModalElement = document.getElementById('fteModal');
+        const messageModalElement = document.getElementById('messageModal');
+
+        const scrollableTableContainers = [];
+        let isSyncingScroll = false;
+
+
+        document.addEventListener('DOMContentLoaded', () => {
+            populatePathwaySelect();
+            populateStartFortnightSelects(); 
+            initializeFTEInputs(); 
+            renderAllPlannerTables(); 
+            initSynchronizedScrolling(); 
+
+            document.getElementById('addCohortButton').addEventListener('click', handleAddCohort);
+            document.getElementById('openFteModalButton').addEventListener('click', () => {fteModalElement.classList.add('is-open'); renderFTEInputTable();});
+            document.getElementById('closeFteModalButton').addEventListener('click', () => fteModalElement.classList.remove('is-open'));
+            
+            document.getElementById('closeMessageModalButton').addEventListener('click', () => messageModalElement.classList.remove('is-open'));
+
+            window.addEventListener('click', (event) => { 
+                if (event.target == fteModalElement) fteModalElement.classList.remove('is-open'); 
+                if (event.target == pathwayModalEl) closePathwayModal(); 
+                if (event.target == messageModalElement) messageModalElement.classList.remove('is-open');
+            });
+
+            navPlannerBtn.addEventListener('click', () => showView('planner'));
+            navSettingsBtn.addEventListener('click', () => showView('settings'));
+            document.getElementById('showAddPathwayFormButton').addEventListener('click', openPathwayModalForAdd);
+            document.getElementById('closePathwayModalButton').addEventListener('click', closePathwayModal);
+            document.getElementById('cancelPathwayFormButton').addEventListener('click', closePathwayModal);
+            document.getElementById('addPhaseButton').addEventListener('click', addPhaseToForm);
+            pathwayFormEl.addEventListener('submit', handleSavePathway);
+            
+            if (settingsSectionEl.style.display !== 'none') { renderPathwaysTable(); }
+        });
+
+        function showView(viewName) {
+            if (viewName === 'planner') {
+                plannerSectionEl.style.display = 'block'; settingsSectionEl.style.display = 'none';
+                navPlannerBtn.classList.add('active'); navSettingsBtn.classList.remove('active');
+            } else if (viewName === 'settings') {
+                plannerSectionEl.style.display = 'none'; settingsSectionEl.style.display = 'block';
+                navPlannerBtn.classList.remove('active'); navSettingsBtn.classList.add('active');
+                renderPathwaysTable(); 
+            }
+        }
+
+        function populatePathwaySelect() {
+            const select = document.getElementById('pathwaySelect'); select.innerHTML = ''; 
+            const sortedPathwayKeys = Object.keys(pathways).sort();
+            sortedPathwayKeys.forEach(key => {
+                const option = document.createElement('option'); option.value = key; option.textContent = pathways[key].name; select.appendChild(option);
+            });
+        }
+
+        function populateStartFortnightSelects() {
+            const yearSelect = document.getElementById('startYearSelect'); const fnSelect = document.getElementById('startFNSelect');
+            yearSelect.innerHTML = ''; fnSelect.innerHTML = '';
+            for (let y = START_YEAR; y <= END_YEAR; y++) { const option = document.createElement('option'); option.value = y; option.textContent = y; yearSelect.appendChild(option); }
+            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) { const option = document.createElement('option'); const fnValue = String(fn).padStart(2, '0'); option.value = fnValue; option.textContent = `FN${fnValue}`; fnSelect.appendChild(option); }
+            yearSelect.value = START_YEAR; fnSelect.value = "01";
+        }
+
+        function initializeFTEInputs() {
+            const defaultFTE = { CATB: 6, CATA: 6, STP: 10, RHS: 10, LHS: 10 }; 
+            allFortnights.forEach(fnId => { trainerFTE[fnId] = { ...defaultFTE }; });
+            renderFTESummaryTable(); 
+        }
+        
+        function renderTableHeaders(theadElement, firstColLabel) {
+            theadElement.innerHTML = ''; 
+            const monthRow = document.createElement('tr');
+            const fnRow = document.createElement('tr');
+
+            const thDescMonth = document.createElement('th');
+            thDescMonth.className = 'table-header sticky-col desc-col-header bg-gray-200';
+            thDescMonth.rowSpan = 2;
+            thDescMonth.textContent = firstColLabel;
+            monthRow.appendChild(thDescMonth);
+
+            let currentMonthText = null; 
+            let monthColspan = 0;
+
+            allFortnights.forEach((fnId, index) => {
+                const idParts = fnId.split('-FN');
+                if (idParts.length < 2) { 
+                    console.error("Malformed fnId:", fnId);
+                     const thFnError = document.createElement('th');
+                    thFnError.className = 'fn-header-cell';
+                    thFnError.textContent = 'ERR';
+                    fnRow.appendChild(thFnError);
+                    if (index === 0 || monthColspan === 0) monthColspan = 1; else monthColspan++;
+                    if (currentMonthText === null) currentMonthText = "Error";
+                     if (index === allFortnights.length - 1) {
+                        const thMonthError = document.createElement('th');
+                        thMonthError.className = 'month-header-cell';
+                        thMonthError.colSpan = monthColspan;
+                        thMonthError.textContent = currentMonthText;
+                        monthRow.appendChild(thMonthError);
+                    }
+                    return;
+                }
+                const year = parseInt(idParts[0]);
+                const fnNum = parseInt(idParts[1]); 
+
+                if (isNaN(year) || isNaN(fnNum)) { 
+                    console.error("Error parsing year or fnNum in renderTableHeaders:", fnId, year, fnNum);
+                    const thFnError = document.createElement('th');
+                    thFnError.className = 'fn-header-cell';
+                    thFnError.textContent = 'NaN'; 
+                    fnRow.appendChild(thFnError);
+                     if (index === 0 || monthColspan === 0) monthColspan = 1; else monthColspan++;
+                    if (currentMonthText === null) currentMonthText = "Parse Error";
+                     if (index === allFortnights.length - 1) {
+                        const thMonthError = document.createElement('th');
+                        thMonthError.className = 'month-header-cell';
+                        thMonthError.colSpan = monthColspan;
+                        thMonthError.textContent = currentMonthText;
+                        monthRow.appendChild(thMonthError);
+                    }
+                    return; 
+                }
+
+                const monthName = getMonthForFortnight(fnNum); 
+                const currentIterationMonthYear = `${monthName}-${year}`;
+
+                if (currentIterationMonthYear !== currentMonthText) {
+                    if (currentMonthText !== null) {
+                        const thMonth = document.createElement('th');
+                        thMonth.className = 'month-header-cell';
+                        thMonth.colSpan = monthColspan;
+                        thMonth.textContent = currentMonthText;
+                        monthRow.appendChild(thMonth);
+                    }
+                    currentMonthText = currentIterationMonthYear;
+                    monthColspan = 1;
+                } else {
+                    monthColspan++;
+                }
+
+                const thFn = document.createElement('th');
+                thFn.className = 'fn-header-cell';
+                thFn.textContent = `FN${String(fnNum).padStart(2, '0')}`;
+                fnRow.appendChild(thFn);
+
+                if (index === allFortnights.length - 1 && currentMonthText !== null) {
+                    const thMonth = document.createElement('th');
+                    thMonth.className = 'month-header-cell';
+                    thMonth.colSpan = monthColspan;
+                    thMonth.textContent = currentMonthText;
+                    monthRow.appendChild(thMonth);
+                }
+            });
+            theadElement.appendChild(monthRow);
+            theadElement.appendChild(fnRow);
+        }
+
+
+        function renderFTEInputTable() { 
+            const head = document.getElementById('fteInputTableHead'); 
+            renderTableHeaders(head, 'Trainer Category'); 
+            const body = document.getElementById('fteInputTableBody');
+            body.innerHTML = ''; 
+            trainerCategories.forEach(category => { 
+                const tr = document.createElement('tr');
+                const tdCategory = document.createElement('td'); 
+                tdCategory.className = 'table-cell font-medium text-gray-700 sticky-col desc-col-cell bg-white'; 
+                tdCategory.textContent = category; tr.appendChild(tdCategory);
+                allFortnights.forEach(fnId => {
+                    const td = document.createElement('td'); td.className = 'table-cell';
+                    const input = document.createElement('input'); input.type = 'number'; input.min = '0'; input.value = trainerFTE[fnId]?.[category] || 0;
+                    input.className = 'w-16 p-1 border border-gray-300 rounded-md text-center'; input.dataset.fortnight = fnId; input.dataset.category = category;
+                    input.addEventListener('change', handleFTEChange); td.appendChild(input); tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+        }
+
+        function renderFTESummaryTable() {
+            const container = document.getElementById('fteSummaryContainer'); container.innerHTML = ''; 
+            const table = document.createElement('table'); table.className = 'min-w-full divide-y divide-gray-200';
+            const thead = document.createElement('thead'); 
+            renderTableHeaders(thead, 'Total FTE'); 
+            table.appendChild(thead);
+            const tbody = document.createElement('tbody'); tbody.className = 'bg-white divide-y divide-gray-200';
+            const tr = document.createElement('tr');
+            const tdLabel = document.createElement('td'); 
+            tdLabel.className = 'table-cell font-semibold text-gray-800 sticky-col desc-col-cell bg-white'; 
+            tdLabel.textContent = 'Total Available'; tr.appendChild(tdLabel);
+            allFortnights.forEach(fnId => {
+                const td = document.createElement('td'); td.className = 'table-cell text-center font-medium'; let total = 0;
+                if (trainerFTE[fnId]) { trainerCategories.forEach(cat => total += (trainerFTE[fnId][cat] || 0)); }
+                td.textContent = total; tr.appendChild(td);
+            });
+            tbody.appendChild(tr); table.appendChild(tbody); container.appendChild(table);
+        }
+
+        function renderGanttChart() {
+            const head = document.getElementById('ganttChartHead'); 
+            renderTableHeaders(head, 'Cohort Pathway'); 
+            const body = document.getElementById('ganttChartBody');
+            body.innerHTML = '';
+            if (allFortnights.length === 0) return;
+            activeCohorts.sort((a, b) => getFortnightIndex(a.startFortnight) - getFortnightIndex(b.startFortnight));
+            
+            if (activeCohorts.length === 0) {
+                 const trEmpty = document.createElement('tr'); const tdEmpty = document.createElement('td'); 
+                 tdEmpty.colSpan = allFortnights.length + 1; 
+                 tdEmpty.textContent = "No cohorts added yet. Add cohorts using the input form above."; 
+                 tdEmpty.className = "text-center p-4 text-gray-500";
+                 trEmpty.appendChild(tdEmpty); body.appendChild(trEmpty); return;
+            }
+            activeCohorts.forEach((cohort) => {
+                const tr = document.createElement('tr');
+                const tdPathwayInfo = document.createElement('td'); 
+                tdPathwayInfo.className = 'pathway-info-cell sticky-col bg-white'; 
+                const pathwayDetails = pathways[cohort.pathwayKey];
+                const pathwayName = pathwayDetails?.name || 'Unknown Pathway';
+                tdPathwayInfo.textContent = `${cohort.numTrainees}x ${pathwayName}`;
+                tdPathwayInfo.title = `${cohort.numTrainees}x ${pathwayName} (Start: ${cohort.startFortnight})`; 
+                tr.appendChild(tdPathwayInfo);
+
+                allFortnights.forEach((fnId, displayFnIndex) => {
+                    const td = document.createElement('td'); td.className = 'gantt-cell';
+                    let cohortStartDisplayIndex = getFortnightIndex(cohort.startFortnight);
+                    if(cohortStartDisplayIndex === -1) { tr.appendChild(td); return; }
+                    let phaseFortnightCounterForDrawing = 0; 
+                    const currentPathway = pathways[cohort.pathwayKey];
+                    if (currentPathway) { 
+                        for (const phase of currentPathway.phases) {
+                            const phaseStartInTimeline = cohortStartDisplayIndex + phaseFortnightCounterForDrawing;
+                            const phaseEndInTimeline = phaseStartInTimeline + phase.duration - 1;
+                            if (displayFnIndex >= phaseStartInTimeline && displayFnIndex <= phaseEndInTimeline) {
+                                if (phase.trainerDemandType || phase.phase.toLowerCase().includes("gs+sim")) {
+                                    const bar = document.createElement('div'); bar.classList.add('gantt-bar');
+                                    bar.textContent = phase.phase.replace("LT-","").replace("GS+SIM", "GS").substring(0,7); bar.title = phase.phase; 
+                                    if (phase.trainerDemandType === "LTCAD") bar.classList.add('gantt-bar-ltcad');
+                                    else if (phase.trainerDemandType === "LTCP") bar.classList.add('gantt-bar-ltcp');
+                                    else if (phase.trainerDemandType === "LTFO") bar.classList.add('gantt-bar-ltfo');
+                                    else if (phase.phase.toLowerCase().includes("gs+sim")) bar.classList.add('gantt-bar-gssim');
+                                    td.appendChild(bar);
+                                }
+                                break; 
+                            }
+                            phaseFortnightCounterForDrawing += phase.duration;
+                        }
+                    }
+                    tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+        }
+
+        function renderDemandTable(calculatedDemand) {
+            const head = document.getElementById('demandTableHead');
+            renderTableHeaders(head, 'Demand Category'); 
+            const body = document.getElementById('demandTableBody');
+            body.innerHTML = '';
+            
+            demandPriorityOrder.forEach(demandKey => {
+                const tr = document.createElement('tr');
+                const tdDemandCat = document.createElement('td'); 
+                tdDemandCat.className = 'table-cell font-medium text-gray-700 sticky-col desc-col-cell bg-white';
+                tdDemandCat.textContent = demandKeyToNameMapping[demandKey] || demandKey; tr.appendChild(tdDemandCat);
+                allFortnights.forEach(fnId => {
+                    const td = document.createElement('td'); td.className = 'table-cell text-center';
+                    td.textContent = calculatedDemand[fnId]?.[demandKey] || 0; tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+
+            const trTotalDemand = document.createElement('tr');
+            trTotalDemand.className = 'total-row';
+            const tdTotalDemandLabel = document.createElement('td'); 
+            tdTotalDemandLabel.className = 'table-cell sticky-col desc-col-cell bg-gray-50';
+            tdTotalDemandLabel.textContent = 'Total LT Demand'; 
+            trTotalDemand.appendChild(tdTotalDemandLabel);
+            allFortnights.forEach(fnId => {
+                const td = document.createElement('td'); td.className = 'table-cell text-center';
+                const total = (calculatedDemand[fnId]?.Demand_P1_LTCAD || 0) + 
+                              (calculatedDemand[fnId]?.Demand_P2_LTCP || 0) + 
+                              (calculatedDemand[fnId]?.Demand_P3_LTFO || 0);
+                td.textContent = total;
+                trTotalDemand.appendChild(td);
+            });
+            body.appendChild(trTotalDemand);
+        }
+
+        function renderSurplusDeficitTable(surplusDeficit, ltCpTrainingDeficit, totalNetSDByFortnight) { // Added totalNetSDByFortnight
+            const head = document.getElementById('surplusDeficitTableHead'); 
+            renderTableHeaders(head, 'Category'); 
+            const body = document.getElementById('surplusDeficitTableBody');
+            body.innerHTML = '';
+            
+            demandPriorityOrder.forEach(demandKey => {
+                const tr = document.createElement('tr');
+                const tdCat = document.createElement('td'); 
+                tdCat.className = 'table-cell font-medium text-gray-700 sticky-col desc-col-cell bg-white';
+                tdCat.textContent = `${demandKeyToNameMapping[demandKey] || demandKey} S/D`; tr.appendChild(tdCat);
+                allFortnights.forEach(fnId => {
+                    const td = document.createElement('td'); const value = surplusDeficit[fnId]?.[demandKey] || 0;
+                    td.className = 'table-cell text-center'; td.textContent = value;
+                    if (value < 0) td.classList.add('deficit'); else if (value > 0) td.classList.add('surplus');
+                    tr.appendChild(td);
+                });
+                body.appendChild(tr);
+            });
+            
+            const trLtCpDeficit = document.createElement('tr');
+            const tdLtCpDeficitLabel = document.createElement('td'); 
+            tdLtCpDeficitLabel.className = 'table-cell font-semibold text-red-700 sticky-col desc-col-cell bg-white'; 
+            tdLtCpDeficitLabel.textContent = 'LT-CP Training Deficit'; 
+            trLtCpDeficit.appendChild(tdLtCpDeficitLabel);
+            allFortnights.forEach(fnId => {
+                const td = document.createElement('td'); const value = ltCpTrainingDeficit[fnId] || 0; 
+                td.className = 'table-cell text-center font-bold'; td.textContent = value;
+                if (value < 0) td.classList.add('deficit'); 
+                trLtCpDeficit.appendChild(td);
+            });
+            body.appendChild(trLtCpDeficit);
+
+            const trTotalNetSD = document.createElement('tr');
+            trTotalNetSD.className = 'total-row';
+            const tdTotalNetSDLabel = document.createElement('td'); 
+            tdTotalNetSDLabel.className = 'table-cell sticky-col desc-col-cell bg-gray-50';
+            tdTotalNetSDLabel.textContent = 'Total Net S/D (All Types)'; 
+            trTotalNetSD.appendChild(tdTotalNetSDLabel);
+            allFortnights.forEach(fnId => {
+                const td = document.createElement('td'); td.className = 'table-cell text-center';
+                const totalNet = totalNetSDByFortnight[fnId] || 0; // Use the new pre-calculated value
+                td.textContent = totalNet;
+                if (totalNet < 0) td.classList.add('deficit'); else if (totalNet > 0) td.classList.add('surplus');
+                trTotalNetSD.appendChild(td);
+            });
+            body.appendChild(trTotalNetSD);
+        }
+        
+        function renderAllPlannerTables() {
+            const demandData = calculateDemand(); 
+            const { surplusDeficit, ltCpTrainingDeficit, totalNetSDByFortnight } = calculateSurplusDeficit(demandData); 
+            renderFTESummaryTable(); 
+            renderGanttChart();
+            renderDemandTable(demandData); 
+            renderSurplusDeficitTable(surplusDeficit, ltCpTrainingDeficit, totalNetSDByFortnight); 
+        }
+
+        function handleFTEChange(event) {
+            const { fortnight, category } = event.target.dataset;
+            const value = parseInt(event.target.value) || 0;
+            if (!trainerFTE[fortnight]) trainerFTE[fortnight] = {};
+            trainerFTE[fortnight][category] = value;
+            const demandData = calculateDemand(); 
+            const { surplusDeficit, ltCpTrainingDeficit, totalNetSDByFortnight } = calculateSurplusDeficit(demandData);
+            renderSurplusDeficitTable(surplusDeficit, ltCpTrainingDeficit, totalNetSDByFortnight); 
+            renderFTESummaryTable(); 
+        }
+
+        function handleAddCohort() {
+            const numTrainees = parseInt(document.getElementById('numTrainees').value);
+            const pathwayKey = document.getElementById('pathwaySelect').value;
+            const selectedYear = document.getElementById('startYearSelect').value;
+            const selectedFN = document.getElementById('startFNSelect').value;
+            const startFortnight = generateFortnightID(selectedYear, parseInt(selectedFN));
+            if (isNaN(numTrainees) || numTrainees <= 0) { showUserMessage("Please enter a valid number of trainees."); return; }
+            if (!pathwayKey || !pathways[pathwayKey]) { showUserMessage("Please select a valid training pathway."); return; }
+            if (getFortnightIndex(startFortnight) === -1 ) { showUserMessage("Invalid start date selected."); return; }
+            const pathwayData = pathways[pathwayKey]; 
+            if (!pathwayData) { showUserMessage("Selected pathway data not found."); return; } 
+            const pathwayGroupSize = pathwayData.groupSize;
+            if (numTrainees % pathwayGroupSize !== 0) { showUserMessage(`Number of trainees (${numTrainees}) must be a multiple of the selected pathway's group size (${pathwayGroupSize} for ${pathwayData.name}).`); return; }
+            activeCohorts.push({ id: `cohort-${Date.now()}-${Math.random().toString(16).slice(2)}`, numTrainees, pathwayKey, startFortnight });
+            renderAllPlannerTables(); 
+        }
+
+        function calculateDemand() { 
+            const demandByFortnight = {}; 
+            allFortnights.forEach(fnId => { 
+                demandByFortnight[fnId] = { 
+                    Demand_P1_LTCAD: 0, Demand_P2_LTCP: 0, Demand_P3_LTFO: 0,
+                }; 
+            });
+
+            activeCohorts.forEach(cohort => {
+                const pathwayDetails = pathways[cohort.pathwayKey]; 
+                if (!pathwayDetails) { console.warn(`Pathway ${cohort.pathwayKey} not found for cohort.`); return; } 
+                const numInstances = cohort.numTrainees / pathwayDetails.groupSize;
+                let currentFortnightIndexInPathwayDefinition = 0; 
+
+                pathwayDetails.phases.forEach(phase => {
+                    if (phase.trainerDemandType) { 
+                        for (let i = 0; i < phase.duration; i++) {
+                            const cohortStartFnIndex = getFortnightIndex(cohort.startFortnight);
+                             if (cohortStartFnIndex === -1) continue; 
+                            const actualFortnightIndexInGlobalTimeline = cohortStartFnIndex + currentFortnightIndexInPathwayDefinition + i;
+                            if (actualFortnightIndexInGlobalTimeline >= 0 && actualFortnightIndexInGlobalTimeline < allFortnights.length) { 
+                                const actualFortnightID = getFortnightIDFromIndex(actualFortnightIndexInGlobalTimeline);
+                                const demandAmount = numInstances * pathwayDetails.groupSize; 
+                                if (phase.trainerDemandType === "LTCAD") demandByFortnight[actualFortnightID].Demand_P1_LTCAD += demandAmount;
+                                else if (phase.trainerDemandType === "LTCP") demandByFortnight[actualFortnightID].Demand_P2_LTCP += demandAmount;
+                                else if (phase.trainerDemandType === "LTFO") demandByFortnight[actualFortnightID].Demand_P3_LTFO += demandAmount;
+                            }
+                        }
+                    }
+                    currentFortnightIndexInPathwayDefinition += phase.duration;
+                });
+            });
+            return demandByFortnight;
+        }
+
+        function calculateSurplusDeficit(calculatedDemand) { 
+            const surplusDeficit = {}; 
+            const ltCpTrainingDeficit = {}; 
+            const totalNetSDByFortnight = {}; // New object for the revised total
+
+            allFortnights.forEach(fnId => {
+                surplusDeficit[fnId] = { Demand_P1_LTCAD: 0, Demand_P2_LTCP: 0, Demand_P3_LTFO: 0 }; 
+                ltCpTrainingDeficit[fnId] = 0; 
+                totalNetSDByFortnight[fnId] = 0; // Initialize
+
+                const fteForFortnight = trainerFTE[fnId] || {}; 
+                let currentFTE = { ...fteForFortnight }; 
+                
+                // Calculate Total Initial FTE for this fortnight
+                let totalInitialFTEThisFortnight = 0;
+                trainerCategories.forEach(cat => totalInitialFTEThisFortnight += (fteForFortnight[cat] || 0));
+
+                // Calculate Total Line Training Demand for this fortnight
+                const demandP1 = calculatedDemand[fnId]?.Demand_P1_LTCAD || 0;
+                const demandP2 = calculatedDemand[fnId]?.Demand_P2_LTCP || 0;
+                const demandP3 = calculatedDemand[fnId]?.Demand_P3_LTFO || 0;
+                const totalLineTrainingDemandThisFortnight = demandP1 + demandP2 + demandP3;
+
+                // Calculate the new "Total Net S/D (All Types)"
+                totalNetSDByFortnight[fnId] = totalInitialFTEThisFortnight - totalLineTrainingDemandThisFortnight;
+                
+                // --- Original Cascading Logic for individual S/D ---
+                const p1QualifiedCats = ["CATB", "CATA", "STP"]; 
+                const p2QualifiedCats = ["CATB", "CATA", "STP", "RHS"]; 
+                const p3QualifiedCats = ["CATB", "CATA", "STP", "RHS", "LHS"];
+                
+                let supplyP1 = 0;
+                p1QualifiedCats.forEach(cat => supplyP1 += (currentFTE[cat] || 0)); 
+                surplusDeficit[fnId].Demand_P1_LTCAD = supplyP1 - demandP1;
+                let tempUsedP1 = Math.min(supplyP1, demandP1);
+                for (const cat of p1QualifiedCats) { const canAllocate = Math.min(tempUsedP1, (currentFTE[cat] || 0)); currentFTE[cat] = (currentFTE[cat] || 0) - canAllocate; tempUsedP1 -= canAllocate; if (tempUsedP1 <= 0) break; }
+                
+                let supplyP2 = 0;
+                p2QualifiedCats.forEach(cat => supplyP2 += (currentFTE[cat] || 0)); 
+                surplusDeficit[fnId].Demand_P2_LTCP = supplyP2 - demandP2; 
+                ltCpTrainingDeficit[fnId] = Math.min(0, surplusDeficit[fnId].Demand_P2_LTCP); 
+                let tempUsedP2 = Math.min(supplyP2, demandP2);
+                for (const cat of p2QualifiedCats) { const canAllocate = Math.min(tempUsedP2, (currentFTE[cat] || 0)); currentFTE[cat] = (currentFTE[cat] || 0) - canAllocate; tempUsedP2 -= canAllocate; if (tempUsedP2 <= 0) break; }
+                
+                let supplyP3 = 0;
+                p3QualifiedCats.forEach(cat => supplyP3 += (currentFTE[cat] || 0)); 
+                surplusDeficit[fnId].Demand_P3_LTFO = supplyP3 - demandP3;
+            });
+            return { surplusDeficit, ltCpTrainingDeficit, totalNetSDByFortnight }; // Return the new total
+        }
+
+        // --- SETTINGS PAGE SCRIPT ---
+        function renderPathwaysTable() {
+            const tableBody = document.getElementById('pathwaysTableBody');
+            tableBody.innerHTML = '';
+            const sortedPathwayKeys = Object.keys(pathways).sort();
+
+            sortedPathwayKeys.forEach(key => {
+                const pathway = pathways[key];
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="table-cell">${key}</td>
+                    <td class="table-cell">${pathway.name}</td>
+                    <td class="table-cell text-center">${pathway.groupSize}</td>
+                    <td class="table-cell">${pathway.type}</td>
+                    <td class="table-cell">${pathway.phases.length} phases</td>
+                    <td class="table-cell">
+                        <button class="text-blue-600 hover:text-blue-800 font-medium mr-2" onclick="openPathwayModalForEdit('${key}')">Edit</button>
+                        <button class="text-red-600 hover:text-red-800 font-medium" onclick="handleDeletePathway('${key}')">Delete</button>
+                    </td>
+                `;
+                tableBody.appendChild(tr);
+            });
+        }
+
+        function openPathwayModalForAdd() {
+            document.getElementById('pathwayModalTitle').textContent = 'Add New Pathway';
+            pathwayFormEl.reset();
+            document.getElementById('editPathwayId').value = ''; 
+            document.getElementById('pathwayIdInput').disabled = false; 
+            phasesContainerEl.innerHTML = ''; 
+            addPhaseToForm(); 
+            pathwayModalEl.classList.add('is-open');
+        }
+
+        function openPathwayModalForEdit(pathwayId) {
+            const pathway = pathways[pathwayId];
+            if (!pathway) return;
+            document.getElementById('pathwayModalTitle').textContent = `Edit Pathway: ${pathway.name}`;
+            pathwayFormEl.reset(); 
+            document.getElementById('editPathwayId').value = pathwayId;
+            document.getElementById('pathwayIdInput').value = pathwayId;
+            document.getElementById('pathwayIdInput').disabled = true; 
+            document.getElementById('pathwayNameInput').value = pathway.name;
+            document.getElementById('pathwayGroupSizeInput').value = pathway.groupSize;
+            document.getElementById('pathwayTypeInput').value = pathway.type;
+            
+            phasesContainerEl.innerHTML = ''; 
+            pathway.phases.forEach(phase => addPhaseToForm(phase));
+            if (pathway.phases.length === 0) addPhaseToForm(); 
+
+            pathwayModalEl.classList.add('is-open');
+        }
+        
+        function closePathwayModal() {
+            pathwayModalEl.classList.remove('is-open');
+            pathwayFormEl.reset();
+            phasesContainerEl.innerHTML = '';
+        }
+
+        function addPhaseToForm(phaseData = null) {
+            const phaseDiv = document.createElement('div');
+            phaseDiv.className = 'phase-input-group grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 items-center'; 
+            
+            const eventTypeSelect = document.createElement('select');
+            eventTypeSelect.className = 'phase-event-type w-full p-2 border border-gray-300 rounded-md shadow-sm md:col-span-1'; 
+            pathwayEventTypes.forEach(type => {
+                const option = document.createElement('option'); option.value = type.value; option.textContent = type.text; eventTypeSelect.appendChild(option);
+            });
+            if (phaseData) {
+                const matchedEventType = pathwayEventTypes.find(et => et.text === phaseData.phase);
+                if (matchedEventType) eventTypeSelect.value = matchedEventType.value;
+                else if (phaseData.trainerDemandType === null) eventTypeSelect.value = "Custom";
+                else { const demandMatch = pathwayEventTypes.find(et => et.demandType === phaseData.trainerDemandType); eventTypeSelect.value = demandMatch ? demandMatch.value : "Custom"; }
+            } else { eventTypeSelect.value = "GS+SIM"; }
+
+            const durationInput = document.createElement('input');
+            durationInput.type = 'number'; durationInput.min = '1'; durationInput.placeholder = 'Duration (Fortnights)'; 
+            durationInput.className = 'phase-duration w-full p-2 border border-gray-300 rounded-md shadow-sm md:col-span-1'; 
+            durationInput.value = phaseData?.duration || 1;
+
+            const removeButton = document.createElement('button');
+            removeButton.type = 'button';
+            removeButton.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>'; 
+            removeButton.className = 'bg-red-100 hover:bg-red-200 text-red-600 p-2 rounded-md flex items-center justify-center shadow-sm md:col-span-1'; 
+            removeButton.title = "Remove Phase";
+            removeButton.onclick = () => phaseDiv.remove();
+
+            phaseDiv.appendChild(eventTypeSelect); 
+            phaseDiv.appendChild(durationInput);   
+            phaseDiv.appendChild(removeButton); 
+            phasesContainerEl.appendChild(phaseDiv);
+        }
+
+        function handleSavePathway(event) {
+            event.preventDefault();
+            const editId = document.getElementById('editPathwayId').value;
+            const newId = document.getElementById('pathwayIdInput').value.trim().toUpperCase();
+            const name = document.getElementById('pathwayNameInput').value.trim();
+            const groupSize = parseInt(document.getElementById('pathwayGroupSizeInput').value);
+            const type = document.getElementById('pathwayTypeInput').value;
+
+            if (!newId || !name || isNaN(groupSize) || groupSize < 1) { showUserMessage("Please fill all pathway fields correctly (ID, Name, Group Size)."); return; }
+            if (!editId && pathways[newId]) { showUserMessage(`Pathway ID "${newId}" already exists. Please use a unique ID.`); return; }
+
+            const newPhases = [];
+            const phaseGroups = phasesContainerEl.querySelectorAll('.phase-input-group');
+            if (phaseGroups.length === 0) { showUserMessage("A pathway must have at least one phase."); return; }
+            let phaseError = false;
+            phaseGroups.forEach(group => {
+                const selectedEventTypeValue = group.querySelector('.phase-event-type').value;
+                const eventTypeData = pathwayEventTypes.find(et => et.value === selectedEventTypeValue);
+                const duration = parseInt(group.querySelector('.phase-duration').value);
+                if (!eventTypeData || isNaN(duration) || duration < 1) phaseError = true;
+                else newPhases.push({ phase: eventTypeData.text, duration, trainerDemandType: eventTypeData.demandType }); 
+            });
+
+            if (phaseError) { showUserMessage("One or more phases have invalid event types or durations. Please correct them."); return; }
+            if (newPhases.length === 0 && phaseGroups.length > 0) { showUserMessage("Please ensure all phases are correctly defined."); return; }
+            const newPathwayData = { name, groupSize, type, phases: newPhases };
+            if (editId && editId !== newId && pathways[editId]) delete pathways[editId]; 
+            pathways[newId] = newPathwayData;
+            showUserMessage(`Pathway "${name}" saved successfully!`);
+            closePathwayModal(); renderPathwaysTable(); populatePathwaySelect(); 
+        }
+
+        function handleDeletePathway(pathwayId) {
+            const pathway = pathways[pathwayId];
+            if (!pathway) return;
+            showUserMessage(`Are you sure you want to delete pathway "<b>${pathway.name}</b>" (ID: ${pathwayId})?<br>This action cannot be undone.`, true, (confirmed) => {
+                if (confirmed) {
+                    delete pathways[pathwayId];
+                    showUserMessage(`Pathway "${pathway.name}" deleted.`);
+                    renderPathwaysTable(); populatePathwaySelect(); 
+                }
+            });
+        }
+
+        // --- SYNCHRONIZED SCROLLING ---
+        function initSynchronizedScrolling() {
+            const fteSummaryDiv = document.getElementById('fteSummaryContainer');
+            const ganttDiv = document.getElementById('ganttChartContainer');
+            const demandDiv = document.getElementById('demandTableContainer');
+            const surplusDiv = document.getElementById('surplusDeficitTableContainer');
+            
+            scrollableTableContainers.length = 0; 
+            if(fteSummaryDiv) scrollableTableContainers.push(fteSummaryDiv);
+            if(ganttDiv) scrollableTableContainers.push(ganttDiv);
+            if(demandDiv) scrollableTableContainers.push(demandDiv);
+            if(surplusDiv) scrollableTableContainers.push(surplusDiv);
+
+            scrollableTableContainers.forEach(container => {
+                container.removeEventListener('scroll', handleTableScroll); 
+                container.addEventListener('scroll', handleTableScroll);
+            });
+        }
+        
+        function handleTableScroll(event) {
+            if (isSyncingScroll) return; 
+            isSyncingScroll = true;
+            const scrollLeft = event.target.scrollLeft;
+            scrollableTableContainers.forEach(otherContainer => {
+                if (otherContainer !== event.target) {
+                    otherContainer.scrollLeft = scrollLeft;
+                }
+            });
+            requestAnimationFrame(() => { isSyncingScroll = false; });
+        }
+
+    </script>
+</body>
+</html>

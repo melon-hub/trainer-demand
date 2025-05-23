@@ -1,0 +1,864 @@
+/* General Styles */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: #f5f5f5;
+    color: #333;
+    line-height: 1.6;
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+/* Header Styles */
+header {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+h1 {
+    color: #2c3e50;
+    margin-bottom: 20px;
+}
+
+/* Navigation */
+.main-nav {
+    display: flex;
+    gap: 10px;
+}
+
+.nav-tab {
+    padding: 10px 20px;
+    border: none;
+    background-color: #e0e0e0;
+    color: #666;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 16px;
+    transition: all 0.3s ease;
+}
+
+.nav-tab:hover {
+    background-color: #d0d0d0;
+}
+
+.nav-tab.active {
+    background-color: #3498db;
+    color: white;
+}
+
+/* View Containers */
+.view {
+    display: none;
+}
+
+.view.active {
+    display: block;
+}
+
+/* Section Styles */
+section {
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+h2 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Toggle Button Styles */
+.toggle-btn {
+    background: none;
+    border: 1px solid #ddd;
+    width: 24px;
+    height: 24px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.toggle-btn:hover {
+    background-color: #f0f0f0;
+}
+
+.toggle-icon {
+    line-height: 1;
+    font-weight: bold;
+}
+
+/* Collapsible container */
+.collapsible {
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+    overflow: hidden;
+}
+
+.collapsible.collapsed {
+    max-height: 0 !important;
+    opacity: 0;
+    margin-top: 0;
+}
+
+/* Form Styles */
+.add-cohort-form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: end;
+}
+
+.form-group {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    font-weight: 500;
+    margin-bottom: 5px;
+    color: #555;
+}
+
+input[type="number"],
+input[type="text"],
+select {
+    padding: 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
+/* Hide number input spinners */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+input[type="number"] {
+    -moz-appearance: textfield;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus,
+select:focus {
+    outline: none;
+    border-color: #3498db;
+}
+
+/* Button Styles */
+.btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.btn-primary {
+    background-color: #3498db;
+    color: white;
+}
+
+.btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.btn-secondary {
+    background-color: #95a5a6;
+    color: white;
+}
+
+.btn-secondary:hover {
+    background-color: #7f8c8d;
+}
+
+/* Priority Settings Styles */
+.priority-settings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+}
+
+.priority-settings-table th,
+.priority-settings-table td {
+    padding: 12px;
+    text-align: left;
+    border: 1px solid #ddd;
+}
+
+.priority-settings-table th {
+    background-color: #f8f9fa;
+    font-weight: 600;
+}
+
+.priority-settings-table td {
+    background-color: white;
+}
+
+.priority-info {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f0f8ff;
+    border-radius: 5px;
+}
+
+.priority-info h4 {
+    color: #2c3e50;
+    margin-bottom: 10px;
+}
+
+.priority-info ul {
+    margin-top: 10px;
+    padding-left: 20px;
+}
+
+.priority-info li {
+    margin-bottom: 8px;
+    line-height: 1.6;
+}
+
+/* Priority Edit Form */
+.priority-edit-form {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.priority-edit-group {
+    margin-bottom: 20px;
+    padding: 15px;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    background-color: #f9f9f9;
+}
+
+.priority-edit-group h4 {
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 5px;
+}
+
+.checkbox-group label {
+    display: flex;
+    align-items: center;
+    font-weight: normal;
+}
+
+.checkbox-group input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.checkbox-group input[type="checkbox"]:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.checkbox-group input[type="checkbox"]:disabled + label {
+    color: #999;
+}
+
+/* Table Styles */
+.table-container {
+    overflow-x: auto;
+    margin-top: 20px;
+    max-height: 400px;
+    overflow-y: auto;
+    position: relative;
+    background-color: white;
+}
+
+/* Table wrapper for better structure */
+.table-wrapper {
+    display: inline-block;
+    min-width: 100%;
+}
+
+/* Consistent table layout for all data tables */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    table-layout: fixed;
+    border: 1px solid #ddd;
+}
+
+.data-table thead {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+.data-table thead th {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+}
+
+/* Sticky first column with consistent width */
+.sticky-first-column {
+    position: sticky;
+    left: 0;
+    background-color: white;
+    z-index: 11;
+    min-width: 200px;
+    max-width: 200px;
+    width: 200px;
+    padding: 10px 12px;
+    font-weight: bold;
+    border-right: 2px solid #ddd;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Ensure sticky first column in thead has proper background */
+.data-table thead .sticky-first-column {
+    background-color: #f8f9fa;
+    z-index: 12;
+}
+
+/* Month headers */
+.month-header {
+    text-align: center;
+    background-color: #e9ecef;
+    font-weight: 600;
+    padding: 6px;
+    border: 1px solid #ddd;
+    position: relative;
+}
+
+/* Fortnight headers */
+.fortnight-header {
+    min-width: 70px;
+    max-width: 70px;
+    width: 70px;
+    text-align: center;
+    font-size: 11px;
+    padding: 4px;
+    border: 1px solid #ddd;
+    background-color: #f8f9fa;
+    position: relative;
+}
+
+/* Data cells with consistent width */
+.data-cell {
+    min-width: 70px;
+    max-width: 70px;
+    width: 70px;
+    text-align: center;
+    padding: 8px 4px;
+    border: 1px solid #eee;
+}
+
+/* Ensure tbody first column cells are also sticky */
+.data-table tbody .sticky-first-column {
+    background-color: white;
+    z-index: 9;
+}
+
+/* Specific styling for different cell types */
+.total-supply-cell {
+    background-color: #e3f2fd;
+    font-weight: bold;
+}
+
+.data-table tbody tr.total-supply-row {
+    border-bottom: 2px solid #1976d2;
+}
+
+.category-detail-cell {
+    background-color: #fafafa;
+    color: #666;
+}
+
+.data-table tbody .category-detail .sticky-first-column {
+    padding-left: 30px;
+}
+
+.total-row {
+    font-weight: bold;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+thead {
+    position: sticky;
+    top: 0;
+    background-color: #f8f9fa;
+    z-index: 10;
+}
+
+th {
+    padding: 12px;
+    text-align: left;
+    font-weight: 600;
+    color: #2c3e50;
+    border-bottom: 2px solid #e0e0e0;
+    white-space: nowrap;
+}
+
+td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* Sticky column styles */
+th[rowspan="2"] {
+    vertical-align: middle;
+    border-bottom: 2px solid #ddd;
+}
+
+/* Remove conflicting first-child rule as we use .sticky-first-column class */
+/* tbody td:first-child rule removed - using .sticky-first-column instead */
+
+/* Ensure proper table borders and structure */
+.data-table tbody tr {
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.data-table tbody tr:last-child {
+    border-bottom: none;
+}
+
+/* Fix header alignment */
+.data-table thead tr:first-child th {
+    border-bottom: 1px solid #ddd;
+}
+
+.data-table thead tr:last-child th {
+    border-bottom: 2px solid #ddd;
+}
+
+/* Ensure proper scrollbar spacing */
+.table-container::-webkit-scrollbar,
+.gantt-container::-webkit-scrollbar {
+    height: 12px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.gantt-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.gantt-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.gantt-container::-webkit-scrollbar-thumb:hover {
+    background: #555;
+}
+
+/* Month header styling */
+th[colspan] {
+    text-align: center !important;
+    background-color: #e9ecef;
+    font-weight: 600;
+}
+
+/* Color Coding for Surplus/Deficit */
+.deficit {
+    color: #e74c3c;
+    font-weight: 600;
+}
+
+.surplus {
+    color: #27ae60;
+    font-weight: 600;
+}
+
+/* Ensure all scrollable containers have the same behavior */
+#fte-summary-table-container,
+#gantt-chart-container,
+#demand-table-container,
+#surplus-deficit-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 400px;
+    margin-top: 20px;
+    position: relative;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: white;
+}
+
+#gantt-chart-container {
+    max-height: 500px;
+}
+
+/* Gantt Chart Styles */
+.gantt-container {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: 500px;
+    margin-top: 20px;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    background-color: white;
+}
+
+/* Gantt-specific adjustments */
+.gantt-table {
+    min-width: 100%;
+}
+
+/* Ensure proper width calculation for tables */
+.data-table {
+    /* Calculate minimum width based on columns */
+    min-width: calc(200px + (70px * 264)); /* 200px first column + 70px * (11 years * 24 fortnights) */
+}
+
+.gantt-first-column {
+    border-right: 2px solid #ddd;
+}
+
+.gantt-fortnight-header {
+    font-size: 10px;
+}
+
+.gantt-cohort-cell {
+    background-color: white;
+}
+
+.gantt-cohort-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    min-height: 25px;
+}
+
+.gantt-cohort-content > span {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    margin-right: 10px;
+}
+
+.gantt-cohort-buttons {
+    display: flex;
+    gap: 5px;
+    flex-shrink: 0;
+}
+
+.gantt-edit-btn,
+.gantt-remove-btn {
+    padding: 2px 6px;
+    color: white;
+    border: none;
+    border-radius: 3px;
+    cursor: pointer;
+    font-size: 11px;
+}
+
+.gantt-edit-btn {
+    background-color: #3498db;
+}
+
+.gantt-edit-btn:hover {
+    background-color: #2980b9;
+}
+
+.gantt-remove-btn {
+    background-color: #e74c3c;
+}
+
+.gantt-remove-btn:hover {
+    background-color: #c0392b;
+}
+
+.gantt-phase-cell {
+    color: white;
+    font-size: 10px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+.gantt-empty-cell {
+    background-color: #fafafa;
+}
+
+.gantt-wrapper {
+    min-width: 100%;
+}
+
+.gantt-chart {
+    display: grid;
+    gap: 2px;
+    padding: 10px;
+    min-width: 1200px;
+}
+
+.gantt-header {
+    display: grid;
+    grid-template-columns: 200px repeat(auto-fill, 40px);
+    gap: 2px;
+    margin-bottom: 10px;
+}
+
+.gantt-row {
+    display: grid;
+    grid-template-columns: 200px repeat(auto-fill, 40px);
+    gap: 2px;
+    height: 30px;
+    align-items: center;
+}
+
+.gantt-cohort-label {
+    font-size: 12px;
+    padding: 0 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.gantt-cell {
+    height: 100%;
+    background-color: #f0f0f0;
+    border-radius: 2px;
+}
+
+.gantt-cell.active {
+    background-color: #3498db;
+}
+
+.gantt-cell.ground-school {
+    background-color: #f39c12;
+}
+
+.gantt-cell.line-training {
+    background-color: #27ae60;
+}
+
+/* Modal Styles */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+}
+
+.modal.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-content {
+    background-color: #fff;
+    padding: 0;
+    border-radius: 8px;
+    width: 90%;
+    max-width: 800px;
+    max-height: 80vh;
+    overflow-y: auto;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.modal-header h2 {
+    margin: 0;
+}
+
+.modal-close {
+    font-size: 28px;
+    font-weight: 300;
+    line-height: 1;
+    color: #999;
+    cursor: pointer;
+    background: none;
+    border: none;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.modal-close:hover {
+    color: #333;
+}
+
+.modal-body {
+    padding: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+/* FTE Edit Form */
+#fte-edit-container {
+    padding: 0;
+}
+
+/* FTE Edit Table Styles */
+.fte-edit-table {
+    margin-top: 10px;
+}
+
+.fte-edit-table th {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background-color: #f8f9fa;
+}
+
+.fte-edit-table tbody tr:hover {
+    background-color: #f0f0f0;
+}
+
+.fte-edit-table input[type="number"] {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 4px;
+    transition: border-color 0.2s;
+}
+
+.fte-edit-table input[type="number"]:focus {
+    border-color: #3498db;
+    outline: none;
+}
+
+.fte-quick-fill {
+    background-color: white !important;
+}
+
+.year-section {
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.year-section h3 {
+    margin-bottom: 10px;
+    color: #2c3e50;
+    font-size: 1.1rem;
+}
+
+.fte-edit-row {
+    display: grid;
+    grid-template-columns: 100px 1fr;
+    gap: 10px;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+/* Pathway Phase Styles */
+.phase-input-group {
+    border: 1px solid #e0e0e0;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 4px;
+    background-color: #f8f9fa;
+}
+
+.phase-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.phase-fields {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+}
+
+.remove-phase-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.remove-phase-btn:hover {
+    background-color: #c0392b;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    .add-cohort-form {
+        grid-template-columns: 1fr;
+    }
+    
+    .modal-content {
+        width: 95%;
+    }
+    
+    .phase-fields {
+        grid-template-columns: 1fr;
+    }
+}

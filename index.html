@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilot Trainer Supply/Demand Planner</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Pilot Trainer Supply/Demand Planner</h1>
+            <nav class="main-nav">
+                <button class="nav-tab active" data-view="planner">Planner</button>
+                <button class="nav-tab" data-view="settings">Settings</button>
+            </nav>
+        </header>
+
+        <!-- Planner View -->
+        <div id="planner-view" class="view active">
+            <!-- Add Cohort Section -->
+            <section class="add-cohort-section">
+                <h2>Add New Cohort</h2>
+                <form id="add-cohort-form" class="add-cohort-form">
+                    <div class="form-group">
+                        <label for="num-trainees">Number of Trainees:</label>
+                        <input type="number" id="num-trainees" name="numTrainees" min="1" value="2" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="pathway">Pathway:</label>
+                        <select id="pathway" name="pathway" required>
+                            <option value="">Select a pathway</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="start-year">Start Year:</label>
+                        <select id="start-year" name="startYear" required>
+                            <option value="">Select year</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="start-fortnight">Start Fortnight:</label>
+                        <select id="start-fortnight" name="startFortnight" required>
+                            <option value="">Select fortnight</option>
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Add Cohort</button>
+                </form>
+            </section>
+
+            <!-- FTE Summary Section -->
+            <section class="fte-summary-section">
+                <div class="section-header">
+                    <h2>
+                        <button id="toggle-fte-btn" class="toggle-btn" aria-expanded="false">
+                            <span class="toggle-icon">+</span>
+                        </button>
+                        FTE Summary
+                    </h2>
+                    <button id="edit-fte-btn" class="btn btn-secondary">Edit FTE</button>
+                </div>
+                <div id="fte-summary-table-container" class="table-container">
+                    <!-- FTE Summary table will be generated here -->
+                </div>
+            </section>
+
+            <!-- Gantt Chart Section -->
+            <section class="gantt-chart-section">
+                <h2>Training Timeline (Gantt Chart)</h2>
+                <div id="gantt-chart-container" class="gantt-container">
+                    <!-- Gantt chart will be generated here -->
+                </div>
+            </section>
+
+            <!-- Demand Table Section -->
+            <section class="demand-table-section">
+                <h2>Trainer Demand</h2>
+                <div id="demand-table-container" class="table-container">
+                    <!-- Demand table will be generated here -->
+                </div>
+            </section>
+
+            <!-- Surplus/Deficit Table Section -->
+            <section class="surplus-deficit-section">
+                <h2>Surplus/Deficit Analysis</h2>
+                <div id="surplus-deficit-container" class="table-container">
+                    <!-- Surplus/Deficit table will be generated here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Settings View -->
+        <div id="settings-view" class="view">
+            <section class="priority-settings-section">
+                <div class="section-header">
+                    <h2>Priority Settings</h2>
+                    <button id="edit-priority-btn" class="btn btn-secondary">Edit Priorities</button>
+                </div>
+                <div id="priority-settings-container" class="table-container">
+                    <!-- Priority settings table will be generated here -->
+                </div>
+            </section>
+            
+            <section class="pathways-section">
+                <div class="section-header">
+                    <h2>Training Pathways</h2>
+                    <button id="add-pathway-btn" class="btn btn-primary">Add New Pathway</button>
+                </div>
+                <div id="pathways-table-container" class="table-container">
+                    <!-- Pathways table will be generated here -->
+                </div>
+            </section>
+        </div>
+
+        <!-- Modal for FTE Editing -->
+        <div id="fte-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Trainer FTE</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="fte-edit-form">
+                        <div id="fte-edit-container">
+                            <!-- FTE edit form will be generated here -->
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Pathway Editing -->
+        <div id="pathway-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="pathway-modal-title">Add New Pathway</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="pathway-edit-form">
+                        <div class="form-group">
+                            <label for="pathway-name">Pathway Name:</label>
+                            <input type="text" id="pathway-name" name="pathwayName" required>
+                        </div>
+                        <div id="pathway-phases-container">
+                            <!-- Phase inputs will be generated here -->
+                        </div>
+                        <button type="button" id="add-phase-btn" class="btn btn-secondary">Add Phase</button>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save Pathway</button>
+                            <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Cohort Editing -->
+        <div id="cohort-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Cohort</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="cohort-edit-form">
+                        <div class="form-group">
+                            <label for="edit-num-trainees">Number of Trainees:</label>
+                            <input type="number" id="edit-num-trainees" name="numTrainees" min="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-pathway">Pathway:</label>
+                            <select id="edit-pathway" name="pathway" required>
+                                <option value="">Select a pathway</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-start-year">Start Year:</label>
+                            <select id="edit-start-year" name="startYear" required>
+                                <option value="">Select year</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-start-fortnight">Start Fortnight:</label>
+                            <select id="edit-start-fortnight" name="startFortnight" required>
+                                <option value="">Select fortnight</option>
+                            </select>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Modal for Priority Settings -->
+        <div id="priority-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>Edit Priority Settings</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="priority-edit-form">
+                        <div id="priority-edit-container">
+                            <!-- Priority edit form will be generated here -->
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
