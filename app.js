@@ -3,6 +3,13 @@ const START_YEAR = 2024;
 const END_YEAR = 2034;
 const FORTNIGHTS_PER_YEAR = 24;
 
+// View state
+let viewState = {
+    dateRange: 'all',
+    startFortnight: null,
+    endFortnight: null
+};
+
 // Month mapping for fortnights
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FORTNIGHT_TO_MONTH = {
@@ -269,13 +276,29 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         monthHeaders += '<th rowspan="2" class="sticky-first-column">Metric</th>';
     }
     
+    // Determine the year and fortnight range based on viewState
+    let startYear = START_YEAR;
+    let endYear = END_YEAR;
+    let startFn = 1;
+    let endFn = FORTNIGHTS_PER_YEAR;
+    
+    if (viewState.dateRange !== 'all' && viewState.startYear) {
+        startYear = viewState.startYear;
+        endYear = viewState.endYear;
+        startFn = viewState.startFortnight;
+        endFn = viewState.endFortnight;
+    }
+    
     // Generate month headers with proper year iteration
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-        // Process all 24 fortnights for this year
+    for (let year = startYear; year <= endYear; year++) {
+        // Process fortnights for this year
         let monthCounts = new Array(12).fill(0);
         
+        const yearStartFn = (year === startYear) ? startFn : 1;
+        const yearEndFn = (year === endYear) ? endFn : FORTNIGHTS_PER_YEAR;
+        
         // Count fortnights per month
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const monthIndex = FORTNIGHT_TO_MONTH[fn];
             monthCounts[monthIndex]++;
         }
@@ -288,9 +311,12 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         }
     }
     
-    // Generate fortnight headers (no need to add first column as it's already spanned from above)
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+    // Generate fortnight headers
+    for (let year = startYear; year <= endYear; year++) {
+        const yearStartFn = (year === startYear) ? startFn : 1;
+        const yearEndFn = (year === endYear) ? endFn : FORTNIGHTS_PER_YEAR;
+        
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             fortnightHeaders += `<th class="fortnight-header">FN${String(fn).padStart(2, '0')}</th>`;
         }
     }
@@ -354,6 +380,18 @@ function setupEventListeners() {
     
     // Cohort Edit form
     document.getElementById('cohort-edit-form').addEventListener('submit', handleCohortUpdate);
+    
+    // Date range filter
+    const dateRangeFilter = document.getElementById('date-range-filter');
+    if (dateRangeFilter) {
+        dateRangeFilter.addEventListener('change', handleDateRangeChange);
+    }
+    
+    // Today button
+    const todayBtn = document.getElementById('today-btn');
+    if (todayBtn) {
+        todayBtn.addEventListener('click', scrollToToday);
+    }
 }
 
 // View Management
@@ -502,11 +540,25 @@ function renderFTESummaryTable() {
     html += '<tr class="total-supply-row">';
     html += '<td class="sticky-first-column total-supply-cell">Total Supply</td>';
     
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
+    // Determine the year and fortnight range based on viewState
+    let startYear = START_YEAR;
+    let endYear = END_YEAR;
+    
+    if (viewState.dateRange !== 'all' && viewState.startYear) {
+        startYear = viewState.startYear;
+        endYear = viewState.endYear;
+    }
+    
+    for (let year = startYear; year <= endYear; year++) {
         const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + trainerFTE[year][cat], 0);
         const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(2);
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
-            html += `<td class="data-cell total-supply-cell">${fortnightlyTotal}</td>`;
+        
+        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+            const isToday = isCurrentFortnight(year, fn);
+            html += `<td class="data-cell total-supply-cell${isToday ? ' today' : ''}">${fortnightlyTotal}</td>`;
         }
     }
     html += '</tr>';
@@ -1612,6 +1664,122 @@ function removeCohort(cohortId) {
         renderGanttChart();
         setupSynchronizedScrolling();
     }
+}
+
+// Date range handling functions
+function handleDateRangeChange(e) {
+    const range = e.target.value;
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentFortnight = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    
+    switch(range) {
+        case 'all':
+            viewState.dateRange = 'all';
+            viewState.startFortnight = null;
+            viewState.endFortnight = null;
+            break;
+            
+        case 'next6months':
+            viewState.dateRange = 'next6months';
+            viewState.startYear = currentYear;
+            viewState.startFortnight = currentFortnight;
+            viewState.endYear = currentMonth + 6 > 11 ? currentYear + 1 : currentYear;
+            viewState.endFortnight = ((currentMonth + 6) % 12) * 2 + 2;
+            break;
+            
+        case 'next12months':
+            viewState.dateRange = 'next12months';
+            viewState.startYear = currentYear;
+            viewState.startFortnight = currentFortnight;
+            viewState.endYear = currentYear + 1;
+            viewState.endFortnight = currentFortnight;
+            break;
+            
+        case '2025q1':
+            viewState.dateRange = '2025q1';
+            viewState.startYear = 2025;
+            viewState.startFortnight = 1;
+            viewState.endYear = 2025;
+            viewState.endFortnight = 6;
+            break;
+            
+        case '2025q2':
+            viewState.dateRange = '2025q2';
+            viewState.startYear = 2025;
+            viewState.startFortnight = 7;
+            viewState.endYear = 2025;
+            viewState.endFortnight = 12;
+            break;
+            
+        case '2025q3':
+            viewState.dateRange = '2025q3';
+            viewState.startYear = 2025;
+            viewState.startFortnight = 13;
+            viewState.endYear = 2025;
+            viewState.endFortnight = 18;
+            break;
+            
+        case '2025q4':
+            viewState.dateRange = '2025q4';
+            viewState.startYear = 2025;
+            viewState.startFortnight = 19;
+            viewState.endYear = 2025;
+            viewState.endFortnight = 24;
+            break;
+    }
+    
+    // Re-render all tables with the new date range
+    updateAllTables();
+    renderGanttChart();
+}
+
+function scrollToToday() {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentFortnight = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    
+    // Calculate the column index for today
+    const yearsSinceStart = currentYear - START_YEAR;
+    const columnIndex = yearsSinceStart * FORTNIGHTS_PER_YEAR + currentFortnight - 1;
+    const columnWidth = 70; // Width of each fortnight column
+    
+    // Scroll all synchronized containers
+    const containers = [
+        document.getElementById('fte-summary-table-container'),
+        document.getElementById('gantt-chart-container'),
+        document.getElementById('demand-table-container'),
+        document.getElementById('surplus-deficit-container')
+    ];
+    
+    containers.forEach(container => {
+        if (container) {
+            container.scrollLeft = columnIndex * columnWidth - 200; // Center it a bit
+        }
+    });
+}
+
+// Helper function to check if a fortnight is within the current view range
+function isFortnightInRange(year, fortnight) {
+    if (viewState.dateRange === 'all') return true;
+    
+    const fortnightIndex = (year - START_YEAR) * FORTNIGHTS_PER_YEAR + fortnight - 1;
+    const startIndex = (viewState.startYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.startFortnight - 1;
+    const endIndex = (viewState.endYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.endFortnight - 1;
+    
+    return fortnightIndex >= startIndex && fortnightIndex <= endIndex;
+}
+
+// Helper function to check if a fortnight is the current one
+function isCurrentFortnight(year, fortnight) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentFn = Math.floor(today.getDate() / 14) + 1 + (currentMonth * 2);
+    
+    return year === currentYear && fortnight === currentFn;
 }
 
 // Make functions available globally for inline onclick
