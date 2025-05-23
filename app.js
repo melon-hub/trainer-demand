@@ -430,12 +430,50 @@ function switchView(viewName) {
 // Populate Pathway Select
 function populatePathwaySelect() {
     pathwaySelect.innerHTML = '<option value="">Select a pathway</option>';
-    pathways.forEach(pathway => {
-        const option = document.createElement('option');
-        option.value = pathway.id;
-        option.textContent = pathway.name;
-        pathwaySelect.appendChild(option);
-    });
+    
+    // Group pathways by type
+    const cpPathways = pathways.filter(p => p.type === 'CP').sort((a, b) => a.id.localeCompare(b.id));
+    const foPathways = pathways.filter(p => p.type === 'FO').sort((a, b) => a.id.localeCompare(b.id));
+    const cadPathways = pathways.filter(p => p.type === 'CAD').sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Add CP pathways
+    if (cpPathways.length > 0) {
+        const cpGroup = document.createElement('optgroup');
+        cpGroup.label = 'Captain (CP) Pathways';
+        cpPathways.forEach(pathway => {
+            const option = document.createElement('option');
+            option.value = pathway.id;
+            option.textContent = pathway.name;
+            cpGroup.appendChild(option);
+        });
+        pathwaySelect.appendChild(cpGroup);
+    }
+    
+    // Add FO pathways
+    if (foPathways.length > 0) {
+        const foGroup = document.createElement('optgroup');
+        foGroup.label = 'First Officer (FO) Pathways';
+        foPathways.forEach(pathway => {
+            const option = document.createElement('option');
+            option.value = pathway.id;
+            option.textContent = pathway.name;
+            foGroup.appendChild(option);
+        });
+        pathwaySelect.appendChild(foGroup);
+    }
+    
+    // Add CAD pathways
+    if (cadPathways.length > 0) {
+        const cadGroup = document.createElement('optgroup');
+        cadGroup.label = 'Cadet (CAD) Pathways';
+        cadPathways.forEach(pathway => {
+            const option = document.createElement('option');
+            option.value = pathway.id;
+            option.textContent = pathway.name;
+            cadGroup.appendChild(option);
+        });
+        pathwaySelect.appendChild(cadGroup);
+    }
 }
 
 // Populate Year Select
@@ -457,7 +495,9 @@ function populateFortnightSelect() {
     for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
         const option = document.createElement('option');
         option.value = fn;
-        option.textContent = `FN${String(fn).padStart(2, '0')}`;
+        const monthIndex = FORTNIGHT_TO_MONTH[fn];
+        const monthName = MONTHS[monthIndex];
+        option.textContent = `FN${String(fn).padStart(2, '0')} (${monthName})`;
         fortnightSelect.appendChild(option);
     }
 }
@@ -930,13 +970,40 @@ function renderGanttChart() {
         return;
     }
     
-    // Sort cohorts by start year and fortnight
-    const sortedCohorts = [...activeCohorts].sort((a, b) => {
-        if (a.startYear !== b.startYear) {
-            return a.startYear - b.startYear;
-        }
-        return a.startFortnight - b.startFortnight;
-    });
+    // Sort and group cohorts
+    let cohortGroups = {};
+    
+    if (viewState.groupBy === 'type') {
+        // Group cohorts by pathway type
+        activeCohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            const type = pathway.type || 'Other';
+            if (!cohortGroups[type]) {
+                cohortGroups[type] = [];
+            }
+            cohortGroups[type].push(cohort);
+        });
+        
+        // Sort cohorts within each group
+        Object.keys(cohortGroups).forEach(type => {
+            cohortGroups[type].sort((a, b) => {
+                if (a.startYear !== b.startYear) {
+                    return a.startYear - b.startYear;
+                }
+                return a.startFortnight - b.startFortnight;
+            });
+        });
+    } else {
+        // No grouping - just sort all cohorts
+        cohortGroups['All'] = [...activeCohorts].sort((a, b) => {
+            if (a.startYear !== b.startYear) {
+                return a.startYear - b.startYear;
+            }
+            return a.startFortnight - b.startFortnight;
+        });
+    }
     
     // Calculate the total fortnights needed for the chart
     const totalYears = END_YEAR - START_YEAR + 1;
@@ -945,8 +1012,14 @@ function renderGanttChart() {
     // Start building the Gantt chart HTML
     let html = '<div class="table-wrapper"><table class="gantt-table data-table">';
     
-    // Create header with months and fortnights using the shared function
-    const headers = generateTableHeaders(false, false);
+    // Determine the year and fortnight range based on viewState
+    let startYear = START_YEAR;
+    let endYear = END_YEAR;
+    
+    if (viewState.dateRange !== 'all' && viewState.startYear) {
+        startYear = viewState.startYear;
+        endYear = viewState.endYear;
+    }
     
     html += '<thead>';
     
@@ -954,12 +1027,15 @@ function renderGanttChart() {
     html += '<tr>';
     html += '<th rowspan="2" class="sticky-first-column gantt-first-column">Cohort</th>';
     
-    // Add month headers
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
+    // Add month headers respecting date range
+    for (let year = startYear; year <= endYear; year++) {
         let monthCounts = new Array(12).fill(0);
         
-        // Count fortnights per month
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        
+        // Count fortnights per month for this year's range
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
             const monthIndex = FORTNIGHT_TO_MONTH[fn];
             monthCounts[monthIndex]++;
         }
@@ -976,9 +1052,13 @@ function renderGanttChart() {
     // Fortnight row
     html += '<tr>';
     
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
-            html += `<th class="fortnight-header gantt-fortnight-header">FN${String(fn).padStart(2, '0')}</th>`;
+    for (let year = startYear; year <= endYear; year++) {
+        const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+        const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+        
+        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+            const isToday = isCurrentFortnight(year, fn);
+            html += `<th class="fortnight-header gantt-fortnight-header${isToday ? ' today' : ''}">FN${String(fn).padStart(2, '0')}</th>`;
         }
     }
     html += '</tr>';
@@ -986,10 +1066,44 @@ function renderGanttChart() {
     
     html += '<tbody>';
     
-    // Render each cohort
-    sortedCohorts.forEach((cohort, index) => {
-        const pathway = pathways.find(p => p.id === cohort.pathwayId);
-        if (!pathway) return;
+    // Render cohorts by group
+    const groupOrder = ['CP', 'FO', 'CAD', 'All', 'Other'];
+    const sortedGroups = Object.keys(cohortGroups).sort((a, b) => {
+        return groupOrder.indexOf(a) - groupOrder.indexOf(b);
+    });
+    
+    sortedGroups.forEach(groupName => {
+        const cohorts = cohortGroups[groupName];
+        
+        // Add group header if grouping is enabled
+        if (viewState.groupBy === 'type' && groupName !== 'All') {
+            const isCollapsed = viewState.collapsedGroups.includes(groupName);
+            html += `<tr class="group-header">`;
+            html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
+            html += `<button class="group-toggle-btn" onclick="toggleGroup('${groupName}')">`;
+            html += `<span class="toggle-icon">${isCollapsed ? '+' : '−'}</span> `;
+            html += `${groupName} (${cohorts.length} cohorts)</button>`;
+            html += `</td>`;
+            
+            // Fill remaining cells
+            for (let year = startYear; year <= endYear; year++) {
+                const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+                const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+                
+                for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+                    html += `<td class="group-header-cell"></td>`;
+                }
+            }
+            html += '</tr>';
+            
+            // Skip cohorts if group is collapsed
+            if (isCollapsed) return;
+        }
+        
+        // Render cohorts in this group
+        cohorts.forEach((cohort, index) => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
         
         html += '<tr>';
         
@@ -1041,11 +1155,15 @@ function renderGanttChart() {
             }
         });
         
-        // Render cells
-        for (let year = START_YEAR; year <= END_YEAR; year++) {
-            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        // Render cells respecting date range
+        for (let year = startYear; year <= endYear; year++) {
+            const yearStartFn = (year === startYear && viewState.startFortnight) ? viewState.startFortnight : 1;
+            const yearEndFn = (year === endYear && viewState.endFortnight) ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
+            
+            for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
                 const cellKey = `${year}-${fn}`;
                 const cell = cellData[cellKey];
+                const isToday = isCurrentFortnight(year, fn);
                 
                 if (cell) {
                     const phaseColors = {
@@ -1076,15 +1194,16 @@ function renderGanttChart() {
                     
                     const tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name}\nFortnight ${cell.progress}/${cell.totalDuration}\nYear ${year}, Fortnight ${fn}`;
                     
-                    html += `<td class="gantt-phase-cell data-cell" style="background-color: ${backgroundColor};" title="${tooltip}">${cellContent}</td>`;
+                    html += `<td class="gantt-phase-cell data-cell${isToday ? ' today' : ''}" style="background-color: ${backgroundColor};" title="${tooltip}">${cellContent}</td>`;
                 } else {
                     // Empty cell
-                    html += '<td class="gantt-empty-cell data-cell"></td>';
+                    html += `<td class="gantt-empty-cell data-cell${isToday ? ' today' : ''}"></td>`;
                 }
             }
         }
         
         html += '</tr>';
+        });
     });
     
     html += '</tbody>';
@@ -1665,13 +1784,53 @@ function editCohort(cohortId) {
     // Populate the edit form dropdowns
     const editPathwaySelect = document.getElementById('edit-pathway');
     editPathwaySelect.innerHTML = '<option value="">Select a pathway</option>';
-    pathways.forEach(pathway => {
-        const option = document.createElement('option');
-        option.value = pathway.id;
-        option.textContent = pathway.name;
-        option.selected = pathway.id === cohort.pathwayId;
-        editPathwaySelect.appendChild(option);
-    });
+    
+    // Group pathways by type
+    const cpPathways = pathways.filter(p => p.type === 'CP').sort((a, b) => a.id.localeCompare(b.id));
+    const foPathways = pathways.filter(p => p.type === 'FO').sort((a, b) => a.id.localeCompare(b.id));
+    const cadPathways = pathways.filter(p => p.type === 'CAD').sort((a, b) => a.id.localeCompare(b.id));
+    
+    // Add CP pathways
+    if (cpPathways.length > 0) {
+        const cpGroup = document.createElement('optgroup');
+        cpGroup.label = 'Captain (CP) Pathways';
+        cpPathways.forEach(pathway => {
+            const option = document.createElement('option');
+            option.value = pathway.id;
+            option.textContent = pathway.name;
+            option.selected = pathway.id === cohort.pathwayId;
+            cpGroup.appendChild(option);
+        });
+        editPathwaySelect.appendChild(cpGroup);
+    }
+    
+    // Add FO pathways
+    if (foPathways.length > 0) {
+        const foGroup = document.createElement('optgroup');
+        foGroup.label = 'First Officer (FO) Pathways';
+        foPathways.forEach(pathway => {
+            const option = document.createElement('option');
+            option.value = pathway.id;
+            option.textContent = pathway.name;
+            option.selected = pathway.id === cohort.pathwayId;
+            foGroup.appendChild(option);
+        });
+        editPathwaySelect.appendChild(foGroup);
+    }
+    
+    // Add CAD pathways
+    if (cadPathways.length > 0) {
+        const cadGroup = document.createElement('optgroup');
+        cadGroup.label = 'Cadet (CAD) Pathways';
+        cadPathways.forEach(pathway => {
+            const option = document.createElement('option');
+            option.value = pathway.id;
+            option.textContent = pathway.name;
+            option.selected = pathway.id === cohort.pathwayId;
+            cadGroup.appendChild(option);
+        });
+        editPathwaySelect.appendChild(cadGroup);
+    }
     
     const editYearSelect = document.getElementById('edit-start-year');
     editYearSelect.innerHTML = '<option value="">Select year</option>';
@@ -1688,7 +1847,9 @@ function editCohort(cohortId) {
     for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
         const option = document.createElement('option');
         option.value = fn;
-        option.textContent = `FN${String(fn).padStart(2, '0')}`;
+        const monthIndex = FORTNIGHT_TO_MONTH[fn];
+        const monthName = MONTHS[monthIndex];
+        option.textContent = `FN${String(fn).padStart(2, '0')} (${monthName})`;
         option.selected = fn === cohort.startFortnight;
         editFortnightSelect.appendChild(option);
     }

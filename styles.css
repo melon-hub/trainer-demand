@@ -575,6 +575,32 @@ th[colspan] {
     max-height: 500px;
 }
 
+/* Group Header Styles */
+.group-header {
+    background-color: #f0f0f0;
+}
+
+.group-header-cell {
+    background-color: #f0f0f0;
+    font-weight: bold;
+    padding: 8px;
+    border: 1px solid #ddd;
+}
+
+.group-toggle-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-weight: bold;
+    text-align: left;
+    width: 100%;
+    padding: 4px;
+}
+
+.group-toggle-btn:hover {
+    background-color: #e0e0e0;
+}
+
 /* Gantt Chart Styles */
 .gantt-container {
     overflow-x: auto;
