@@ -3,15 +3,6 @@ const START_YEAR = 2024;
 const END_YEAR = 2034;
 const FORTNIGHTS_PER_YEAR = 24;
 
-// View state
-let viewState = {
-    dateRange: 'all',
-    startFortnight: null,
-    endFortnight: null,
-    groupBy: 'none',
-    collapsedGroups: []
-};
-
 // Month mapping for fortnights
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FORTNIGHT_TO_MONTH = {
@@ -28,14 +19,6 @@ const FORTNIGHT_TO_MONTH = {
     21: 10, 22: 10,   // Nov
     23: 11, 24: 11    // Dec
 };
-
-// Generate all fortnight names for the full date range
-const FORTNIGHT_NAMES = [];
-for (let year = START_YEAR; year <= END_YEAR; year++) {
-    for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
-        FORTNIGHT_NAMES.push(`FN${String(fn).padStart(2, '0')}-${year}`);
-    }
-}
 
 // Trainer categories
 const TRAINER_CATEGORIES = ['CATB', 'CATA', 'STP', 'RHS', 'LHS'];
@@ -240,6 +223,17 @@ let activeCohorts = [
 ];
 let nextCohortId = 2;
 
+// View state for filters and grouping
+let viewState = {
+    groupBy: 'none',
+    collapsedGroups: [],
+    currentScenarioId: null,
+    isDirty: false // Track if current state has unsaved changes
+};
+
+// Scenarios storage
+let scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios')) || [];
+
 // DOM Elements
 const plannerView = document.getElementById('planner-view');
 const settingsView = document.getElementById('settings-view');
@@ -286,31 +280,13 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         monthHeaders += '<th rowspan="2" class="sticky-first-column">Metric</th>';
     }
     
-    // Determine the year and fortnight range based on viewState
-    let startYear = START_YEAR;
-    let endYear = END_YEAR;
-    let startFn = 1;
-    let endFn = FORTNIGHTS_PER_YEAR;
-    
-    if (viewState.dateRange !== 'all' && viewState.startYear) {
-        startYear = viewState.startYear;
-        endYear = viewState.endYear;
-        startFn = viewState.startFortnight;
-        endFn = viewState.endFortnight;
-    }
-    
-    
     // Generate month headers with proper year iteration
-    for (let year = startYear; year <= endYear; year++) {
-        // Process fortnights for this year
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        // Process all 24 fortnights for this year
         let monthCounts = new Array(12).fill(0);
         
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? startFn : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? endFn : FORTNIGHTS_PER_YEAR;
-        
-        
         // Count fortnights per month
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
             const monthIndex = FORTNIGHT_TO_MONTH[fn];
             monthCounts[monthIndex]++;
         }
@@ -323,12 +299,9 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         }
     }
     
-    // Generate fortnight headers
-    for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? startFn : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? endFn : FORTNIGHTS_PER_YEAR;
-        
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+    // Generate fortnight headers (no need to add first column as it's already spanned from above)
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
             fortnightHeaders += `<th class="fortnight-header">FN${String(fn).padStart(2, '0')}</th>`;
         }
     }
@@ -393,22 +366,69 @@ function setupEventListeners() {
     // Cohort Edit form
     document.getElementById('cohort-edit-form').addEventListener('submit', handleCohortUpdate);
     
-    // Date range filter
-    const dateRangeFilter = document.getElementById('date-range-filter');
-    if (dateRangeFilter) {
-        dateRangeFilter.addEventListener('change', handleDateRangeChange);
-    }
-    
-    // Today button
-    const todayBtn = document.getElementById('today-btn');
-    if (todayBtn) {
-        todayBtn.addEventListener('click', scrollToToday);
-    }
-    
     // Group by filter
     const groupByFilter = document.getElementById('group-by-filter');
     if (groupByFilter) {
         groupByFilter.addEventListener('change', handleGroupByChange);
+    }
+    
+    // Scenarios panel
+    const scenariosBtn = document.getElementById('scenarios-btn');
+    const closeScenarios = document.getElementById('close-scenarios');
+    const scenariosOverlay = document.getElementById('scenarios-overlay');
+    const saveCurrentBtn = document.getElementById('save-current-scenario');
+    
+    if (scenariosBtn) {
+        scenariosBtn.addEventListener('click', openScenariosPanel);
+    }
+    
+    if (closeScenarios) {
+        closeScenarios.addEventListener('click', closeScenariosPanel);
+    }
+    
+    if (scenariosOverlay) {
+        scenariosOverlay.addEventListener('click', closeScenariosPanel);
+    }
+    
+    if (saveCurrentBtn) {
+        saveCurrentBtn.addEventListener('click', saveCurrentScenario);
+    }
+    
+    // Training Planner
+    const trainingPlannerBtn = document.getElementById('training-planner-btn');
+    const trainingPlannerModal = document.getElementById('training-planner-modal');
+    const plannerTabs = document.querySelectorAll('.planner-tab');
+    const validateBulkBtn = document.getElementById('validate-bulk');
+    const applyBulkBtn = document.getElementById('apply-bulk');
+    const targetForm = document.getElementById('target-form');
+    const applyOptimizedBtn = document.getElementById('apply-optimized');
+    
+    if (trainingPlannerBtn) {
+        trainingPlannerBtn.addEventListener('click', () => {
+            trainingPlannerModal.style.display = 'flex';
+        });
+    }
+    
+    plannerTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            switchPlannerTab(e.target.dataset.tab);
+        });
+    });
+    
+    if (validateBulkBtn) {
+        validateBulkBtn.addEventListener('click', validateBulkInput);
+    }
+    
+    if (applyBulkBtn) {
+        applyBulkBtn.addEventListener('click', applyBulkSchedule);
+    }
+    
+    if (targetForm) {
+        targetForm.addEventListener('submit', optimizeForTarget);
+    }
+    
+    if (applyOptimizedBtn) {
+        applyOptimizedBtn.addEventListener('click', applyOptimizedSchedule);
     }
 }
 
@@ -434,48 +454,32 @@ function populatePathwaySelect() {
     pathwaySelect.innerHTML = '<option value="">Select a pathway</option>';
     
     // Group pathways by type
-    const cpPathways = pathways.filter(p => p.type === 'CP').sort((a, b) => a.id.localeCompare(b.id));
-    const foPathways = pathways.filter(p => p.type === 'FO').sort((a, b) => a.id.localeCompare(b.id));
-    const cadPathways = pathways.filter(p => p.type === 'CAD').sort((a, b) => a.id.localeCompare(b.id));
+    const pathwaysByType = {};
+    pathways.forEach(pathway => {
+        const type = pathway.type || 'Other';
+        if (!pathwaysByType[type]) {
+            pathwaysByType[type] = [];
+        }
+        pathwaysByType[type].push(pathway);
+    });
     
-    // Add CP pathways
-    if (cpPathways.length > 0) {
-        const cpGroup = document.createElement('optgroup');
-        cpGroup.label = 'Captain (CP) Pathways';
-        cpPathways.forEach(pathway => {
-            const option = document.createElement('option');
-            option.value = pathway.id;
-            option.textContent = pathway.name;
-            cpGroup.appendChild(option);
-        });
-        pathwaySelect.appendChild(cpGroup);
-    }
-    
-    // Add FO pathways
-    if (foPathways.length > 0) {
-        const foGroup = document.createElement('optgroup');
-        foGroup.label = 'First Officer (FO) Pathways';
-        foPathways.forEach(pathway => {
-            const option = document.createElement('option');
-            option.value = pathway.id;
-            option.textContent = pathway.name;
-            foGroup.appendChild(option);
-        });
-        pathwaySelect.appendChild(foGroup);
-    }
-    
-    // Add CAD pathways
-    if (cadPathways.length > 0) {
-        const cadGroup = document.createElement('optgroup');
-        cadGroup.label = 'Cadet (CAD) Pathways';
-        cadPathways.forEach(pathway => {
-            const option = document.createElement('option');
-            option.value = pathway.id;
-            option.textContent = pathway.name;
-            cadGroup.appendChild(option);
-        });
-        pathwaySelect.appendChild(cadGroup);
-    }
+    // Add pathways by type with optgroups
+    const typeOrder = ['CP', 'FO', 'CAD', 'Other'];
+    typeOrder.forEach(type => {
+        if (pathwaysByType[type] && pathwaysByType[type].length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = type;
+            
+            pathwaysByType[type].forEach(pathway => {
+                const option = document.createElement('option');
+                option.value = pathway.id;
+                option.textContent = pathway.name;
+                optgroup.appendChild(option);
+            });
+            
+            pathwaySelect.appendChild(optgroup);
+        }
+    });
 }
 
 // Populate Year Select
@@ -499,7 +503,8 @@ function populateFortnightSelect() {
         option.value = fn;
         const monthIndex = FORTNIGHT_TO_MONTH[fn];
         const monthName = MONTHS[monthIndex];
-        option.textContent = `FN${String(fn).padStart(2, '0')} (${monthName})`;
+        const isFirstHalf = fn % 2 === 1;
+        option.textContent = `FN${String(fn).padStart(2, '0')} - ${monthName} ${isFirstHalf ? '(1st half)' : '(2nd half)'}`;
         fortnightSelect.appendChild(option);
     }
 }
@@ -525,6 +530,7 @@ function handleAddCohort(e) {
     
     updateAllTables();
     renderGanttChart();
+    markDirty();
 }
 
 // Update All Tables
@@ -532,8 +538,6 @@ function updateAllTables() {
     renderFTESummaryTable();
     renderDemandTable();
     renderSurplusDeficitTable();
-    // Re-setup syncing after tables are re-rendered
-    setupSynchronizedScrolling();
 }
 
 // Setup synchronized horizontal scrolling for all tables
@@ -547,28 +551,12 @@ function setupSynchronizedScrolling() {
     
     let isScrolling = false;
     
-    // Remove old listeners first
     containers.forEach(container => {
-        if (container) {
-            const newContainer = container.cloneNode(true);
-            container.parentNode.replaceChild(newContainer, container);
-        }
-    });
-    
-    // Get fresh references after cloning
-    const freshContainers = [
-        document.getElementById('fte-summary-table-container'),
-        document.getElementById('gantt-chart-container'),
-        document.getElementById('demand-table-container'),
-        document.getElementById('surplus-deficit-container')
-    ];
-    
-    freshContainers.forEach(container => {
         if (container) {
             container.addEventListener('scroll', function(e) {
                 if (!isScrolling) {
                     isScrolling = true;
-                    freshContainers.forEach(otherContainer => {
+                    containers.forEach(otherContainer => {
                         if (otherContainer && otherContainer !== e.target) {
                             otherContainer.scrollLeft = e.target.scrollLeft;
                         }
@@ -616,25 +604,11 @@ function renderFTESummaryTable() {
     html += '<tr class="total-supply-row">';
     html += '<td class="sticky-first-column total-supply-cell">Total Supply</td>';
     
-    // Determine the year and fortnight range based on viewState
-    let startYear = START_YEAR;
-    let endYear = END_YEAR;
-    
-    if (viewState.dateRange !== 'all' && viewState.startYear) {
-        startYear = viewState.startYear;
-        endYear = viewState.endYear;
-    }
-    
-    for (let year = startYear; year <= endYear; year++) {
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
         const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + trainerFTE[year][cat], 0);
         const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(2);
-        
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-        
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
-            const isToday = isCurrentFortnight(year, fn);
-            html += `<td class="data-cell total-supply-cell${isToday ? ' today' : ''}">${fortnightlyTotal}</td>`;
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+            html += `<td class="data-cell total-supply-cell">${fortnightlyTotal}</td>`;
         }
     }
     html += '</tr>';
@@ -645,14 +619,10 @@ function renderFTESummaryTable() {
             html += '<tr class="category-detail">';
             html += `<td class="sticky-first-column category-detail-cell">${category} Supply</td>`;
             
-            for (let year = startYear; year <= endYear; year++) {
+            for (let year = START_YEAR; year <= END_YEAR; year++) {
                 const fortnightlyFTE = (trainerFTE[year][category] / FORTNIGHTS_PER_YEAR).toFixed(2);
-                const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-                const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-                
-                for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
-                    const isToday = isCurrentFortnight(year, fn);
-                    html += `<td class="data-cell category-detail-cell${isToday ? ' today' : ''}">${fortnightlyFTE}</td>`;
+                for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+                    html += `<td class="data-cell category-detail-cell">${fortnightlyFTE}</td>`;
                 }
             }
             
@@ -677,29 +647,16 @@ function renderDemandTable() {
     html += '</thead>';
     html += '<tbody>';
     
-    // Determine the year and fortnight range based on viewState
-    let startYear = START_YEAR;
-    let endYear = END_YEAR;
-    
-    if (viewState.dateRange !== 'all' && viewState.startYear) {
-        startYear = viewState.startYear;
-        endYear = viewState.endYear;
-    }
-    
     // Demand rows by training type (using priority config order)
     priorityConfig.forEach(config => {
         html += '<tr>';
         html += `<td class="sticky-first-column">${config.trainingType} Demand</td>`;
         
-        for (let year = startYear; year <= endYear; year++) {
-            const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-            const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-            
-            for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+        for (let year = START_YEAR; year <= END_YEAR; year++) {
+            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
                 const demandData = demand[year]?.[fn] || { byTrainingType: {} };
                 const value = demandData.byTrainingType[config.trainingType] || 0;
-                const isToday = isCurrentFortnight(year, fn);
-                html += `<td class="data-cell${isToday ? ' today' : ''}">${value.toFixed(2)}</td>`;
+                html += `<td class="data-cell">${value.toFixed(2)}</td>`;
             }
         }
         
@@ -710,14 +667,10 @@ function renderDemandTable() {
     html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Demand</td>';
     
-    for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-        
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
             const demandData = demand[year]?.[fn] || { total: 0 };
-            const isToday = isCurrentFortnight(year, fn);
-            html += `<td class="data-cell total-row${isToday ? ' today' : ''}">${demandData.total.toFixed(2)}</td>`;
+            html += `<td class="data-cell total-row">${demandData.total.toFixed(2)}</td>`;
         }
     }
     
@@ -739,31 +692,18 @@ function renderSurplusDeficitTable() {
     html += '</thead>';
     html += '<tbody>';
     
-    // Determine the year and fortnight range based on viewState
-    let startYear = START_YEAR;
-    let endYear = END_YEAR;
-    
-    if (viewState.dateRange !== 'all' && viewState.startYear) {
-        startYear = viewState.startYear;
-        endYear = viewState.endYear;
-    }
-    
     // Category-specific surplus/deficit rows
-    TRAINER_CATEGORIES.forEach((category, catIndex) => {
-        html += `<tr class="${catIndex % 2 === 1 ? 'alt-row' : ''}">`;
+    TRAINER_CATEGORIES.forEach(category => {
+        html += '<tr>';
         html += `<td class="sticky-first-column">${category} S/D</td>`;
         
-        for (let year = startYear; year <= endYear; year++) {
+        for (let year = START_YEAR; year <= END_YEAR; year++) {
             const categorySupply = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
-            const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-            const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-            
-            for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
                 const allocated = demand[year]?.[fn]?.allocated?.[category] || 0;
                 const difference = categorySupply - allocated;
                 const isDeficit = difference < 0;
-                const isToday = isCurrentFortnight(year, fn);
-                html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}${isToday ? ' today' : ''}">${difference.toFixed(2)}</td>`;
+                html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}">${difference.toFixed(2)}</td>`;
             }
         }
         
@@ -771,35 +711,29 @@ function renderSurplusDeficitTable() {
     });
     
     // LT-CP Training Deficit row
-    html += `<tr class="${TRAINER_CATEGORIES.length % 2 === 1 ? 'alt-row' : ''}">`;
+    html += '<tr>';
     html += '<td class="sticky-first-column">LT-CP Training Deficit</td>';
     
-    for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-        
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
             const deficit = ltCpDeficit[year]?.[fn] || 0;
             const hasDeficit = deficit > 0;
-            const isToday = isCurrentFortnight(year, fn);
-            html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}${isToday ? ' today' : ''}">${deficit.toFixed(2)}</td>`;
+            html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}">${deficit.toFixed(2)}</td>`;
         }
     }
     
     html += '</tr>';
     
     // Total Net S/D row (Total Initial FTE - Total Line Training Demand)
-    html += '<tr class="total-row">';
+    html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Net S/D</td>';
     
-    for (let year = startYear; year <= endYear; year++) {
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
         // Calculate total initial FTE for the year (sum of all categories)
         const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + trainerFTE[year][cat], 0);
         const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
         
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
             // Get total line training demand (sum of all training types)
             const demandData = demand[year]?.[fn] || { byTrainingType: {} };
             const totalLineTrainingDemand = 
@@ -810,8 +744,7 @@ function renderSurplusDeficitTable() {
             // Total Net S/D = Total Initial FTE - Total Line Training Demand
             const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
             const isDeficit = totalNetSD < 0;
-            const isToday = isCurrentFortnight(year, fn);
-            html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}${isToday ? ' today' : ''}">${totalNetSD.toFixed(2)}</td>`;
+            html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(2)}</td>`;
         }
     }
     
@@ -1014,14 +947,8 @@ function renderGanttChart() {
     // Start building the Gantt chart HTML
     let html = '<div class="table-wrapper"><table class="gantt-table data-table">';
     
-    // Determine the year and fortnight range based on viewState
-    let startYear = START_YEAR;
-    let endYear = END_YEAR;
-    
-    if (viewState.dateRange !== 'all' && viewState.startYear) {
-        startYear = viewState.startYear;
-        endYear = viewState.endYear;
-    }
+    // Create header with months and fortnights using the shared function
+    const headers = generateTableHeaders(false, false);
     
     html += '<thead>';
     
@@ -1029,15 +956,12 @@ function renderGanttChart() {
     html += '<tr>';
     html += '<th rowspan="2" class="sticky-first-column gantt-first-column">Cohort</th>';
     
-    // Add month headers respecting date range
-    for (let year = startYear; year <= endYear; year++) {
+    // Add month headers
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
         let monthCounts = new Array(12).fill(0);
         
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-        
-        // Count fortnights per month for this year's range
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+        // Count fortnights per month
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
             const monthIndex = FORTNIGHT_TO_MONTH[fn];
             monthCounts[monthIndex]++;
         }
@@ -1054,13 +978,9 @@ function renderGanttChart() {
     // Fortnight row
     html += '<tr>';
     
-    for (let year = startYear; year <= endYear; year++) {
-        const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-        const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-        
-        for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
-            const isToday = isCurrentFortnight(year, fn);
-            html += `<th class="fortnight-header gantt-fortnight-header${isToday ? ' today' : ''}">FN${String(fn).padStart(2, '0')}</th>`;
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+            html += `<th class="fortnight-header gantt-fortnight-header">FN${String(fn).padStart(2, '0')}</th>`;
         }
     }
     html += '</tr>';
@@ -1088,11 +1008,8 @@ function renderGanttChart() {
             html += `</td>`;
             
             // Fill remaining cells
-            for (let year = startYear; year <= endYear; year++) {
-                const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-                const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-                
-                for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+            for (let year = START_YEAR; year <= END_YEAR; year++) {
+                for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
                     html += `<td class="group-header-cell"></td>`;
                 }
             }
@@ -1157,15 +1074,11 @@ function renderGanttChart() {
             }
         });
         
-        // Render cells respecting date range
-        for (let year = startYear; year <= endYear; year++) {
-            const yearStartFn = (year === startYear && viewState.dateRange !== 'all') ? viewState.startFortnight : 1;
-            const yearEndFn = (year === endYear && viewState.dateRange !== 'all') ? viewState.endFortnight : FORTNIGHTS_PER_YEAR;
-            
-            for (let fn = yearStartFn; fn <= yearEndFn; fn++) {
+        // Render cells
+        for (let year = START_YEAR; year <= END_YEAR; year++) {
+            for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
                 const cellKey = `${year}-${fn}`;
                 const cell = cellData[cellKey];
-                const isToday = isCurrentFortnight(year, fn);
                 
                 if (cell) {
                     const phaseColors = {
@@ -1196,10 +1109,10 @@ function renderGanttChart() {
                     
                     const tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name}\nFortnight ${cell.progress}/${cell.totalDuration}\nYear ${year}, Fortnight ${fn}`;
                     
-                    html += `<td class="gantt-phase-cell data-cell${isToday ? ' today' : ''}" style="background-color: ${backgroundColor};" title="${tooltip}">${cellContent}</td>`;
+                    html += `<td class="gantt-phase-cell data-cell" style="background-color: ${backgroundColor};" title="${tooltip}">${cellContent}</td>`;
                 } else {
                     // Empty cell
-                    html += `<td class="gantt-empty-cell data-cell${isToday ? ' today' : ''}"></td>`;
+                    html += '<td class="gantt-empty-cell data-cell"></td>';
                 }
             }
         }
@@ -1536,6 +1449,7 @@ function handleFTEUpdate(e) {
     
     // Ensure FTE summary is re-rendered with current state
     renderFTESummaryTable();
+    markDirty();
 }
 
 // Handle Priority Update
@@ -1788,51 +1702,33 @@ function editCohort(cohortId) {
     editPathwaySelect.innerHTML = '<option value="">Select a pathway</option>';
     
     // Group pathways by type
-    const cpPathways = pathways.filter(p => p.type === 'CP').sort((a, b) => a.id.localeCompare(b.id));
-    const foPathways = pathways.filter(p => p.type === 'FO').sort((a, b) => a.id.localeCompare(b.id));
-    const cadPathways = pathways.filter(p => p.type === 'CAD').sort((a, b) => a.id.localeCompare(b.id));
+    const pathwaysByType = {};
+    pathways.forEach(pathway => {
+        const type = pathway.type || 'Other';
+        if (!pathwaysByType[type]) {
+            pathwaysByType[type] = [];
+        }
+        pathwaysByType[type].push(pathway);
+    });
     
-    // Add CP pathways
-    if (cpPathways.length > 0) {
-        const cpGroup = document.createElement('optgroup');
-        cpGroup.label = 'Captain (CP) Pathways';
-        cpPathways.forEach(pathway => {
-            const option = document.createElement('option');
-            option.value = pathway.id;
-            option.textContent = pathway.name;
-            option.selected = pathway.id === cohort.pathwayId;
-            cpGroup.appendChild(option);
-        });
-        editPathwaySelect.appendChild(cpGroup);
-    }
-    
-    // Add FO pathways
-    if (foPathways.length > 0) {
-        const foGroup = document.createElement('optgroup');
-        foGroup.label = 'First Officer (FO) Pathways';
-        foPathways.forEach(pathway => {
-            const option = document.createElement('option');
-            option.value = pathway.id;
-            option.textContent = pathway.name;
-            option.selected = pathway.id === cohort.pathwayId;
-            foGroup.appendChild(option);
-        });
-        editPathwaySelect.appendChild(foGroup);
-    }
-    
-    // Add CAD pathways
-    if (cadPathways.length > 0) {
-        const cadGroup = document.createElement('optgroup');
-        cadGroup.label = 'Cadet (CAD) Pathways';
-        cadPathways.forEach(pathway => {
-            const option = document.createElement('option');
-            option.value = pathway.id;
-            option.textContent = pathway.name;
-            option.selected = pathway.id === cohort.pathwayId;
-            cadGroup.appendChild(option);
-        });
-        editPathwaySelect.appendChild(cadGroup);
-    }
+    // Add pathways by type with optgroups
+    const typeOrder = ['CP', 'FO', 'CAD', 'Other'];
+    typeOrder.forEach(type => {
+        if (pathwaysByType[type] && pathwaysByType[type].length > 0) {
+            const optgroup = document.createElement('optgroup');
+            optgroup.label = type;
+            
+            pathwaysByType[type].forEach(pathway => {
+                const option = document.createElement('option');
+                option.value = pathway.id;
+                option.textContent = pathway.name;
+                option.selected = pathway.id === cohort.pathwayId;
+                optgroup.appendChild(option);
+            });
+            
+            editPathwaySelect.appendChild(optgroup);
+        }
+    });
     
     const editYearSelect = document.getElementById('edit-start-year');
     editYearSelect.innerHTML = '<option value="">Select year</option>';
@@ -1851,7 +1747,8 @@ function editCohort(cohortId) {
         option.value = fn;
         const monthIndex = FORTNIGHT_TO_MONTH[fn];
         const monthName = MONTHS[monthIndex];
-        option.textContent = `FN${String(fn).padStart(2, '0')} (${monthName})`;
+        const isFirstHalf = fn % 2 === 1;
+        option.textContent = `FN${String(fn).padStart(2, '0')} - ${monthName} ${isFirstHalf ? '(1st half)' : '(2nd half)'}`;
         option.selected = fn === cohort.startFortnight;
         editFortnightSelect.appendChild(option);
     }
@@ -1891,6 +1788,7 @@ function handleCohortUpdate(e) {
         closeModals();
         updateAllTables();
         renderGanttChart();
+        markDirty();
     }
 }
 
@@ -1901,191 +1799,653 @@ function removeCohort(cohortId) {
         updateAllTables();
         renderGanttChart();
         setupSynchronizedScrolling();
+        markDirty();
     }
-}
-
-// Date range handling functions
-function handleDateRangeChange(e) {
-    const range = e.target.value;
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-    
-    // Calculate current fortnight more accurately
-    // Fortnights 1-2 are Jan, 3-4 are Feb, etc.
-    const currentFortnight = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
-    
-    switch(range) {
-        case 'all':
-            viewState.dateRange = 'all';
-            viewState.startFortnight = null;
-            viewState.endFortnight = null;
-            viewState.startYear = null;
-            viewState.endYear = null;
-            break;
-            
-        case 'next6months':
-            viewState.dateRange = 'next6months';
-            viewState.startYear = currentYear;
-            viewState.startFortnight = currentFortnight;
-            
-            // Calculate end date 6 months from now
-            let endMonth = currentMonth + 6;
-            let endYear = currentYear;
-            if (endMonth > 11) {
-                endMonth = endMonth - 12;
-                endYear = currentYear + 1;
-            }
-            viewState.endYear = endYear;
-            // Last fortnight of the end month
-            viewState.endFortnight = (endMonth * 2) + 2;
-            
-            break;
-            
-        case 'next12months':
-            viewState.dateRange = 'next12months';
-            viewState.startYear = currentYear;
-            viewState.startFortnight = currentFortnight;
-            viewState.endYear = currentYear + 1;
-            viewState.endFortnight = currentFortnight - 1 || 24; // One fortnight before current, next year
-            break;
-            
-        case '2025q1':
-            viewState.dateRange = '2025q1';
-            viewState.startYear = 2025;
-            viewState.startFortnight = 1;
-            viewState.endYear = 2025;
-            viewState.endFortnight = 6;
-            break;
-            
-        case '2025q2':
-            viewState.dateRange = '2025q2';
-            viewState.startYear = 2025;
-            viewState.startFortnight = 7;
-            viewState.endYear = 2025;
-            viewState.endFortnight = 12;
-            break;
-            
-        case '2025q3':
-            viewState.dateRange = '2025q3';
-            viewState.startYear = 2025;
-            viewState.startFortnight = 13;
-            viewState.endYear = 2025;
-            viewState.endFortnight = 18;
-            break;
-            
-        case '2025q4':
-            viewState.dateRange = '2025q4';
-            viewState.startYear = 2025;
-            viewState.startFortnight = 19;
-            viewState.endYear = 2025;
-            viewState.endFortnight = 24;
-            break;
-    }
-    
-    // Re-render all tables with the new date range
-    updateAllTables();
-    renderGanttChart();
-}
-
-function scrollToToday() {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-    
-    // Calculate current fortnight more accurately
-    const currentFortnight = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
-    
-    // Calculate the column index for today
-    const yearsSinceStart = currentYear - START_YEAR;
-    const columnIndex = yearsSinceStart * FORTNIGHTS_PER_YEAR + currentFortnight - 1;
-    const columnWidth = 70; // Width of each fortnight column
-    
-    // Scroll all synchronized containers
-    const containers = [
-        document.getElementById('fte-summary-table-container'),
-        document.getElementById('gantt-chart-container'),
-        document.getElementById('demand-table-container'),
-        document.getElementById('surplus-deficit-container')
-    ];
-    
-    containers.forEach(container => {
-        if (container) {
-            container.scrollLeft = columnIndex * columnWidth - 200; // Center it a bit
-        }
-    });
-}
-
-// Helper function to check if a fortnight is within the current view range
-function isFortnightInRange(year, fortnight) {
-    if (viewState.dateRange === 'all') return true;
-    
-    const fortnightIndex = (year - START_YEAR) * FORTNIGHTS_PER_YEAR + fortnight - 1;
-    const startIndex = (viewState.startYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.startFortnight - 1;
-    const endIndex = (viewState.endYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.endFortnight - 1;
-    
-    return fortnightIndex >= startIndex && fortnightIndex <= endIndex;
-}
-
-// Helper function to check if a fortnight is the current one
-function isCurrentFortnight(year, fortnight) {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-    
-    // Calculate current fortnight more accurately
-    const currentFn = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
-    
-    return year === currentYear && fortnight === currentFn;
-}
-
-// Helper function to get CSS class for today column
-function getTodayClass(fortnightIndex) {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-    
-    // Calculate current fortnight more accurately
-    const currentFn = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
-    
-    const yearIndex = Math.floor(fortnightIndex / FORTNIGHTS_PER_YEAR);
-    const fnInYear = (fortnightIndex % FORTNIGHTS_PER_YEAR) + 1;
-    const year = START_YEAR + yearIndex;
-    
-    return (year === currentYear && fnInYear === currentFn) ? 'today' : '';
-}
-
-// Helper function to get date range indices
-function getDateRangeIndices() {
-    if (viewState.dateRange === 'all') {
-        return { start: 0, end: FORTNIGHT_NAMES.length };
-    }
-    
-    const startIdx = (viewState.startYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.startFortnight - 1;
-    const endIdx = (viewState.endYear - START_YEAR) * FORTNIGHTS_PER_YEAR + viewState.endFortnight;
-    
-    return { start: startIdx, end: endIdx };
 }
 
 // Handle group by change
 function handleGroupByChange(e) {
     viewState.groupBy = e.target.value;
+    viewState.collapsedGroups = []; // Reset collapsed groups when changing grouping
     renderGanttChart();
 }
 
 // Toggle group collapse/expand
-function toggleGroup(groupType) {
-    const index = viewState.collapsedGroups.indexOf(groupType);
+function toggleGroup(groupName) {
+    const index = viewState.collapsedGroups.indexOf(groupName);
     if (index > -1) {
         viewState.collapsedGroups.splice(index, 1);
     } else {
-        viewState.collapsedGroups.push(groupType);
+        viewState.collapsedGroups.push(groupName);
     }
     renderGanttChart();
+}
+
+// Training Planner Functions
+function switchPlannerTab(tabName) {
+    document.querySelectorAll('.planner-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.tab === tabName);
+    });
+    document.querySelectorAll('.planner-content').forEach(content => {
+        content.classList.toggle('active', content.id === `${tabName}-tab`);
+    });
+}
+
+// Parse bulk input text
+function parseBulkInput(inputText) {
+    const lines = inputText.trim().split('\n');
+    const cohorts = [];
+    const errors = [];
+    
+    const monthMap = {
+        'jan': 0, 'january': 0, 'feb': 1, 'february': 1, 'mar': 2, 'march': 2,
+        'apr': 3, 'april': 3, 'may': 4, 'jun': 5, 'june': 5,
+        'jul': 6, 'july': 6, 'aug': 7, 'august': 7, 'sep': 8, 'september': 8,
+        'oct': 9, 'october': 9, 'nov': 10, 'november': 10, 'dec': 11, 'december': 11
+    };
+    
+    lines.forEach((line, index) => {
+        if (!line.trim()) return;
+        
+        // Parse format: "Month Year: X FO, Y CP, Z CAD"
+        const match = line.match(/^(\w+)\s+(\d{4}):\s*(.+)$/i);
+        if (!match) {
+            errors.push(`Line ${index + 1}: Invalid format`);
+            return;
+        }
+        
+        const monthStr = match[1].toLowerCase();
+        const year = parseInt(match[2]);
+        const traineesStr = match[3];
+        
+        if (!monthMap.hasOwnProperty(monthStr)) {
+            errors.push(`Line ${index + 1}: Invalid month "${match[1]}"`);
+            return;
+        }
+        
+        const month = monthMap[monthStr];
+        const startFortnight = (month * 2) + 1; // Start at first fortnight of month
+        
+        // Parse trainees
+        const traineeParts = traineesStr.split(',');
+        traineeParts.forEach(part => {
+            const traineeMatch = part.trim().match(/^(\d+)\s+(FO|CP|CAD)$/i);
+            if (!traineeMatch) {
+                errors.push(`Line ${index + 1}: Invalid trainee format "${part.trim()}"`);
+                return;
+            }
+            
+            const count = parseInt(traineeMatch[1]);
+            const type = traineeMatch[2].toUpperCase();
+            
+            // Find matching pathway
+            const pathway = pathways.find(p => p.type === type);
+            if (!pathway) {
+                errors.push(`Line ${index + 1}: No pathway found for type ${type}`);
+                return;
+            }
+            
+            cohorts.push({
+                year: year,
+                fortnight: startFortnight,
+                numTrainees: count,
+                pathwayId: pathway.id,
+                type: type
+            });
+        });
+    });
+    
+    return { cohorts, errors };
+}
+
+// Validate bulk input
+function validateBulkInput() {
+    const inputText = document.getElementById('bulk-input').value;
+    const { cohorts, errors } = parseBulkInput(inputText);
+    const validationDiv = document.getElementById('bulk-validation');
+    const applyBtn = document.getElementById('apply-bulk');
+    
+    let html = '';
+    
+    if (errors.length > 0) {
+        html += '<div class="validation-errors">';
+        errors.forEach(error => {
+            html += `<div class="validation-error">❌ ${error}</div>`;
+        });
+        html += '</div>';
+    }
+    
+    if (cohorts.length > 0) {
+        // Check constraints
+        const warnings = [];
+        const groupedByTime = {};
+        
+        // Group cohorts by year-fortnight
+        cohorts.forEach(cohort => {
+            const key = `${cohort.year}-${cohort.fortnight}`;
+            if (!groupedByTime[key]) {
+                groupedByTime[key] = { fo: 0, cad: 0, cp: 0 };
+            }
+            groupedByTime[key][cohort.type.toLowerCase()] += cohort.numTrainees;
+        });
+        
+        // Check GS+SIM constraint (16 FO/CAD max)
+        Object.entries(groupedByTime).forEach(([key, counts]) => {
+            const total = counts.fo + counts.cad;
+            if (total > 16) {
+                const [year, fn] = key.split('-');
+                warnings.push(`${MONTHS[Math.floor((parseInt(fn) - 1) / 2)]} ${year}: ${total} FO/CAD exceeds limit of 16`);
+            }
+        });
+        
+        if (warnings.length > 0) {
+            html += '<div class="validation-warnings">';
+            warnings.forEach(warning => {
+                html += `<div class="validation-warning">⚠️ ${warning}</div>`;
+            });
+            html += '</div>';
+        }
+        
+        // Show preview
+        html += '<div class="validation-preview">';
+        html += '<h4>Preview: ' + cohorts.length + ' cohorts to add</h4>';
+        Object.entries(groupedByTime).forEach(([key, counts]) => {
+            const [year, fn] = key.split('-');
+            const month = MONTHS[Math.floor((parseInt(fn) - 1) / 2)];
+            const parts = [];
+            if (counts.fo > 0) parts.push(`${counts.fo} FO`);
+            if (counts.cp > 0) parts.push(`${counts.cp} CP`);
+            if (counts.cad > 0) parts.push(`${counts.cad} CAD`);
+            html += `<div class="schedule-item">${month} ${year}: ${parts.join(', ')}</div>`;
+        });
+        html += '</div>';
+        
+        if (errors.length === 0) {
+            html += '<div class="validation-success">✅ Validation complete. Ready to apply.</div>';
+            applyBtn.disabled = false;
+            window.pendingBulkCohorts = cohorts;
+        }
+    }
+    
+    validationDiv.innerHTML = html;
+}
+
+// Apply bulk schedule
+function applyBulkSchedule() {
+    if (!window.pendingBulkCohorts) return;
+    
+    window.pendingBulkCohorts.forEach(cohort => {
+        activeCohorts.push({
+            id: nextCohortId++,
+            numTrainees: cohort.numTrainees,
+            pathwayId: cohort.pathwayId,
+            startYear: cohort.year,
+            startFortnight: cohort.fortnight
+        });
+    });
+    
+    updateAllTables();
+    renderGanttChart();
+    markDirty();
+    
+    // Close modal and reset
+    document.getElementById('training-planner-modal').style.display = 'none';
+    document.getElementById('bulk-input').value = '';
+    document.getElementById('bulk-validation').innerHTML = '';
+    document.getElementById('apply-bulk').disabled = true;
+    window.pendingBulkCohorts = null;
+}
+
+// Optimize for target
+function optimizeForTarget(e) {
+    e.preventDefault();
+    
+    const targetCP = parseInt(document.getElementById('target-cp').value) || 0;
+    const targetFO = parseInt(document.getElementById('target-fo').value) || 0;
+    const targetCAD = parseInt(document.getElementById('target-cad').value) || 0;
+    const targetDate = new Date(document.getElementById('target-date').value);
+    const considerExisting = document.getElementById('consider-existing')?.checked ?? true;
+    
+    if (targetCP + targetFO + targetCAD === 0) {
+        alert('Please enter at least one target');
+        return;
+    }
+    
+    // Calculate optimal schedule
+    const schedule = calculateOptimalSchedule({
+        cp: targetCP,
+        fo: targetFO,
+        cad: targetCAD
+    }, targetDate, considerExisting);
+    
+    // Display results
+    const resultsDiv = document.getElementById('optimization-results');
+    let html = '<h4>Optimized Schedule</h4>';
+    
+    if (schedule.feasible) {
+        html += '<div class="validation-success">✅ Target is achievable</div>';
+        html += '<div class="optimization-schedule">';
+        
+        schedule.cohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            const month = MONTHS[Math.floor((cohort.startFortnight - 1) / 2)];
+            html += `
+                <div class="schedule-item">
+                    <div class="schedule-item-header">
+                        <span>${month} ${cohort.startYear}</span>
+                        <span>${cohort.numTrainees} x ${pathway.name}</span>
+                    </div>
+                    <div class="schedule-item-details">
+                        Start: FN${cohort.startFortnight} | Completes: ${cohort.completionDate}
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        html += `<div class="validation-info">Total cohorts: ${schedule.cohorts.length}</div>`;
+        
+        document.getElementById('apply-optimized').disabled = false;
+        window.pendingOptimizedSchedule = schedule.cohorts;
+    } else {
+        html += '<div class="validation-error">❌ Target not achievable by this date</div>';
+        html += '<div class="validation-info">' + schedule.reason + '</div>';
+        
+        if (schedule.unmetDemand && schedule.unmetDemand.length > 0) {
+            html += '<div class="validation-details">';
+            html += '<p><strong>Unmet demand:</strong></p>';
+            html += '<ul>';
+            schedule.unmetDemand.forEach(u => {
+                html += `<li>${u.type}: Only ${u.scheduled} of ${u.needed} can complete by target date (${u.shortfall} short)</li>`;
+            });
+            html += '</ul>';
+            html += '</div>';
+        }
+        
+        if (schedule.partialSchedule && schedule.partialSchedule.length > 0) {
+            html += '<div class="validation-details">';
+            html += '<h4>Partial schedule (what can be achieved):</h4>';
+            html += '<div class="optimization-schedule">';
+            
+            schedule.partialSchedule.forEach(cohort => {
+                const pathway = pathways.find(p => p.id === cohort.pathwayId);
+                const month = MONTHS[Math.floor((cohort.startFortnight - 1) / 2)];
+                html += `
+                    <div class="schedule-item">
+                        <div class="schedule-item-header">
+                            <span>${month} ${cohort.startYear}</span>
+                            <span>${cohort.numTrainees} x ${pathway?.name || cohort.type}</span>
+                        </div>
+                        <div class="schedule-item-details">
+                            Completes: ${cohort.completionDate}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            html += '</div>';
+        }
+        
+        document.getElementById('apply-optimized').disabled = true;
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+// Calculate optimal schedule
+function calculateOptimalSchedule(targets, targetDate, considerExisting = true) {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonth = today.getMonth();
+    const currentFortnight = (currentMonth * 2) + (today.getDate() <= 14 ? 1 : 2);
+    
+    // Get pathway info - store pathway ID properly
+    const pathwayInfo = {};
+    pathways.forEach(p => {
+        if (!pathwayInfo[p.type]) {
+            const totalDuration = p.phases.reduce((sum, phase) => sum + phase.duration, 0);
+            pathwayInfo[p.type] = {
+                duration: totalDuration,
+                pathway: p,
+                pathwayId: p.id,  // Store the ID properly
+                maxPerCohort: p.type === 'CP' ? 12 : 16
+            };
+        }
+    });
+    
+    // Analyze existing cohorts if requested
+    const existingAnalysis = {
+        byType: { CP: 0, FO: 0, CAD: 0 },
+        completingByTarget: { CP: 0, FO: 0, CAD: 0 }
+    };
+    
+    const cohorts = [];
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth();
+    const targetEndFortnight = (targetMonth * 2) + (targetDate.getDate() <= 14 ? 1 : 2);
+    
+    if (considerExisting && activeCohorts.length > 0) {
+        activeCohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            // Count existing trainees
+            existingAnalysis.byType[pathway.type] = (existingAnalysis.byType[pathway.type] || 0) + cohort.numTrainees;
+            
+            // Check if completing before target
+            const duration = pathwayInfo[pathway.type]?.duration || 0;
+            let endFn = cohort.startFortnight + duration - 1;
+            let endYear = cohort.startYear;
+            while (endFn > FORTNIGHTS_PER_YEAR) {
+                endFn -= FORTNIGHTS_PER_YEAR;
+                endYear++;
+            }
+            
+            if (endYear < targetYear || 
+                (endYear === targetYear && endFn <= targetEndFortnight)) {
+                existingAnalysis.completingByTarget[pathway.type] += cohort.numTrainees;
+            }
+        });
+    }
+    
+    // Create schedule for each type
+    const unmetDemand = [];
+    
+    ['CP', 'FO', 'CAD'].forEach(type => {
+        const rawNeeded = targets[type.toLowerCase()] || 0;
+        if (rawNeeded === 0) return;
+        
+        // Account for existing training
+        const alreadyTraining = considerExisting ? existingAnalysis.completingByTarget[type] : 0;
+        const needed = Math.max(0, rawNeeded - alreadyTraining);
+        
+        if (needed === 0) return; // Already covered
+        
+        const info = pathwayInfo[type];
+        if (!info) return;
+        
+        // Calculate latest possible start
+        let latestStart = targetEndFortnight - info.duration + 1;
+        let latestYear = targetYear;
+        while (latestStart < 1) {
+            latestStart += FORTNIGHTS_PER_YEAR;
+            latestYear--;
+        }
+        
+        // Check if we need to start in the past
+        if (latestYear < currentYear || 
+            (latestYear === currentYear && latestStart < currentFortnight)) {
+            unmetDemand.push({
+                type,
+                needed: rawNeeded,
+                scheduled: 0,
+                shortfall: rawNeeded,
+                reason: `Training takes ${info.duration} fortnights. Would need to start in the past.`
+            });
+            return;
+        }
+        
+        // Schedule cohorts
+        let remainingTrainees = needed;
+        let scheduled = 0;
+        let startFn = currentFortnight + 2; // Start next month
+        let startYear = currentYear;
+        
+        while (remainingTrainees > 0 && 
+               (startYear < latestYear || (startYear === latestYear && startFn <= latestStart))) {
+            const cohortSize = Math.min(remainingTrainees, info.maxPerCohort);
+            
+            // Calculate completion
+            let endFn = startFn + info.duration - 1;
+            let endYear = startYear;
+            while (endFn > FORTNIGHTS_PER_YEAR) {
+                endFn -= FORTNIGHTS_PER_YEAR;
+                endYear++;
+            }
+            
+            // Verify completion by target
+            if (endYear > targetYear || 
+                (endYear === targetYear && endFn > targetEndFortnight)) {
+                break; // Won't complete in time
+            }
+            
+            cohorts.push({
+                startYear: startYear,
+                startFortnight: startFn,
+                numTrainees: cohortSize,
+                pathwayId: info.pathwayId,
+                type: type,
+                completionDate: `${MONTHS[Math.floor((endFn - 1) / 2)]} ${endYear}`
+            });
+            
+            remainingTrainees -= cohortSize;
+            scheduled += cohortSize;
+            
+            // Move to next month
+            startFn += 2;
+            if (startFn > FORTNIGHTS_PER_YEAR) {
+                startFn -= FORTNIGHTS_PER_YEAR;
+                startYear++;
+            }
+        }
+        
+        // Check if we scheduled everything
+        if (scheduled < needed) {
+            unmetDemand.push({
+                type,
+                rawNeeded,
+                alreadyTraining,
+                needed,
+                scheduled,
+                shortfall: needed - scheduled
+            });
+        }
+    });
+    
+    // Sort chronologically
+    cohorts.sort((a, b) => {
+        if (a.startYear !== b.startYear) return a.startYear - b.startYear;
+        return a.startFortnight - b.startFortnight;
+    });
+    
+    if (unmetDemand.length > 0) {
+        return {
+            feasible: false,
+            reason: 'Cannot meet all training targets by the specified date',
+            unmetDemand,
+            partialSchedule: cohorts,
+            existingAnalysis
+        };
+    }
+    
+    return { 
+        feasible: true, 
+        cohorts,
+        existingAnalysis
+    };
+}
+
+// Apply optimized schedule
+function applyOptimizedSchedule() {
+    if (!window.pendingOptimizedSchedule) return;
+    
+    window.pendingOptimizedSchedule.forEach(cohort => {
+        activeCohorts.push({
+            id: nextCohortId++,
+            numTrainees: cohort.numTrainees,
+            pathwayId: cohort.pathwayId,
+            startYear: cohort.startYear,
+            startFortnight: cohort.startFortnight
+        });
+    });
+    
+    updateAllTables();
+    renderGanttChart();
+    markDirty();
+    
+    // Close modal and reset
+    document.getElementById('training-planner-modal').style.display = 'none';
+    document.getElementById('target-form').reset();
+    document.getElementById('optimization-results').innerHTML = '';
+    document.getElementById('apply-optimized').disabled = true;
+    window.pendingOptimizedSchedule = null;
+}
+
+// Scenario Management Functions
+function openScenariosPanel() {
+    const panel = document.getElementById('scenarios-panel');
+    const overlay = document.getElementById('scenarios-overlay');
+    panel.classList.add('active');
+    overlay.classList.add('active');
+    renderScenarioList();
+}
+
+function closeScenariosPanel() {
+    const panel = document.getElementById('scenarios-panel');
+    const overlay = document.getElementById('scenarios-overlay');
+    panel.classList.remove('active');
+    overlay.classList.remove('active');
+}
+
+function getCurrentState() {
+    return {
+        cohorts: activeCohorts,
+        trainerFTE: trainerFTE,
+        pathways: pathways,
+        priorityConfig: priorityConfig,
+        viewState: {
+            groupBy: viewState.groupBy,
+            collapsedGroups: viewState.collapsedGroups
+        }
+    };
+}
+
+function saveCurrentScenario() {
+    const name = prompt('Enter a name for this scenario:');
+    if (!name) return;
+    
+    const scenario = {
+        id: Date.now(),
+        name: name,
+        date: new Date().toISOString(),
+        state: getCurrentState(),
+        stats: {
+            totalCohorts: activeCohorts.length,
+            totalTrainees: activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0)
+        }
+    };
+    
+    scenarios.push(scenario);
+    localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+    
+    viewState.currentScenarioId = scenario.id;
+    viewState.isDirty = false;
+    
+    updateCurrentScenarioDisplay();
+    renderScenarioList();
+}
+
+function loadScenario(scenarioId) {
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+    
+    if (viewState.isDirty) {
+        if (!confirm('You have unsaved changes. Load scenario anyway?')) {
+            return;
+        }
+    }
+    
+    // Load the scenario state
+    activeCohorts = [...scenario.state.cohorts];
+    trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+    pathways = [...scenario.state.pathways];
+    priorityConfig = [...scenario.state.priorityConfig];
+    viewState.groupBy = scenario.state.viewState.groupBy;
+    viewState.collapsedGroups = [...scenario.state.viewState.collapsedGroups];
+    
+    // Update current scenario tracking
+    viewState.currentScenarioId = scenarioId;
+    viewState.isDirty = false;
+    
+    // Refresh all views
+    updateAllTables();
+    renderGanttChart();
+    populatePathwaySelect();
+    setupSynchronizedScrolling();
+    
+    updateCurrentScenarioDisplay();
+    closeScenariosPanel();
+}
+
+function deleteScenario(scenarioId) {
+    if (!confirm('Are you sure you want to delete this scenario?')) return;
+    
+    scenarios = scenarios.filter(s => s.id !== scenarioId);
+    localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+    
+    if (viewState.currentScenarioId === scenarioId) {
+        viewState.currentScenarioId = null;
+    }
+    
+    renderScenarioList();
+}
+
+function renderScenarioList() {
+    const container = document.getElementById('scenario-list');
+    
+    if (scenarios.length === 0) {
+        container.innerHTML = '<p style="text-align: center; color: #999;">No saved scenarios yet</p>';
+        return;
+    }
+    
+    container.innerHTML = scenarios.map(scenario => {
+        const date = new Date(scenario.date);
+        const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        
+        return `
+            <div class="scenario-card">
+                <div class="scenario-card-header">
+                    <div>
+                        <div class="scenario-name">${scenario.name}</div>
+                        <div class="scenario-date">${dateStr}</div>
+                    </div>
+                </div>
+                <div class="scenario-stats">
+                    <div class="scenario-stat">
+                        <span>Cohorts:</span>
+                        <strong>${scenario.stats.totalCohorts}</strong>
+                    </div>
+                    <div class="scenario-stat">
+                        <span>Trainees:</span>
+                        <strong>${scenario.stats.totalTrainees}</strong>
+                    </div>
+                </div>
+                <div class="scenario-actions">
+                    <button class="load-btn" onclick="loadScenario(${scenario.id})">Load</button>
+                    <button class="delete-btn" onclick="deleteScenario(${scenario.id})">Delete</button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function updateCurrentScenarioDisplay() {
+    const nameSpan = document.getElementById('current-scenario-name');
+    if (viewState.currentScenarioId) {
+        const scenario = scenarios.find(s => s.id === viewState.currentScenarioId);
+        if (scenario) {
+            nameSpan.textContent = scenario.name + (viewState.isDirty ? ' (modified)' : '');
+        }
+    } else {
+        nameSpan.textContent = viewState.isDirty ? 'Unsaved Changes' : 'New Scenario';
+    }
+}
+
+// Mark state as dirty when changes are made
+function markDirty() {
+    viewState.isDirty = true;
+    updateCurrentScenarioDisplay();
 }
 
 // Make functions available globally for inline onclick
@@ -2095,57 +2455,8 @@ window.editPathway = editPathway;
 window.removePhase = removePhase;
 window.quickFillFTE = quickFillFTE;
 window.toggleGroup = toggleGroup;
-
-// Debug function for testing
-window.debugViewState = function() {
-    console.log('Current viewState:', viewState);
-    console.log('Tables should show:');
-    if (viewState.dateRange === 'all') {
-        console.log('All years from', START_YEAR, 'to', END_YEAR);
-    } else {
-        console.log(`From: ${viewState.startYear} FN${viewState.startFortnight}`);
-        console.log(`To: ${viewState.endYear} FN${viewState.endFortnight}`);
-        
-        // Calculate what months should be shown
-        let months = [];
-        for (let year = viewState.startYear; year <= viewState.endYear; year++) {
-            const startFn = (year === viewState.startYear) ? viewState.startFortnight : 1;
-            const endFn = (year === viewState.endYear) ? viewState.endFortnight : 24;
-            
-            for (let fn = startFn; fn <= endFn; fn++) {
-                const month = MONTHS[FORTNIGHT_TO_MONTH[fn]];
-                const key = `${month}-${year}`;
-                if (!months.includes(key)) {
-                    months.push(key);
-                }
-            }
-        }
-        console.log('Months:', months.join(', '));
-    }
-};
-
-// Debug function to test date calculations
-function debugDateCalculations() {
-    const today = new Date();
-    const currentYear = today.getFullYear();
-    const currentMonth = today.getMonth();
-    const currentDay = today.getDate();
-    const currentFortnight = (currentMonth * 2) + (currentDay <= 14 ? 1 : 2);
-    
-    console.log('Debug Date Calculations:', {
-        today: today.toDateString(),
-        currentYear,
-        currentMonth,
-        currentMonthName: MONTHS[currentMonth],
-        currentDay,
-        currentFortnight,
-        fortnightMonth: MONTHS[FORTNIGHT_TO_MONTH[currentFortnight]],
-        viewState
-    });
-}
+window.loadScenario = loadScenario;
+window.deleteScenario = deleteScenario;
 
 // Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', () => {
-    init();
-    debugDateCalculations();
-});
+document.addEventListener('DOMContentLoaded', init);

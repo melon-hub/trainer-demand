@@ -10,17 +10,23 @@
     <div class="container">
         <header>
             <h1>Pilot Trainer Supply/Demand Planner</h1>
-            <nav class="main-nav">
-                <button class="nav-tab active" data-view="planner">Planner</button>
-                <button class="nav-tab" data-view="settings">Settings</button>
-            </nav>
+            <div class="header-controls">
+                <nav class="main-nav">
+                    <button class="nav-tab active" data-view="planner">Planner</button>
+                    <button class="nav-tab" data-view="settings">Settings</button>
+                </nav>
+                <button id="scenarios-btn" class="btn btn-primary">Scenarios</button>
+            </div>
         </header>
 
         <!-- Planner View -->
         <div id="planner-view" class="view active">
             <!-- Add Cohort Section -->
             <section class="add-cohort-section">
-                <h2>Add New Cohort</h2>
+                <div class="section-header">
+                    <h2>Add New Cohort</h2>
+                    <button id="training-planner-btn" class="btn btn-secondary">Training Planner</button>
+                </div>
                 <form id="add-cohort-form" class="add-cohort-form">
                     <div class="form-group">
                         <label for="num-trainees">Number of Trainees:</label>
@@ -69,21 +75,10 @@
                 <div class="section-header">
                     <h2>Training Timeline (Gantt Chart)</h2>
                     <div class="gantt-controls">
-                        <select id="date-range-filter" class="filter-select">
-                            <option value="all">All Time</option>
-                            <option value="next6months">Next 6 Months</option>
-                            <option value="next12months">Next 12 Months</option>
-                            <option value="2025q1">2025 Q1</option>
-                            <option value="2025q2">2025 Q2</option>
-                            <option value="2025q3">2025 Q3</option>
-                            <option value="2025q4">2025 Q4</option>
-                            <option value="custom">Custom Range</option>
-                        </select>
                         <select id="group-by-filter" class="filter-select">
                             <option value="none">No Grouping</option>
                             <option value="type">Group by Type</option>
                         </select>
-                        <button id="today-btn" class="btn btn-secondary">Today</button>
                     </div>
                 </div>
                 <div id="gantt-chart-container" class="gantt-container">
@@ -255,7 +250,96 @@
                 </div>
             </div>
         </div>
+        <!-- Training Planner Modal -->
+        <div id="training-planner-modal" class="modal">
+            <div class="modal-content" style="max-width: 800px;">
+                <span class="modal-close">&times;</span>
+                <h2>Training Planner</h2>
+                
+                <div class="planner-tabs">
+                    <button class="planner-tab active" data-tab="bulk">Bulk Input</button>
+                    <button class="planner-tab" data-tab="target">Target Optimizer</button>
+                </div>
+                
+                <!-- Bulk Input Tab -->
+                <div id="bulk-tab" class="planner-content active">
+                    <h3>Bulk Cohort Input</h3>
+                    <p>Enter cohorts in format: "Month Year: X FO, Y CP, Z CAD"</p>
+                    <textarea id="bulk-input" rows="10" style="width: 100%; font-family: monospace;" placeholder="Jan 2025: 12 FO, 8 CP
+Feb 2025: 10 CAD, 6 CP
+Mar 2025: 14 FO, 2 CAD"></textarea>
+                    <div id="bulk-validation" class="validation-results"></div>
+                    <div class="modal-footer">
+                        <button id="validate-bulk" class="btn btn-secondary">Validate</button>
+                        <button id="apply-bulk" class="btn btn-primary" disabled>Apply Schedule</button>
+                    </div>
+                </div>
+                
+                <!-- Target Optimizer Tab -->
+                <div id="target-tab" class="planner-content">
+                    <h3>Target-Based Optimizer</h3>
+                    <form id="target-form">
+                        <div class="target-inputs">
+                            <div class="form-group">
+                                <label>CP Pilots Needed:</label>
+                                <input type="number" id="target-cp" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>FO Pilots Needed:</label>
+                                <input type="number" id="target-fo" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>CAD Pilots Needed:</label>
+                                <input type="number" id="target-cad" min="0" value="0">
+                            </div>
+                            <div class="form-group">
+                                <label>Target Completion Date:</label>
+                                <input type="date" id="target-date" required>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-top: 15px;">
+                            <label style="display: flex; align-items: center; cursor: pointer;">
+                                <input type="checkbox" id="consider-existing" checked style="margin-right: 8px;">
+                                Consider existing cohorts when optimizing
+                            </label>
+                            <small style="display: block; margin-top: 5px; color: #666;">
+                                When checked, the optimizer will account for trainees already scheduled to complete by your target date
+                            </small>
+                        </div>
+                        <div id="optimization-results" class="optimization-results"></div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-secondary">Optimize Schedule</button>
+                            <button id="apply-optimized" class="btn btn-primary" disabled>Apply Schedule</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
+
+    <!-- Scenarios Panel -->
+    <div id="scenarios-panel" class="scenarios-panel">
+        <div class="scenarios-header">
+            <h2>Scenarios</h2>
+            <button class="close-panel-btn" id="close-scenarios">×</button>
+        </div>
+        <div class="scenarios-content">
+            <div class="current-scenario">
+                <h3>Current Scenario</h3>
+                <div class="scenario-info">
+                    <span id="current-scenario-name">Unsaved Changes</span>
+                    <button id="save-current-scenario" class="btn btn-primary btn-sm">Save As...</button>
+                </div>
+            </div>
+            <div class="saved-scenarios">
+                <h3>Saved Scenarios</h3>
+                <div id="scenario-list" class="scenario-list">
+                    <!-- Scenario cards will be generated here -->
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="scenarios-overlay" class="scenarios-overlay"></div>
 
     <script src="app.js"></script>
 </body>
