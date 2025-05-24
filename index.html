@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pilot Trainer Supply/Demand Planner</title>
     <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -12,15 +13,80 @@
             <h1>Pilot Trainer Supply/Demand Planner</h1>
             <div class="header-controls">
                 <nav class="main-nav">
-                    <button class="nav-tab active" data-view="planner">Planner</button>
+                    <button class="nav-tab active" data-view="dashboard">Dashboard</button>
+                    <button class="nav-tab" data-view="planner">Planner</button>
                     <button class="nav-tab" data-view="settings">Settings</button>
                 </nav>
                 <button id="scenarios-btn" class="btn btn-primary">Scenarios</button>
+                <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle Dark Mode">
+                    <span class="dark-mode-icon">🌙</span>
+                </button>
             </div>
         </header>
 
+        <!-- Dashboard View -->
+        <div id="dashboard-view" class="view active">
+            <div class="dashboard-container">
+                <!-- Key Metrics Cards -->
+                <div class="metrics-row">
+                    <div class="metric-card">
+                        <div class="metric-icon">👥</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="total-trainees">0</div>
+                            <div class="metric-label">Total Trainees in Training</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">📊</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="trainer-utilization">0%</div>
+                            <div class="metric-label">Trainer Utilization</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">🎓</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="upcoming-completions">0</div>
+                            <div class="metric-label">Completions Next 3 Months</div>
+                        </div>
+                    </div>
+                    <div class="metric-card">
+                        <div class="metric-icon">⚠️</div>
+                        <div class="metric-content">
+                            <div class="metric-value" id="capacity-warnings">0</div>
+                            <div class="metric-label">Capacity Warnings</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>Trainer Demand Over Time</h3>
+                        <canvas id="demand-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Current Training Distribution</h3>
+                        <canvas id="distribution-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Training Pipeline -->
+                <div class="pipeline-section">
+                    <h3>Training Pipeline</h3>
+                    <div id="pipeline-timeline"></div>
+                </div>
+
+                <!-- Alerts Section -->
+                <div class="alerts-section">
+                    <h3>Alerts & Warnings</h3>
+                    <div id="alerts-container"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Planner View -->
-        <div id="planner-view" class="view active">
+        <div id="planner-view" class="view">
             <!-- Add Cohort Section -->
             <section class="add-cohort-section">
                 <div class="section-header">

@@ -235,6 +235,7 @@ let viewState = {
 let scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios')) || [];
 
 // DOM Elements
+const dashboardView = document.getElementById('dashboard-view');
 const plannerView = document.getElementById('planner-view');
 const settingsView = document.getElementById('settings-view');
 const navTabs = document.querySelectorAll('.nav-tab');
@@ -263,11 +264,11 @@ function init() {
     renderGanttChart();
     setupSynchronizedScrolling();
     
-    // Initialize settings tables if we're on settings view
-    if (settingsView.classList.contains('active')) {
-        renderPrioritySettingsTable();
-        renderPathwaysTable();
-    }
+    // Initialize dark mode
+    initDarkMode();
+    
+    // Start with dashboard view
+    switchView('dashboard');
 }
 
 // Generate table headers with months and fortnights
@@ -453,14 +454,25 @@ function switchView(viewName) {
         tab.classList.toggle('active', tab.dataset.view === viewName);
     });
 
-    if (viewName === 'planner') {
-        plannerView.classList.add('active');
-        settingsView.classList.remove('active');
-    } else {
-        plannerView.classList.remove('active');
-        settingsView.classList.add('active');
-        renderPrioritySettingsTable();
-        renderPathwaysTable();
+    // Hide all views
+    dashboardView.classList.remove('active');
+    plannerView.classList.remove('active');
+    settingsView.classList.remove('active');
+
+    // Show selected view
+    switch(viewName) {
+        case 'dashboard':
+            dashboardView.classList.add('active');
+            updateDashboard();
+            break;
+        case 'planner':
+            plannerView.classList.add('active');
+            break;
+        case 'settings':
+            settingsView.classList.add('active');
+            renderPrioritySettingsTable();
+            renderPathwaysTable();
+            break;
     }
 }
 
@@ -553,6 +565,11 @@ function updateAllTables() {
     renderFTESummaryTable();
     renderDemandTable();
     renderSurplusDeficitTable();
+    
+    // Update dashboard if it's active
+    if (dashboardView && dashboardView.classList.contains('active')) {
+        updateDashboard();
+    }
 }
 
 // Setup synchronized horizontal scrolling for all tables
@@ -2727,6 +2744,432 @@ function updateCurrentScenarioDisplay() {
 function markDirty() {
     viewState.isDirty = true;
     updateCurrentScenarioDisplay();
+}
+
+// Dark Mode Functions
+function initDarkMode() {
+    // Check for saved dark mode preference
+    const darkModeEnabled = localStorage.getItem('darkMode') === 'true';
+    if (darkModeEnabled) {
+        document.body.classList.add('dark-mode');
+        updateDarkModeIcon(true);
+    }
+    
+    // Set up dark mode toggle
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    if (darkModeToggle) {
+        darkModeToggle.addEventListener('click', toggleDarkMode);
+    }
+}
+
+function toggleDarkMode() {
+    const isDarkMode = document.body.classList.toggle('dark-mode');
+    localStorage.setItem('darkMode', isDarkMode);
+    updateDarkModeIcon(isDarkMode);
+    
+    // Update charts if dashboard is active
+    if (dashboardView && dashboardView.classList.contains('active')) {
+        // Charts need to be recreated for proper theming
+        setTimeout(() => {
+            updateCharts();
+        }, 100);
+    }
+}
+
+function updateDarkModeIcon(isDarkMode) {
+    const icon = document.querySelector('.dark-mode-icon');
+    if (icon) {
+        icon.textContent = isDarkMode ? '☀️' : '🌙';
+    }
+}
+
+// Dashboard Functions
+let demandChart = null;
+let distributionChart = null;
+
+function updateDashboard() {
+    updateMetrics();
+    updateCharts();
+    updatePipeline();
+    updateAlerts();
+}
+
+function updateMetrics() {
+    // Calculate total trainees in training
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    let totalTrainees = 0;
+    let upcomingCompletions = 0;
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        let endFortnight = cohort.startFortnight + duration - 1;
+        let endYear = cohort.startYear;
+        
+        while (endFortnight > FORTNIGHTS_PER_YEAR) {
+            endFortnight -= FORTNIGHTS_PER_YEAR;
+            endYear++;
+        }
+        
+        // Check if cohort is currently in training
+        const startPassed = cohort.startYear < currentYear || 
+            (cohort.startYear === currentYear && cohort.startFortnight <= currentFortnight);
+        const endNotReached = endYear > currentYear || 
+            (endYear === currentYear && endFortnight >= currentFortnight);
+            
+        if (startPassed && endNotReached) {
+            totalTrainees += cohort.numTrainees;
+        }
+        
+        // Check if completing in next 3 months (6 fortnights)
+        const monthsAhead = 6;
+        let futureYear = currentYear;
+        let futureFortnight = currentFortnight + monthsAhead;
+        while (futureFortnight > FORTNIGHTS_PER_YEAR) {
+            futureFortnight -= FORTNIGHTS_PER_YEAR;
+            futureYear++;
+        }
+        
+        const completingSoon = (endYear === currentYear && endFortnight > currentFortnight && endFortnight <= currentFortnight + monthsAhead) ||
+            (endYear === futureYear && endFortnight <= futureFortnight);
+            
+        if (completingSoon) {
+            upcomingCompletions += cohort.numTrainees;
+        }
+    });
+    
+    // Calculate trainer utilization
+    const { demand } = calculateDemand();
+    const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+        sum + (trainerFTE[currentYear]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+    const currentDemand = demand[currentYear]?.[currentFortnight]?.total || 0;
+    const utilization = totalSupply > 0 ? Math.round((currentDemand / totalSupply) * 100) : 0;
+    
+    // Count capacity warnings
+    let capacityWarnings = 0;
+    for (let year in demand) {
+        for (let fn in demand[year]) {
+            const supply = totalSupply;
+            const demandValue = demand[year][fn].total;
+            if (demandValue > supply) {
+                capacityWarnings++;
+            }
+        }
+    }
+    
+    // Update DOM
+    document.getElementById('total-trainees').textContent = totalTrainees;
+    document.getElementById('trainer-utilization').textContent = utilization + '%';
+    document.getElementById('upcoming-completions').textContent = upcomingCompletions;
+    document.getElementById('capacity-warnings').textContent = capacityWarnings;
+}
+
+function updateCharts() {
+    updateDemandChart();
+    updateDistributionChart();
+}
+
+function updateDemandChart() {
+    const ctx = document.getElementById('demand-chart').getContext('2d');
+    const { demand } = calculateDemand();
+    
+    // Prepare data for the next 12 months
+    const labels = [];
+    const demandData = [];
+    const supplyData = [];
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
+        }
+        
+        labels.push(`${MONTHS[month]} ${year}`);
+        
+        // Calculate average demand for the month (2 fortnights)
+        const fn1 = (month * 2) + 1;
+        const fn2 = (month * 2) + 2;
+        const monthDemand = ((demand[year]?.[fn1]?.total || 0) + 
+                            (demand[year]?.[fn2]?.total || 0)) / 2;
+        demandData.push(monthDemand);
+        
+        // Calculate supply
+        const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        supplyData.push(totalSupply);
+    }
+    
+    if (demandChart) {
+        demandChart.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    const gridColor = isDarkMode ? '#444' : '#e0e0e0';
+    
+    demandChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Trainer Demand',
+                data: demandData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Trainer Supply',
+                data: supplyData,
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderDash: [5, 5]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: textColor
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'FTE',
+                        color: textColor
+                    },
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateDistributionChart() {
+    const ctx = document.getElementById('distribution-chart').getContext('2d');
+    
+    // Count trainees by pathway type
+    const distribution = {};
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        let endFortnight = cohort.startFortnight + duration - 1;
+        let endYear = cohort.startYear;
+        
+        while (endFortnight > FORTNIGHTS_PER_YEAR) {
+            endFortnight -= FORTNIGHTS_PER_YEAR;
+            endYear++;
+        }
+        
+        // Check if cohort is currently in training
+        const startPassed = cohort.startYear < currentYear || 
+            (cohort.startYear === currentYear && cohort.startFortnight <= currentFortnight);
+        const endNotReached = endYear > currentYear || 
+            (endYear === currentYear && endFortnight >= currentFortnight);
+            
+        if (startPassed && endNotReached) {
+            const type = pathway.type || 'Other';
+            distribution[type] = (distribution[type] || 0) + cohort.numTrainees;
+        }
+    });
+    
+    if (distributionChart) {
+        distributionChart.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    
+    distributionChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(distribution),
+            datasets: [{
+                data: Object.values(distribution),
+                backgroundColor: [
+                    '#3498db',
+                    '#e74c3c',
+                    '#f39c12',
+                    '#2ecc71',
+                    '#9b59b6'
+                ],
+                borderColor: isDarkMode ? '#2a2a2a' : '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: textColor
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updatePipeline() {
+    const timeline = document.getElementById('pipeline-timeline');
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    // Group cohorts by start month
+    const pipeline = {};
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const monthKey = `${MONTHS[Math.floor((cohort.startFortnight - 1) / 2)]} ${cohort.startYear}`;
+        if (!pipeline[monthKey]) {
+            pipeline[monthKey] = [];
+        }
+        
+        pipeline[monthKey].push({
+            pathway: pathway.name,
+            type: pathway.type,
+            trainees: cohort.numTrainees
+        });
+    });
+    
+    // Sort pipeline entries chronologically
+    const sortedPipeline = Object.entries(pipeline).sort((a, b) => {
+        const [monthA, yearA] = a[0].split(' ');
+        const [monthB, yearB] = b[0].split(' ');
+        const dateA = new Date(`${monthA} 1, ${yearA}`);
+        const dateB = new Date(`${monthB} 1, ${yearB}`);
+        return dateA - dateB;
+    });
+    
+    let html = '<div class="pipeline-grid">';
+    sortedPipeline.forEach(([month, cohorts]) => {
+        html += `
+            <div class="pipeline-month">
+                <h4>${month}</h4>
+                <div class="pipeline-cohorts">
+        `;
+        cohorts.forEach(cohort => {
+            html += `
+                <div class="pipeline-cohort ${cohort.type.toLowerCase()}">
+                    <span class="cohort-type">${cohort.type}</span>
+                    <span class="cohort-count">${cohort.trainees}</span>
+                    <span class="cohort-pathway">${cohort.pathway}</span>
+                </div>
+            `;
+        });
+        html += '</div></div>';
+    });
+    html += '</div>';
+    
+    timeline.innerHTML = html;
+}
+
+function updateAlerts() {
+    const container = document.getElementById('alerts-container');
+    const alerts = [];
+    
+    // Check for capacity issues
+    const { demand } = calculateDemand();
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    // Check next 6 months for capacity issues
+    for (let i = 0; i < 12; i++) {
+        let checkFn = currentFortnight + i;
+        let checkYear = currentYear;
+        while (checkFn > FORTNIGHTS_PER_YEAR) {
+            checkFn -= FORTNIGHTS_PER_YEAR;
+            checkYear++;
+        }
+        
+        const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (trainerFTE[checkYear]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        const demandValue = demand[checkYear]?.[checkFn]?.total || 0;
+        
+        if (demandValue > totalSupply) {
+            const deficit = demandValue - totalSupply;
+            alerts.push({
+                type: 'danger',
+                message: `Trainer deficit of ${deficit.toFixed(1)} FTE in ${MONTHS[Math.floor((checkFn - 1) / 2)]} ${checkYear}`
+            });
+        }
+    }
+    
+    // Check for upcoming large cohorts
+    activeCohorts.forEach(cohort => {
+        if (cohort.numTrainees >= 10) {
+            const startsSoon = cohort.startYear === currentYear && 
+                cohort.startFortnight >= currentFortnight && 
+                cohort.startFortnight <= currentFortnight + 2;
+            
+            if (startsSoon) {
+                alerts.push({
+                    type: 'warning',
+                    message: `Large cohort of ${cohort.numTrainees} trainees starting in ${MONTHS[Math.floor((cohort.startFortnight - 1) / 2)]}`
+                });
+            }
+        }
+    });
+    
+    if (alerts.length === 0) {
+        alerts.push({
+            type: 'info',
+            message: 'No immediate capacity concerns detected'
+        });
+    }
+    
+    container.innerHTML = alerts.map(alert => `
+        <div class="alert-item alert-${alert.type}">
+            ${alert.type === 'danger' ? '🚨' : alert.type === 'warning' ? '⚠️' : 'ℹ️'}
+            ${alert.message}
+        </div>
+    `).join('');
 }
 
 // Make functions available globally for inline onclick

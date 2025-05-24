@@ -10,12 +10,216 @@ body {
     background-color: #f5f5f5;
     color: #333;
     line-height: 1.6;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark Mode Base Styles */
+body.dark-mode {
+    background-color: #1a1a1a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .container {
+    color: #e0e0e0;
 }
 
 .container {
     max-width: 1400px;
     margin: 0 auto;
     padding: 20px;
+}
+
+/* Dashboard Styles */
+.dashboard-container {
+    padding: 20px;
+}
+
+.metrics-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.metric-card {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.metric-icon {
+    font-size: 2.5em;
+    opacity: 0.8;
+}
+
+.metric-content {
+    flex: 1;
+}
+
+.metric-value {
+    font-size: 2em;
+    font-weight: 700;
+    color: #2c3e50;
+    margin-bottom: 5px;
+}
+
+.metric-label {
+    color: #7f8c8d;
+    font-size: 0.9em;
+}
+
+.charts-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(450px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.chart-container {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.chart-container h3 {
+    margin-top: 0;
+    margin-bottom: 20px;
+    color: #2c3e50;
+}
+
+.chart-container canvas {
+    max-height: 300px;
+}
+
+.pipeline-section,
+.alerts-section {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+.pipeline-section h3,
+.alerts-section h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #2c3e50;
+}
+
+#pipeline-timeline {
+    min-height: 200px;
+    overflow-x: auto;
+}
+
+#alerts-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.alert-item {
+    padding: 12px 16px;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.alert-warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.alert-danger {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.alert-info {
+    background-color: #d1ecf1;
+    border: 1px solid #bee5eb;
+    color: #0c5460;
+}
+
+/* Pipeline Styles */
+.pipeline-grid {
+    display: flex;
+    gap: 20px;
+    overflow-x: auto;
+    padding: 10px 0;
+}
+
+.pipeline-month {
+    min-width: 200px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    padding: 15px;
+}
+
+.pipeline-month h4 {
+    margin: 0 0 10px 0;
+    color: #495057;
+    font-size: 0.9em;
+    text-align: center;
+}
+
+.pipeline-cohorts {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.pipeline-cohort {
+    background-color: white;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    padding: 8px;
+    font-size: 0.85em;
+}
+
+.pipeline-cohort.cp {
+    border-left: 4px solid #3498db;
+}
+
+.pipeline-cohort.fo {
+    border-left: 4px solid #e74c3c;
+}
+
+.pipeline-cohort.cad {
+    border-left: 4px solid #f39c12;
+}
+
+.cohort-type {
+    font-weight: 600;
+    margin-right: 5px;
+}
+
+.cohort-count {
+    background-color: #6c757d;
+    color: white;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-right: 5px;
+    font-size: 0.8em;
+}
+
+.cohort-pathway {
+    color: #6c757d;
+    font-size: 0.9em;
 }
 
 /* Header Styles */
@@ -1527,4 +1731,592 @@ th[colspan] {
 .schedule-item-details {
     font-size: 14px;
     color: #666;
+}
+
+/* Dark Mode Toggle Button */
+#dark-mode-toggle {
+    padding: 8px 12px;
+    font-size: 1.2em;
+    background-color: transparent;
+    border: 1px solid #ddd;
+}
+
+#dark-mode-toggle:hover {
+    background-color: #f8f9fa;
+}
+
+body.dark-mode #dark-mode-toggle {
+    border-color: #444;
+}
+
+body.dark-mode #dark-mode-toggle:hover {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode #dark-mode-toggle .dark-mode-icon {
+    filter: brightness(1.5);
+}
+
+/* Dark Mode Component Styles */
+body.dark-mode header {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .nav-tab {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode .nav-tab:hover {
+    background-color: #444;
+}
+
+body.dark-mode .nav-tab.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+body.dark-mode .btn {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .btn:hover {
+    background-color: #444;
+}
+
+body.dark-mode .btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+    color: white;
+}
+
+body.dark-mode .btn-primary:hover {
+    background-color: #0b5ed7;
+}
+
+/* Dark Mode Dashboard */
+body.dark-mode .metric-card {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .metric-value {
+    color: #e0e0e0;
+}
+
+body.dark-mode .metric-label {
+    color: #aaa;
+}
+
+body.dark-mode .chart-container,
+body.dark-mode .pipeline-section,
+body.dark-mode .alerts-section {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .pipeline-month {
+    background-color: #333;
+}
+
+body.dark-mode .pipeline-cohort {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .cohort-pathway {
+    color: #aaa;
+}
+
+/* Dark Mode Forms */
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode input[type="text"],
+body.dark-mode input[type="number"],
+body.dark-mode input[type="date"],
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+body.dark-mode input:focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+    background-color: #3a3a3a !important;
+    border-color: #0d6efd !important;
+    color: #e0e0e0 !important;
+}
+
+/* Dark Mode Tables */
+body.dark-mode .data-table {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .data-table th {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .data-table td {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .data-table tbody tr {
+    border-bottom: 1px solid #444;
+}
+
+body.dark-mode .data-cell {
+    border-color: #444;
+}
+
+body.dark-mode .sticky-first-column {
+    background-color: #333 !important;
+}
+
+body.dark-mode .fortnight-header {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .month-header {
+    background-color: #444;
+}
+
+body.dark-mode .total-row {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .surplus {
+    color: #4ade80;
+}
+
+body.dark-mode .deficit {
+    color: #ef4444;
+}
+
+/* Dark Mode Modals */
+body.dark-mode .modal-content {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .modal-content input[type="text"],
+body.dark-mode .modal-content input[type="number"],
+body.dark-mode .modal-content input[type="date"],
+body.dark-mode .modal-content select,
+body.dark-mode .modal-content textarea {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+body.dark-mode .modal-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .modal-footer {
+    border-top-color: #444;
+}
+
+body.dark-mode .modal-close {
+    color: #e0e0e0;
+}
+
+/* Dark Mode Sections */
+body.dark-mode section {
+    background-color: #2a2a2a;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .section-header {
+    border-bottom-color: #444;
+}
+
+/* Dark Mode Gantt Chart */
+body.dark-mode .gantt-container {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .gantt-cohort-bar {
+    filter: brightness(0.8);
+}
+
+/* Dark Mode Alerts */
+body.dark-mode .alert-warning {
+    background-color: #443300;
+    border-color: #665500;
+    color: #ffcc00;
+}
+
+body.dark-mode .alert-danger {
+    background-color: #440000;
+    border-color: #660000;
+    color: #ff6666;
+}
+
+body.dark-mode .alert-info {
+    background-color: #003344;
+    border-color: #005566;
+    color: #66ccff;
+}
+
+/* Dark Mode Scenarios Panel */
+body.dark-mode .scenarios-panel {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .scenario-card {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .scenario-card:hover {
+    background-color: #3a3a3a;
+}
+
+/* Dark Mode Training Planner */
+body.dark-mode .planner-content {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .planner-tab {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode .planner-tab.active {
+    background-color: #0d6efd;
+    color: white;
+}
+
+body.dark-mode .bulk-input-area {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .schedule-item {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .schedule-item-details {
+    color: #aaa;
+}
+
+/* Dark Mode Additional Fixes */
+body.dark-mode .filter-select {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .filter-select:hover {
+    border-color: #666;
+}
+
+body.dark-mode .table-container {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .gantt-container {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .gantt-empty-cell {
+    background-color: #1a1a1a;
+}
+
+body.dark-mode .gantt-cohort-cell {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .group-header-cell {
+    background-color: #333 !important;
+}
+
+body.dark-mode .group-toggle-btn:hover {
+    background-color: #444;
+}
+
+body.dark-mode .tooltip-content {
+    background-color: #1a1a1a;
+    border: 1px solid #444;
+}
+
+body.dark-mode .tooltip-content::before {
+    border-bottom-color: #1a1a1a;
+}
+
+body.dark-mode .priority-info {
+    background-color: #1a3a4a;
+    border-color: #2a5a7a;
+}
+
+body.dark-mode .priority-info h4 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .phase-input-group {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .year-section {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .validation-results,
+body.dark-mode .optimization-results {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .validation-summary {
+    background-color: #1a3a5a;
+    border-color: #2a4a6a;
+}
+
+body.dark-mode .validation-summary p {
+    color: #6db3f2;
+}
+
+body.dark-mode .validation-totals,
+body.dark-mode .validation-preview {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .total-item {
+    background-color: #333;
+}
+
+body.dark-mode .existing-analysis {
+    background-color: #1a3a4a;
+    border-color: #2a5a7a;
+}
+
+body.dark-mode .existing-analysis h5 {
+    color: #6db3f2;
+}
+
+body.dark-mode .capacity-constraints {
+    background-color: #443300;
+    border-color: #665500;
+}
+
+body.dark-mode .capacity-constraints h5 {
+    color: #ffcc00;
+}
+
+body.dark-mode .capacity-info {
+    background-color: #1a3a4a;
+    border-color: #2a5a7a;
+}
+
+body.dark-mode .capacity-info h5 {
+    color: #6db3f2;
+}
+
+body.dark-mode .capacity-warning {
+    background-color: #442200;
+    border-color: #663300;
+    color: #ff9966;
+}
+
+body.dark-mode .capacity-warning h5 {
+    color: #ff9966;
+}
+
+body.dark-mode #training-planner-modal .modal-footer {
+    background-color: #333;
+    border-top-color: #444;
+}
+
+body.dark-mode .toggle-btn {
+    border-color: #444;
+}
+
+body.dark-mode .toggle-btn:hover {
+    background-color: #333;
+}
+
+body.dark-mode .priority-settings-table th {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .priority-settings-table td {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .fte-edit-table th {
+    background-color: #333;
+}
+
+body.dark-mode .fte-edit-table input[type="number"] {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border-color: #444 !important;
+}
+
+body.dark-mode .fte-edit-table input[type="number"]:focus {
+    background-color: #3a3a3a !important;
+    border-color: #0d6efd !important;
+}
+
+body.dark-mode .fte-quick-fill {
+    background-color: #2a2a2a !important;
+}
+
+body.dark-mode label {
+    color: #e0e0e0;
+}
+
+body.dark-mode .planner-tabs {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .scenarios-header {
+    background-color: #333;
+    border-bottom-color: #444;
+}
+
+body.dark-mode .scenario-info {
+    background-color: #333;
+}
+
+body.dark-mode #current-scenario-name {
+    color: #e0e0e0;
+}
+
+/* Additional Dark Mode Fixes for Inputs and Borders */
+body.dark-mode input[type="checkbox"] {
+    accent-color: #0d6efd;
+}
+
+body.dark-mode .btn-sm {
+    background-color: #333;
+    border-color: #444;
+}
+
+body.dark-mode .btn-sm:hover {
+    background-color: #444;
+}
+
+body.dark-mode .scenario-date {
+    color: #aaa;
+}
+
+body.dark-mode .scenario-stat {
+    color: #bbb;
+}
+
+/* Fix for white borders in tables */
+body.dark-mode table,
+body.dark-mode th,
+body.dark-mode td {
+    border-color: #444 !important;
+}
+
+body.dark-mode tbody tr {
+    border-bottom-color: #444 !important;
+}
+
+body.dark-mode thead {
+    background-color: #333;
+}
+
+body.dark-mode tr:hover {
+    background-color: #333;
+}
+
+/* Fix for dropdown options in dark mode */
+body.dark-mode option {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+/* Fix for any remaining white backgrounds in form controls */
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]),
+body.dark-mode select,
+body.dark-mode textarea {
+    background-color: #333 !important;
+    color: #e0e0e0 !important;
+    border: 1px solid #444 !important;
+}
+
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]):hover,
+body.dark-mode select:hover,
+body.dark-mode textarea:hover {
+    border-color: #555 !important;
+}
+
+body.dark-mode input:not([type="checkbox"]):not([type="radio"]):focus,
+body.dark-mode select:focus,
+body.dark-mode textarea:focus {
+    background-color: #3a3a3a !important;
+    border-color: #0d6efd !important;
+    box-shadow: 0 0 0 2px rgba(13, 110, 253, 0.25);
+}
+
+/* Fix for edit/remove buttons in tables */
+body.dark-mode .gantt-edit-btn {
+    background-color: #0d6efd;
+}
+
+body.dark-mode .gantt-edit-btn:hover {
+    background-color: #0b5ed7;
+}
+
+body.dark-mode .gantt-remove-btn {
+    background-color: #dc3545;
+}
+
+body.dark-mode .gantt-remove-btn:hover {
+    background-color: #bb2d3b;
+}
+
+/* Fix month headers in pipeline */
+body.dark-mode .pipeline-month h4 {
+    color: #e0e0e0;
+}
+
+/* Fix fortnight cells */
+body.dark-mode .data-table tbody tr:hover {
+    background-color: #333;
+}
+
+/* Ensure all table containers have proper dark background */
+body.dark-mode #fte-summary-table-container,
+body.dark-mode #gantt-chart-container,
+body.dark-mode #demand-table-container,
+body.dark-mode #surplus-deficit-container,
+body.dark-mode #pathways-table-container {
+    background-color: #2a2a2a;
+    border-color: #444;
 }
