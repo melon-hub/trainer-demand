@@ -405,9 +405,24 @@ function setupEventListeners() {
     
     if (trainingPlannerBtn) {
         trainingPlannerBtn.addEventListener('click', () => {
-            trainingPlannerModal.style.display = 'flex';
+            trainingPlannerModal.classList.add('active');
         });
     }
+    
+    // Close modal handlers
+    const plannerModalClose = trainingPlannerModal?.querySelector('.modal-close');
+    if (plannerModalClose) {
+        plannerModalClose.addEventListener('click', () => {
+            trainingPlannerModal.classList.remove('active');
+        });
+    }
+    
+    // Close on outside click
+    trainingPlannerModal?.addEventListener('click', (e) => {
+        if (e.target === trainingPlannerModal) {
+            trainingPlannerModal.classList.remove('active');
+        }
+    });
     
     plannerTabs.forEach(tab => {
         tab.addEventListener('click', (e) => {
@@ -2043,7 +2058,7 @@ function applyBulkSchedule() {
     markDirty();
     
     // Close modal and reset
-    document.getElementById('training-planner-modal').style.display = 'none';
+    document.getElementById('training-planner-modal').classList.remove('active');
     document.getElementById('bulk-input').value = '';
     document.getElementById('bulk-validation').innerHTML = '';
     document.getElementById('apply-bulk').disabled = true;
@@ -2080,35 +2095,62 @@ function optimizeForTarget(e) {
         cad: targetCAD
     }, targetDate, considerExisting);
     
+    // Debug logging
+    console.log('Optimization result:', schedule);
+    
     // Display results
     const resultsDiv = document.getElementById('optimization-results');
     let html = '<h4>Optimized Schedule</h4>';
     
     if (schedule.feasible) {
         html += '<div class="validation-success">✅ Target is achievable</div>';
-        html += '<div class="optimization-schedule">';
         
-        schedule.cohorts.forEach(cohort => {
-            const pathway = pathways.find(p => p.id === cohort.pathwayId);
-            const month = MONTHS[Math.floor((cohort.startFortnight - 1) / 2)];
-            html += `
-                <div class="schedule-item">
-                    <div class="schedule-item-header">
-                        <span>${month} ${cohort.startYear}</span>
-                        <span>${cohort.numTrainees} x ${pathway.name}</span>
+        // Show existing cohort analysis if relevant
+        if (schedule.existingAnalysis && considerExisting) {
+            const existingTotal = Object.values(schedule.existingAnalysis.completingByTarget).reduce((a, b) => a + b, 0);
+            if (existingTotal > 0) {
+                html += '<div class="existing-analysis">';
+                html += '<h5>Existing Cohorts Considered:</h5>';
+                html += '<ul>';
+                Object.entries(schedule.existingAnalysis.completingByTarget).forEach(([type, count]) => {
+                    if (count > 0) {
+                        html += `<li>${type}: ${count} trainees will complete by target date</li>`;
+                    }
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+        }
+        
+        if (schedule.cohorts.length === 0) {
+            html += '<div class="validation-info">✅ Target already met by existing cohorts. No additional training needed.</div>';
+            document.getElementById('apply-optimized').disabled = true;
+        } else {
+            html += '<div class="optimization-schedule">';
+            html += '<h5>New Cohorts to Schedule:</h5>';
+            
+            schedule.cohorts.forEach(cohort => {
+                const pathway = pathways.find(p => p.id === cohort.pathwayId);
+                const month = MONTHS[Math.floor((cohort.startFortnight - 1) / 2)];
+                html += `
+                    <div class="schedule-item">
+                        <div class="schedule-item-header">
+                            <span>${month} ${cohort.startYear}</span>
+                            <span>${cohort.numTrainees} x ${pathway?.name || cohort.type}</span>
+                        </div>
+                        <div class="schedule-item-details">
+                            Start: FN${String(cohort.startFortnight).padStart(2, '0')} | Completes: ${cohort.completionDate}
+                        </div>
                     </div>
-                    <div class="schedule-item-details">
-                        Start: FN${cohort.startFortnight} | Completes: ${cohort.completionDate}
-                    </div>
-                </div>
-            `;
-        });
-        
-        html += '</div>';
-        html += `<div class="validation-info">Total cohorts: ${schedule.cohorts.length}</div>`;
-        
-        document.getElementById('apply-optimized').disabled = false;
-        window.pendingOptimizedSchedule = schedule.cohorts;
+                `;
+            });
+            
+            html += '</div>';
+            html += `<div class="validation-info">Total new cohorts: ${schedule.cohorts.length}</div>`;
+            
+            document.getElementById('apply-optimized').disabled = false;
+            window.pendingOptimizedSchedule = schedule.cohorts;
+        }
     } else {
         html += '<div class="validation-error">❌ Target not achievable by this date</div>';
         html += '<div class="validation-info">' + schedule.reason + '</div>';
@@ -2347,7 +2389,7 @@ function applyOptimizedSchedule() {
     markDirty();
     
     // Close modal and reset
-    document.getElementById('training-planner-modal').style.display = 'none';
+    document.getElementById('training-planner-modal').classList.remove('active');
     document.getElementById('target-form').reset();
     document.getElementById('optimization-results').innerHTML = '';
     document.getElementById('apply-optimized').disabled = true;
