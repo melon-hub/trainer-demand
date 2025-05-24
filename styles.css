@@ -1426,7 +1426,8 @@ th[colspan] {
 /* Training Planner Styles */
 #training-planner-modal .modal-content {
     padding: 0;
-    max-width: 900px;
+    max-width: 1200px;
+    width: 95%;
 }
 
 #training-planner-modal .modal-content > span.modal-close {
@@ -1530,13 +1531,76 @@ th[colspan] {
 
 .validation-results,
 .optimization-results {
-    margin: 20px 0;
-    padding: 20px;
+    margin: 15px 0 20px 0;
+    padding: 0;
     border-radius: 8px;
     background-color: #f8f9fa;
-    min-height: 100px;
-    max-height: 400px;
+    min-height: 200px;
+    height: calc(100vh - 400px);
+    max-height: 600px;
     overflow-y: auto;
+}
+
+.optimization-results-container {
+    padding: 20px;
+}
+
+.optimization-header {
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.optimization-header h4 {
+    margin: 0 0 10px 0;
+}
+
+.completion-summary {
+    margin-top: 10px;
+    padding: 8px 12px;
+    background-color: #e3f2fd;
+    border-radius: 4px;
+    font-size: 0.9em;
+}
+
+.completion-summary .summary-item {
+    margin-right: 20px;
+    font-weight: 600;
+    color: #1976d2;
+}
+
+body.dark-mode .completion-summary {
+    background-color: #1e3a5f;
+}
+
+body.dark-mode .completion-summary .summary-item {
+    color: #64b5f6;
+}
+
+.optimization-content {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.optimization-column {
+    padding: 15px;
+    background-color: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+}
+
+.warnings-column h5,
+.schedule-column h5 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #495057;
+}
+
+@media (max-width: 768px) {
+    .optimization-content {
+        grid-template-columns: 1fr;
+    }
 }
 
 .validation-summary {
@@ -1733,6 +1797,83 @@ th[colspan] {
     color: #666;
 }
 
+.schedule-item-late {
+    border-color: #ff9800;
+    background-color: #fff8e1;
+}
+
+body.dark-mode .schedule-item-late {
+    border-color: #ff9800;
+    background-color: #3d2f1f;
+}
+
+.late-indicator {
+    color: #ff9800;
+    font-weight: 600;
+}
+
+.apply-partial-info {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 6px;
+}
+
+.apply-partial-info p {
+    margin: 5px 0;
+}
+
+.apply-partial-info p:first-child {
+    margin-top: 0;
+}
+
+body.dark-mode .apply-partial-info {
+    background-color: #1e3a5f;
+    border-color: #42a5f5;
+}
+
+/* Dark mode capacity message improvements */
+body.dark-mode .capacity-constraints {
+    background-color: #3d3300;
+    border-color: #666600;
+}
+
+body.dark-mode .capacity-constraints h5 {
+    color: #ffd54f;
+}
+
+body.dark-mode .capacity-constraints li {
+    color: #ffeb3b;
+}
+
+body.dark-mode .capacity-info {
+    background-color: #1a3a52;
+    border-color: #2e5a7e;
+}
+
+body.dark-mode .capacity-info h5 {
+    color: #64b5f6;
+}
+
+body.dark-mode .capacity-info p {
+    color: #90caf9;
+}
+
+body.dark-mode .capacity-warning {
+    background-color: #4a2c00;
+    border-color: #805000;
+}
+
+body.dark-mode .capacity-warning h5 {
+    color: #ff9800;
+}
+
+body.dark-mode .capacity-warning p,
+body.dark-mode .capacity-warning li {
+    color: #ffb74d;
+}
+
 /* Dark Mode Toggle Button */
 #dark-mode-toggle {
     padding: 8px 12px;
@@ -1907,11 +2048,11 @@ body.dark-mode .total-row {
 }
 
 body.dark-mode .surplus {
-    color: #4ade80;
+    color: #4ade80 !important;
 }
 
 body.dark-mode .deficit {
-    color: #ef4444;
+    color: #ef4444 !important;
 }
 
 /* Dark Mode Modals */
@@ -2091,8 +2232,16 @@ body.dark-mode .year-section {
 
 body.dark-mode .validation-results,
 body.dark-mode .optimization-results {
+    background-color: #2a2a2a;
+}
+
+body.dark-mode .optimization-column {
     background-color: #333;
     border-color: #444;
+}
+
+body.dark-mode .optimization-header {
+    border-bottom-color: #444;
 }
 
 body.dark-mode .validation-summary {

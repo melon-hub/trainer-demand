@@ -441,6 +441,44 @@ function setupEventListeners() {
     
     if (targetForm) {
         targetForm.addEventListener('submit', optimizeForTarget);
+        
+        // Re-run optimization when smooth schedule is toggled
+        const smoothScheduleCheckbox = document.getElementById('smooth-schedule');
+        const considerExistingCheckbox = document.getElementById('consider-existing');
+        
+        if (smoothScheduleCheckbox) {
+            smoothScheduleCheckbox.addEventListener('change', () => {
+                // Only re-run if we have values and previous results
+                const hasValues = document.getElementById('target-cp').value || 
+                                 document.getElementById('target-fo').value || 
+                                 document.getElementById('target-cad').value;
+                const hasDate = document.getElementById('target-date').value;
+                const hasResults = document.getElementById('optimization-results').innerHTML.trim().length > 0;
+                
+                if (hasValues && hasDate && hasResults) {
+                    // Prevent form submission default behavior
+                    const event = new Event('submit', { cancelable: true });
+                    optimizeForTarget(event);
+                }
+            });
+        }
+        
+        if (considerExistingCheckbox) {
+            considerExistingCheckbox.addEventListener('change', () => {
+                // Only re-run if we have values and previous results
+                const hasValues = document.getElementById('target-cp').value || 
+                                 document.getElementById('target-fo').value || 
+                                 document.getElementById('target-cad').value;
+                const hasDate = document.getElementById('target-date').value;
+                const hasResults = document.getElementById('optimization-results').innerHTML.trim().length > 0;
+                
+                if (hasValues && hasDate && hasResults) {
+                    // Prevent form submission default behavior
+                    const event = new Event('submit', { cancelable: true });
+                    optimizeForTarget(event);
+                }
+            });
+        }
     }
     
     if (applyOptimizedBtn) {
@@ -2099,6 +2137,7 @@ function optimizeForTarget(e) {
     const targetCAD = parseInt(cadInput.value) || 0;
     const targetDate = new Date(dateInput.value);
     const considerExisting = document.getElementById('consider-existing')?.checked ?? true;
+    const smoothSchedule = document.getElementById('smooth-schedule')?.checked ?? false;
     
     if (targetCP + targetFO + targetCAD === 0) {
         alert('Please enter at least one target');
@@ -2106,39 +2145,123 @@ function optimizeForTarget(e) {
     }
     
     // Calculate optimal schedule
-    const schedule = calculateOptimalSchedule({
+    const targets = {
         cp: targetCP,
         fo: targetFO,
         cad: targetCAD
-    }, targetDate, considerExisting);
+    };
+    const schedule = calculateOptimalSchedule(targets, targetDate, considerExisting, smoothSchedule);
     
     // Debug logging
     console.log('Optimization result:', schedule);
     
     // Display results
     const resultsDiv = document.getElementById('optimization-results');
-    let html = '<h4>Optimized Schedule</h4>';
+    let html = '<div class="optimization-results-container">';
     
     if (schedule.feasible) {
-        html += '<div class="validation-success">✅ Target is achievable</div>';
+        html += '<div class="optimization-header">';
+        html += '<h4>Optimization Results</h4>';
+        
+        if (schedule.capacityAnalysis && schedule.capacityAnalysis.conflicts.some(c => c.type === 'Trainer' && c.severity === 'warning')) {
+            html += '<div class="validation-success">✅ Target is achievable with trainer capacity constraints</div>';
+        } else {
+            html += '<div class="validation-success">✅ Target is achievable</div>';
+        }
+        
+        // Add completion summary
+        if (schedule.cohorts && schedule.cohorts.length > 0) {
+            html += '<div class="completion-summary">';
+            const summary = calculateCompletionSummary(schedule.cohorts, targetDate);
+            ['CP', 'FO', 'CAD'].forEach(type => {
+                const target = targets[type.toLowerCase()] || 0;
+                if (target > 0 && summary[type]) {
+                    html += `<span class="summary-item">${type}: ${summary[type].onTime}/${target} by target date</span>`;
+                }
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+        
+        html += '<div class="optimization-content">';
+        
+        // Left column - Warnings and constraints
+        html += '<div class="optimization-column warnings-column">';
         
         // Show capacity constraints if relevant
         if (schedule.capacityAnalysis && considerExisting) {
             const gsSimConflicts = schedule.capacityAnalysis.conflicts.filter(c => c.type === 'GS+SIM');
-            const trainerWarnings = schedule.capacityAnalysis.conflicts.filter(c => c.type === 'Trainer');
+            const trainerWarnings = schedule.capacityAnalysis.conflicts.filter(c => c.type === 'Trainer' && c.severity === 'warning');
+            const trainerSmoothed = schedule.capacityAnalysis.conflicts.filter(c => c.type === 'Trainer' && c.severity === 'info');
             
             if (gsSimConflicts.length > 0) {
                 html += '<div class="capacity-constraints">';
-                html += '<h5>GS+SIM Capacity Constraints Avoided:</h5>';
-                html += '<ul>';
+                html += '<h5>GS+SIM Capacity Constraints Worked Around:</h5>';
+                
+                // Group by pathway type to reduce noise
+                const gsSimByType = {};
                 gsSimConflicts.forEach(conflict => {
-                    html += `<li>${conflict.time}: ${conflict.reason}</li>`;
+                    const type = conflict.pathwayType || 'FO/CAD';
+                    if (!gsSimByType[type]) {
+                        gsSimByType[type] = [];
+                    }
+                    gsSimByType[type].push(conflict.time);
+                });
+                
+                html += '<ul>';
+                Object.entries(gsSimByType).forEach(([type, times]) => {
+                    html += `<li>${type}: Avoided conflicts in ${times.join(', ')}</li>`;
                 });
                 html += '</ul>';
                 html += '</div>';
             }
             
-            if (trainerWarnings.length > 0) {
+            if (smoothSchedule && trainerSmoothed.length > 0) {
+                html += '<div class="capacity-info">';
+                html += '<h5>📊 Schedule Smoothing Applied:</h5>';
+                html += '<p>Training has been optimized to maintain trainer capacity:</p>';
+                
+                // Group by pathway type to avoid duplicates
+                const smoothingByType = {};
+                trainerSmoothed.forEach(item => {
+                    if (!smoothingByType[item.pathwayType]) {
+                        smoothingByType[item.pathwayType] = new Set();
+                    }
+                    smoothingByType[item.pathwayType].add(item.time);
+                });
+                
+                html += '<ul>';
+                Object.entries(smoothingByType).forEach(([type, monthsSet]) => {
+                    const months = Array.from(monthsSet).sort();
+                    html += `<li>${type}: Training spread across ${months.length} additional month${months.length > 1 ? 's' : ''} to maintain capacity</li>`;
+                });
+                html += '</ul>';
+                
+                // Calculate the extended completion date
+                let extendedDate = null;
+                const cohortsList = schedule.cohorts || schedule.partialSchedule || [];
+                if (cohortsList.length > 0) {
+                    // Find latest completion
+                    let latestCompletion = null;
+                    cohortsList.forEach(cohort => {
+                        const parts = cohort.completionDate.split(' ');
+                        const month = MONTHS.indexOf(parts[0]);
+                        const year = parseInt(parts[1]);
+                        if (!latestCompletion || year > latestCompletion.year || 
+                            (year === latestCompletion.year && month > latestCompletion.month)) {
+                            latestCompletion = { month, year, date: cohort.completionDate };
+                        }
+                    });
+                    if (latestCompletion) {
+                        extendedDate = latestCompletion.date;
+                    }
+                }
+                
+                if (extendedDate) {
+                    html += `<p><strong>All trainees will complete by: ${extendedDate}</strong></p>`;
+                }
+                html += '</div>';
+            } else if (trainerWarnings.length > 0) {
                 html += '<div class="capacity-warning">';
                 html += '<h5>⚠️ Trainer Capacity Warnings:</h5>';
                 html += '<p>The following periods would have trainer deficits (negative S/D):</p>';
@@ -2147,8 +2270,29 @@ function optimizeForTarget(e) {
                     html += `<li><strong>${warning.time}:</strong> ${warning.reason}`;
                     if (warning.details && warning.details.length > 0) {
                         html += '<ul style="margin-top: 5px;">';
+                        // Group by training type
+                        const detailsByType = {};
                         warning.details.forEach(detail => {
-                            html += `<li style="font-size: 0.9em;">${detail.time}: Supply ${detail.supply} < Demand ${detail.demand} (Deficit: -${detail.deficit})</li>`;
+                            if (detail.trainingType) {
+                                if (!detailsByType[detail.trainingType]) {
+                                    detailsByType[detail.trainingType] = [];
+                                }
+                                detailsByType[detail.trainingType].push(detail);
+                            }
+                        });
+                        
+                        Object.entries(detailsByType).forEach(([trainingType, details]) => {
+                            if (details.length > 0) {
+                                const d = details[0]; // Use first detail for this type
+                                html += `<li style="font-size: 0.9em;">${trainingType}: ${d.allocated}/${d.demand} trainers (deficit: -${d.deficit})`;
+                                if (d.remainingCapacity) {
+                                    const remaining = d.remainingCapacity[trainingType] || 0;
+                                    if (remaining > 0) {
+                                        html += ` - ${remaining.toFixed(1)} trainers available for other ${trainingType} training`;
+                                    }
+                                }
+                                html += '</li>';
+                            }
                         });
                         html += '</ul>';
                     }
@@ -2156,13 +2300,19 @@ function optimizeForTarget(e) {
                 });
                 html += '</ul>';
                 html += '<p style="font-style: italic; color: #666;">Note: Training may proceed but could be slower due to trainer shortages.</p>';
+                html += '<p style="margin-top: 10px;"><strong>💡 Tip:</strong> Enable "Smooth schedule" to automatically spread training and avoid these deficits.</p>';
                 html += '</div>';
             }
             
         }
         
-        if (schedule.cohorts.length === 0) {
-            html += '<div class="validation-info">✅ Target already met by existing cohorts. No additional training needed.</div>';
+        html += '</div>'; // Close warnings column
+        
+        // Right column - Schedule
+        html += '<div class="optimization-column schedule-column">';
+        
+        if (!schedule.cohorts || schedule.cohorts.length === 0) {
+            html += '<div class="validation-info">No cohorts scheduled for target date.</div>';
             document.getElementById('apply-optimized').disabled = true;
         } else {
             html += '<div class="optimization-schedule">';
@@ -2190,54 +2340,291 @@ function optimizeForTarget(e) {
             document.getElementById('apply-optimized').disabled = false;
             window.pendingOptimizedSchedule = schedule.cohorts;
         }
+        
+        html += '</div>'; // Close schedule column
+        html += '</div>'; // Close optimization-content
+        
     } else {
-        html += '<div class="validation-error">❌ Target not achievable by this date</div>';
+        html += '<div class="optimization-header">';
+        html += '<h4>Optimization Results</h4>';
+        if (schedule.smoothingExtended) {
+            html += '<div class="validation-warning">⚠️ Schedule extended due to smoothing</div>';
+        } else {
+            html += '<div class="validation-error">❌ Target not achievable by specified date</div>';
+        }
+        html += '</div>';
+        
+        html += '<div class="optimization-content">';
+        
+        // Left column - Analysis
+        html += '<div class="optimization-column warnings-column">';
+        html += '<h5>Analysis</h5>';
         html += '<div class="validation-info">' + schedule.reason + '</div>';
         
         if (schedule.unmetDemand && schedule.unmetDemand.length > 0) {
             html += '<div class="validation-details">';
-            html += '<p><strong>Unmet demand:</strong></p>';
+            html += '<p><strong>Analysis:</strong></p>';
             html += '<ul>';
             schedule.unmetDemand.forEach(u => {
-                html += `<li>${u.type}: Only ${u.scheduled} of ${u.needed} can complete by target date (${u.shortfall} short)</li>`;
+                html += `<li><strong>${u.type}:</strong> ${u.scheduled} of ${u.needed} trainees can complete by target date`;
+                if (u.shortfall > 0) {
+                    html += ` (${u.shortfall} short)`;
+                    if (u.achievableDate) {
+                        html += `<br><span style="color: #0d6efd;">→ Full target achievable by: ${u.achievableDate}</span>`;
+                    }
+                }
+                html += '</li>';
             });
             html += '</ul>';
             html += '</div>';
         }
         
+        // Show trainer capacity breakdown if available
+        if (schedule.capacityAnalysis && schedule.capacityAnalysis.conflicts.length > 0) {
+            const trainerConflicts = schedule.capacityAnalysis.conflicts.filter(c => c.type === 'Trainer' && c.severity === 'warning');
+            if (trainerConflicts.length > 0) {
+                html += '<div class="capacity-warning" style="margin-top: 15px;">';
+                html += '<h5>⚠️ Trainer Capacity Analysis:</h5>';
+                html += '<p>The following periods have insufficient trainer capacity:</p>';
+                html += '<ul style="font-size: 0.9em;">';
+                
+                // Group by time period
+                const conflictsByTime = {};
+                trainerConflicts.forEach(conflict => {
+                    if (!conflictsByTime[conflict.time]) {
+                        conflictsByTime[conflict.time] = [];
+                    }
+                    conflictsByTime[conflict.time].push(...(conflict.details || []));
+                });
+                
+                Object.entries(conflictsByTime).forEach(([time, details]) => {
+                    html += `<li><strong>${time}:</strong><ul>`;
+                    // Group by training type
+                    const byType = {};
+                    details.forEach(d => {
+                        if (d.trainingType && !byType[d.trainingType]) {
+                            byType[d.trainingType] = d;
+                        }
+                    });
+                    Object.values(byType).forEach(d => {
+                        html += `<li>${d.trainingType}: ${d.allocated}/${d.demand} trainers allocated (deficit: ${d.deficit})</li>`;
+                    });
+                    html += '</ul></li>';
+                });
+                html += '</ul>';
+                html += '</div>';
+            }
+        }
+        
+        html += '</div>'; // Close warnings column
+        
+        // Right column - Partial Schedule
+        html += '<div class="optimization-column schedule-column">';
+        
         if (schedule.partialSchedule && schedule.partialSchedule.length > 0) {
-            html += '<div class="validation-details">';
-            html += '<h4>Partial schedule (what can be achieved):</h4>';
+            html += '<h5>Partial Schedule</h5>';
+            html += '<p>What can be achieved:</p>';
             html += '<div class="optimization-schedule">';
             
             schedule.partialSchedule.forEach(cohort => {
                 const pathway = pathways.find(p => p.id === cohort.pathwayId);
                 const month = MONTHS[Math.floor((cohort.startFortnight - 1) / 2)];
+                const completionParts = cohort.completionDate.split(' ');
+                const completionYear = parseInt(completionParts[1]);
+                const targetYear = targetDate.getFullYear();
+                const isLate = completionYear > targetYear || 
+                    (completionYear === targetYear && MONTHS.indexOf(completionParts[0]) > targetDate.getMonth());
+                
                 html += `
-                    <div class="schedule-item">
+                    <div class="schedule-item ${isLate ? 'schedule-item-late' : ''}">
                         <div class="schedule-item-header">
                             <span>${month} ${cohort.startYear}</span>
                             <span>${cohort.numTrainees} x ${pathway?.name || cohort.type}</span>
                         </div>
                         <div class="schedule-item-details">
                             Completes: ${cohort.completionDate}
+                            ${isLate ? '<span class="late-indicator"> (After target)</span>' : ''}
                         </div>
                     </div>
                 `;
             });
             
             html += '</div>';
+            html += '<div class="apply-partial-info">';
+            html += '<p><strong>💡 You can still apply this partial schedule</strong></p>';
+            html += '<p>This will schedule what\'s possible within constraints. You\'ll see exactly which cohorts complete after your target date.</p>';
             html += '</div>';
+            
+            // Enable apply button for partial schedules
+            document.getElementById('apply-optimized').disabled = false;
+            window.pendingOptimizedSchedule = schedule.partialSchedule;
+        } else {
+            html += '<div class="validation-info">No cohorts can be scheduled.</div>';
+            document.getElementById('apply-optimized').disabled = true;
         }
         
-        document.getElementById('apply-optimized').disabled = true;
+        html += '</div>'; // Close schedule column
+        html += '</div>'; // Close optimization-content
     }
     
+    html += '</div>'; // Close optimization-results-container
     resultsDiv.innerHTML = html;
 }
 
+// Calculate completion summary
+function calculateCompletionSummary(cohorts, targetDate) {
+    const summary = {};
+    const targetYear = targetDate.getFullYear();
+    const targetMonth = targetDate.getMonth();
+    
+    cohorts.forEach(cohort => {
+        const type = cohort.type;
+        if (!summary[type]) {
+            summary[type] = { total: 0, onTime: 0, late: 0 };
+        }
+        
+        summary[type].total += cohort.numTrainees;
+        
+        // Check if completes by target date
+        const completionParts = cohort.completionDate.split(' ');
+        const completionYear = parseInt(completionParts[1]);
+        const completionMonth = MONTHS.indexOf(completionParts[0]);
+        
+        if (completionYear < targetYear || 
+            (completionYear === targetYear && completionMonth <= targetMonth)) {
+            summary[type].onTime += cohort.numTrainees;
+        } else {
+            summary[type].late += cohort.numTrainees;
+        }
+    });
+    
+    return summary;
+}
+
+// Calculate available trainer capacity using priority-based allocation
+function calculateAvailableTrainerCapacity(timeKey, existingDemand, trainerSupply) {
+    // Parse existing demand by training type
+    const demandByType = existingDemand || { 'LT-CAD': 0, 'LT-CP': 0, 'LT-FO': 0 };
+    
+    // Get trainer FTE for this time period
+    const fteByCategory = {};
+    const [year, fn] = timeKey.split('-').map(Number);
+    let fteYear = year;
+    if (!trainerFTE[year]) {
+        // Find the last year with data
+        for (let y = year - 1; y >= START_YEAR; y--) {
+            if (trainerFTE[y]) {
+                fteYear = y;
+                break;
+            }
+        }
+    }
+    
+    TRAINER_CATEGORIES.forEach(cat => {
+        fteByCategory[cat] = (trainerFTE[fteYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR;
+    });
+    
+    // Allocate trainers based on priority
+    const allocation = {};
+    const availableByCategory = { ...fteByCategory };
+    
+    // P1: LT-CAD (CATB, CATA, STP only)
+    const ltCadDemand = demandByType['LT-CAD'] || 0;
+    const ltCadPrimaryTrainers = ['CATB', 'CATA', 'STP'];
+    let ltCadAllocated = 0;
+    
+    ltCadPrimaryTrainers.forEach(cat => {
+        const available = availableByCategory[cat] || 0;
+        const allocate = Math.min(available, ltCadDemand - ltCadAllocated);
+        ltCadAllocated += allocate;
+        availableByCategory[cat] -= allocate;
+    });
+    
+    allocation['LT-CAD'] = {
+        demand: ltCadDemand,
+        allocated: ltCadAllocated,
+        deficit: Math.max(0, ltCadDemand - ltCadAllocated)
+    };
+    
+    // P2: LT-CP (RHS primary, then cascade from CATB, CATA, STP)
+    const ltCpDemand = demandByType['LT-CP'] || 0;
+    let ltCpAllocated = 0;
+    
+    // First use RHS
+    const rhsAvailable = availableByCategory['RHS'] || 0;
+    const rhsAllocate = Math.min(rhsAvailable, ltCpDemand);
+    ltCpAllocated += rhsAllocate;
+    availableByCategory['RHS'] -= rhsAllocate;
+    
+    // Then cascade from P1 pool if needed
+    if (ltCpAllocated < ltCpDemand) {
+        ['CATB', 'CATA', 'STP'].forEach(cat => {
+            const available = availableByCategory[cat] || 0;
+            const allocate = Math.min(available, ltCpDemand - ltCpAllocated);
+            ltCpAllocated += allocate;
+            availableByCategory[cat] -= allocate;
+        });
+    }
+    
+    allocation['LT-CP'] = {
+        demand: ltCpDemand,
+        allocated: ltCpAllocated,
+        deficit: Math.max(0, ltCpDemand - ltCpAllocated)
+    };
+    
+    // P3: LT-FO (LHS primary, then cascade from everyone)
+    const ltFoDemand = demandByType['LT-FO'] || 0;
+    let ltFoAllocated = 0;
+    
+    // First use LHS
+    const lhsAvailable = availableByCategory['LHS'] || 0;
+    const lhsAllocate = Math.min(lhsAvailable, ltFoDemand);
+    ltFoAllocated += lhsAllocate;
+    availableByCategory['LHS'] -= lhsAllocate;
+    
+    // Then cascade from all others if needed
+    if (ltFoAllocated < ltFoDemand) {
+        ['CATB', 'CATA', 'STP', 'RHS'].forEach(cat => {
+            const available = availableByCategory[cat] || 0;
+            const allocate = Math.min(available, ltFoDemand - ltFoAllocated);
+            ltFoAllocated += allocate;
+            availableByCategory[cat] -= allocate;
+        });
+    }
+    
+    allocation['LT-FO'] = {
+        demand: ltFoDemand,
+        allocated: ltFoAllocated,
+        deficit: Math.max(0, ltFoDemand - ltFoAllocated)
+    };
+    
+    // Calculate total remaining capacity for each training type
+    const remainingCapacity = {};
+    
+    // For LT-CAD: only CATB, CATA, STP
+    remainingCapacity['LT-CAD'] = (availableByCategory['CATB'] || 0) + 
+                                  (availableByCategory['CATA'] || 0) + 
+                                  (availableByCategory['STP'] || 0);
+    
+    // For LT-CP: RHS + CATB, CATA, STP
+    remainingCapacity['LT-CP'] = (availableByCategory['RHS'] || 0) + 
+                                 (availableByCategory['CATB'] || 0) + 
+                                 (availableByCategory['CATA'] || 0) + 
+                                 (availableByCategory['STP'] || 0);
+    
+    // For LT-FO: Everyone
+    remainingCapacity['LT-FO'] = Object.values(availableByCategory).reduce((sum, val) => sum + val, 0);
+    
+    return {
+        allocation,
+        remainingCapacity,
+        availableByCategory,
+        totalSupply: Object.values(fteByCategory).reduce((sum, val) => sum + val, 0)
+    };
+}
+
 // Calculate optimal schedule
-function calculateOptimalSchedule(targets, targetDate, considerExisting = true) {
+function calculateOptimalSchedule(targets, targetDate, considerExisting = true, smoothSchedule = false) {
     const today = new Date();
     const currentYear = today.getFullYear();
     const currentMonth = today.getMonth();
@@ -2261,6 +2648,10 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
     const targetYear = targetDate.getFullYear();
     const targetMonth = targetDate.getMonth();
     const targetEndFortnight = (targetMonth * 2) + (targetDate.getDate() <= 14 ? 1 : 2);
+    
+    // Note: We don't count existing completions toward targets anymore
+    // The 'considerExisting' flag is only for checking capacity constraints
+    const existingCompletions = { cp: 0, fo: 0, cad: 0 };
     
     // Analyze existing cohorts for capacity constraints
     const capacityAnalysis = {
@@ -2300,8 +2691,8 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
             if (!pathway) return;
             
-            // Track GS+SIM usage for FO/CAD
-            if (pathway.type === 'FO' || pathway.type === 'CAD') {
+            // Track GS+SIM usage for all types (CP has limit of 10, FO/CAD have 16)
+            if (pathway.type === 'FO' || pathway.type === 'CAD' || pathway.type === 'CP') {
                 const gsSimKey = `${cohort.startYear}-${cohort.startFortnight}`;
                 capacityAnalysis.gsSimUsage[gsSimKey] = (capacityAnalysis.gsSimUsage[gsSimKey] || 0) + cohort.numTrainees;
             }
@@ -2340,6 +2731,18 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
     
     // Create schedule for each type
     const unmetDemand = [];
+    const cpMonthsUsed = new Set(); // Track which months already have CP cohorts
+    
+    // First, track existing CP cohorts by month if considering existing
+    if (considerExisting && activeCohorts.length > 0) {
+        activeCohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (pathway && pathway.type === 'CP') {
+                const monthKey = `${cohort.startYear}-${Math.floor((cohort.startFortnight - 1) / 2)}`;
+                cpMonthsUsed.add(monthKey);
+            }
+        });
+    }
     
     ['CP', 'FO', 'CAD'].forEach(type => {
         const needed = targets[type.toLowerCase()] || 0;
@@ -2359,12 +2762,25 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
         // Check if we need to start in the past
         if (latestYear < currentYear || 
             (latestYear === currentYear && latestStart < currentFortnight)) {
+            // Calculate when it could be achieved
+            const totalCohorts = Math.ceil(needed / info.maxPerCohort);
+            let projectedMonth = currentMonth + 1;
+            let projectedYear = currentYear;
+            
+            // Add time for cohorts plus training duration
+            projectedMonth += (totalCohorts - 1) + Math.ceil(info.duration / 2);
+            while (projectedMonth >= 12) {
+                projectedMonth -= 12;
+                projectedYear++;
+            }
+            
             unmetDemand.push({
                 type,
-                needed: rawNeeded,
+                needed,
                 scheduled: 0,
-                shortfall: rawNeeded,
-                reason: `Training takes ${info.duration} fortnights. Would need to start in the past.`
+                shortfall: needed,
+                reason: `Training takes ${info.duration} fortnights. Would need to start in the past.`,
+                achievableDate: `${MONTHS[projectedMonth]} ${projectedYear}`
             });
             return;
         }
@@ -2372,32 +2788,95 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
         // Schedule cohorts
         let remainingTrainees = needed;
         let scheduled = 0;
-        let startFn = currentFortnight + 2; // Start next month
+        
+        // Calculate starting position based on type
         let startYear = currentYear;
+        let startFn;
+        
+        if (type === 'CP') {
+            // CP must start in first fortnight of month
+            let nextMonth = currentMonth + 1;
+            if (nextMonth >= 12) {
+                nextMonth = 0;
+                startYear++;
+            }
+            startFn = (nextMonth * 2) + 1; // Always first fortnight for CP
+        } else {
+            // FO/CAD can start in any fortnight
+            startFn = currentFortnight + 1;
+            if (startFn > FORTNIGHTS_PER_YEAR) {
+                startFn = 1;
+                startYear++;
+            }
+        }
+        
+        // If smoothing is enabled, extend the search beyond target date
+        const searchLimitYear = smoothSchedule ? targetYear + 2 : latestYear;
+        const searchLimitFn = smoothSchedule ? FORTNIGHTS_PER_YEAR : latestStart;
         
         while (remainingTrainees > 0 && 
-               (startYear < latestYear || (startYear === latestYear && startFn <= latestStart))) {
+               (startYear < searchLimitYear || (startYear === searchLimitYear && startFn <= searchLimitFn))) {
             let cohortSize = Math.min(remainingTrainees, info.maxPerCohort);
             
+            // For CP, check if this month already has a cohort
+            if (type === 'CP') {
+                const monthKey = `${startYear}-${Math.floor((startFn - 1) / 2)}`;
+                if (cpMonthsUsed.has(monthKey)) {
+                    // Skip to next month - CP already scheduled this month
+                    const currMonthIndex = Math.floor((startFn - 1) / 2);
+                    const nextMonthIndex = currMonthIndex + 1;
+                    if (nextMonthIndex >= 12) {
+                        startFn = 1;
+                        startYear++;
+                    } else {
+                        startFn = (nextMonthIndex * 2) + 1;
+                    }
+                    continue;
+                }
+            }
+            
             // Check GS+SIM constraint if considering existing
-            if (considerExisting && (type === 'FO' || type === 'CAD')) {
+            if (considerExisting && (type === 'FO' || type === 'CAD' || type === 'CP')) {
                 const gsSimKey = `${startYear}-${startFn}`;
                 const existingGsSim = capacityAnalysis.gsSimUsage[gsSimKey] || 0;
-                const gsSimAvailable = 16 - existingGsSim;
+                const gsSimLimit = type === 'CP' ? 10 : 16; // CP has limit of 10, FO/CAD have 16
+                const gsSimAvailable = gsSimLimit - existingGsSim;
                 
                 if (gsSimAvailable <= 0) {
                     // Skip this slot - no GS+SIM capacity
-                    capacityAnalysis.conflicts.push({
-                        type: 'GS+SIM',
-                        time: `${MONTHS[Math.floor((startFn - 1) / 2)]} ${startYear}`,
-                        reason: `Already ${existingGsSim} FO/CAD trainees, no capacity`
-                    });
+                    const conflictKey = `${startYear}-${startFn}`;
+                    const existingConflict = capacityAnalysis.conflicts.find(c => 
+                        c.type === 'GS+SIM' && c.key === conflictKey
+                    );
                     
-                    // Move to next month
-                    startFn += 2;
-                    if (startFn > FORTNIGHTS_PER_YEAR) {
-                        startFn -= FORTNIGHTS_PER_YEAR;
-                        startYear++;
+                    if (!existingConflict) {
+                        capacityAnalysis.conflicts.push({
+                            type: 'GS+SIM',
+                            key: conflictKey,
+                            time: `${MONTHS[Math.floor((startFn - 1) / 2)]} ${startYear}`,
+                            reason: `Already ${existingGsSim} ${type} trainees starting (limit: ${gsSimLimit})`,
+                            pathwayType: type
+                        });
+                    }
+                    
+                    // Move to next available slot
+                    if (type === 'CP') {
+                        // CP: Skip to first fortnight of next month
+                        const currMonthIndex = Math.floor((startFn - 1) / 2);
+                        const nextMonthIndex = currMonthIndex + 1;
+                        if (nextMonthIndex >= 12) {
+                            startFn = 1;
+                            startYear++;
+                        } else {
+                            startFn = (nextMonthIndex * 2) + 1;
+                        }
+                    } else {
+                        // FO/CAD: Try next fortnight
+                        startFn++;
+                        if (startFn > FORTNIGHTS_PER_YEAR) {
+                            startFn = 1;
+                            startYear++;
+                        }
                     }
                     continue;
                 }
@@ -2422,20 +2901,26 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
                     for (let i = 0; i < phase.duration; i++) {
                         if (phase.trainerDemandType) {
                             const timeKey = `${checkYear}-${checkFn}`;
-                            const existingDemand = capacityAnalysis.trainerDemand[timeKey]?.total || 0;
-                            const supply = capacityAnalysis.trainerSupply[timeKey] || 0;
-                            const newDemand = cohortSize; // Direct 1:1 trainer demand
-                            const totalDemand = existingDemand + newDemand;
+                            const existingDemandByType = capacityAnalysis.trainerDemand[timeKey]?.byTrainingType || {};
                             
-                            // Check if we would exceed capacity
-                            if (totalDemand > supply) {
+                            // Create a copy of existing demand to test with new cohort
+                            const testDemand = { ...existingDemandByType };
+                            testDemand[phase.trainerDemandType] = (testDemand[phase.trainerDemandType] || 0) + cohortSize;
+                            
+                            // Use priority-based allocation to check capacity
+                            const capacityCheck = calculateAvailableTrainerCapacity(timeKey, testDemand);
+                            
+                            // Check if this training type has a deficit
+                            const typeAllocation = capacityCheck.allocation[phase.trainerDemandType];
+                            if (typeAllocation && typeAllocation.deficit > 0) {
                                 hasTrainerDeficit = true;
-                                const deficit = totalDemand - supply;
                                 deficitDetails.push({
                                     time: `${MONTHS[Math.floor((checkFn - 1) / 2)]} ${checkYear}`,
-                                    deficit: deficit.toFixed(2),
-                                    supply: supply.toFixed(2),
-                                    demand: totalDemand.toFixed(2)
+                                    trainingType: phase.trainerDemandType,
+                                    deficit: typeAllocation.deficit.toFixed(2),
+                                    allocated: typeAllocation.allocated.toFixed(2),
+                                    demand: typeAllocation.demand.toFixed(2),
+                                    remainingCapacity: capacityCheck.remainingCapacity
                                 });
                             }
                         }
@@ -2449,15 +2934,49 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
                     }
                 });
                 
-                // If trainer deficit detected, add warning but don't skip
+                // If trainer deficit detected
                 if (hasTrainerDeficit) {
-                    capacityAnalysis.conflicts.push({
-                        type: 'Trainer',
-                        time: `${MONTHS[Math.floor((startFn - 1) / 2)]} ${startYear}`,
-                        reason: `Would cause trainer deficit`,
-                        details: deficitDetails,
-                        severity: 'warning' // Mark as warning, not blocking
-                    });
+                    if (smoothSchedule) {
+                        // Skip this slot and try next month to smooth the schedule
+                        capacityAnalysis.conflicts.push({
+                            type: 'Trainer',
+                            pathwayType: type,
+                            time: `${MONTHS[Math.floor((startFn - 1) / 2)]} ${startYear}`,
+                            reason: `${type} training delayed to maintain trainer capacity`,
+                            details: deficitDetails,
+                            severity: 'info'
+                        });
+                        
+                        // Move to next available slot
+                        if (type === 'CP') {
+                            // CP: Skip to first fortnight of next month
+                            const currentMonthIndex = Math.floor((startFn - 1) / 2);
+                            const nextMonthIndex = currentMonthIndex + 1;
+                            if (nextMonthIndex >= 12) {
+                                startFn = 1;
+                                startYear++;
+                            } else {
+                                startFn = (nextMonthIndex * 2) + 1;
+                            }
+                        } else {
+                            // FO/CAD: Try next fortnight
+                            startFn++;
+                            if (startFn > FORTNIGHTS_PER_YEAR) {
+                                startFn = 1;
+                                startYear++;
+                            }
+                        }
+                        continue;
+                    } else {
+                        // Add warning but don't skip
+                        capacityAnalysis.conflicts.push({
+                            type: 'Trainer',
+                            time: `${MONTHS[Math.floor((startFn - 1) / 2)]} ${startYear}`,
+                            reason: `Would cause trainer deficit`,
+                            details: deficitDetails,
+                            severity: 'warning'
+                        });
+                    }
                 }
             }
             
@@ -2470,9 +2989,9 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
             }
             
             // Verify completion by target
-            if (endYear > targetYear || 
-                (endYear === targetYear && endFn > targetEndFortnight)) {
-                break; // Won't complete in time
+            if (!smoothSchedule && (endYear > targetYear || 
+                (endYear === targetYear && endFn > targetEndFortnight))) {
+                break; // Won't complete in time (unless smoothing is enabled)
             }
             
             cohorts.push({
@@ -2484,10 +3003,16 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
                 completionDate: `${MONTHS[Math.floor((endFn - 1) / 2)]} ${endYear}`
             });
             
+            // Track CP month usage
+            if (type === 'CP') {
+                const monthKey = `${startYear}-${Math.floor((startFn - 1) / 2)}`;
+                cpMonthsUsed.add(monthKey);
+            }
+            
             // Update capacity tracking for this new cohort
             if (considerExisting) {
                 // Update GS+SIM usage
-                if (type === 'FO' || type === 'CAD') {
+                if (type === 'FO' || type === 'CAD' || type === 'CP') {
                     const gsSimKey = `${startYear}-${startFn}`;
                     capacityAnalysis.gsSimUsage[gsSimKey] = (capacityAnalysis.gsSimUsage[gsSimKey] || 0) + cohortSize;
                 }
@@ -2522,21 +3047,89 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
             remainingTrainees -= cohortSize;
             scheduled += cohortSize;
             
-            // Move to next month
-            startFn += 2;
-            if (startFn > FORTNIGHTS_PER_YEAR) {
-                startFn -= FORTNIGHTS_PER_YEAR;
-                startYear++;
+            // Move to next available slot
+            if (type === 'CP') {
+                // CP: Skip to first fortnight of next month
+                const currentMonthIdx = Math.floor((startFn - 1) / 2);
+                const nextMonthIdx = currentMonthIdx + 1;
+                if (nextMonthIdx >= 12) {
+                    startFn = 1;
+                    startYear++;
+                } else {
+                    startFn = (nextMonthIdx * 2) + 1;
+                }
+            } else {
+                // FO/CAD: Try next fortnight
+                startFn++;
+                if (startFn > FORTNIGHTS_PER_YEAR) {
+                    startFn = 1;
+                    startYear++;
+                }
             }
         }
         
-        // Check if we scheduled everything
+        // Check if we scheduled everything needed (considering existing)
         if (scheduled < needed) {
+            // Calculate when the full target could be achieved
+            let achievableDate = null;
+            if (cohorts.length > 0) {
+                // Find the latest completion in the partial schedule
+                let latestCompletion = null;
+                cohorts.filter(c => c.type === type).forEach(cohort => {
+                    const completionParts = cohort.completionDate.split(' ');
+                    const monthIndex = MONTHS.indexOf(completionParts[0]);
+                    const year = parseInt(completionParts[1]);
+                    if (!latestCompletion || year > latestCompletion.year || 
+                        (year === latestCompletion.year && monthIndex > latestCompletion.month)) {
+                        latestCompletion = { month: monthIndex, year: year };
+                    }
+                });
+                
+                // Calculate when remaining trainees could complete
+                if (latestCompletion) {
+                    const remainingCohorts = Math.ceil((needed - scheduled) / info.maxPerCohort);
+                    let projectedMonth = latestCompletion.month + remainingCohorts + Math.ceil(info.duration / 2);
+                    let projectedYear = latestCompletion.year;
+                    while (projectedMonth >= 12) {
+                        projectedMonth -= 12;
+                        projectedYear++;
+                    }
+                    
+                    achievableDate = `${MONTHS[projectedMonth]} ${projectedYear}`;
+                } else {
+                    // If no cohorts scheduled at all, calculate from current date
+                    const totalCohorts = Math.ceil(needed / info.maxPerCohort);
+                    let projectedMonth = currentMonth + totalCohorts + Math.ceil(info.duration / 2);
+                    let projectedYear = currentYear;
+                    while (projectedMonth >= 12) {
+                        projectedMonth -= 12;
+                        projectedYear++;
+                    }
+                    
+                    achievableDate = `${MONTHS[projectedMonth]} ${projectedYear}`;
+                }
+            } else if (scheduled === 0 && needed > 0) {
+                // No cohorts could be scheduled at all - calculate earliest possible
+                const totalCohorts = Math.ceil(needed / info.maxPerCohort);
+                let projectedMonth = currentMonth + 1; // Start from next month
+                let projectedYear = currentYear;
+                
+                // Add time for all cohorts plus training duration
+                projectedMonth += (totalCohorts - 1) + Math.ceil(info.duration / 2);
+                while (projectedMonth >= 12) {
+                    projectedMonth -= 12;
+                    projectedYear++;
+                }
+                
+                achievableDate = `${MONTHS[projectedMonth]} ${projectedYear}`;
+            }
+            
             unmetDemand.push({
                 type,
                 needed,
                 scheduled,
-                shortfall: needed - scheduled
+                shortfall: needed - scheduled,
+                achievableDate
             });
         }
     });
@@ -2547,13 +3140,31 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
         return a.startFortnight - b.startFortnight;
     });
     
-    if (unmetDemand.length > 0) {
+    // Check if smoothing caused us to miss the target date
+    let smoothingExtendedDate = false;
+    if (smoothSchedule && cohorts.length > 0) {
+        cohorts.forEach(cohort => {
+            const parts = cohort.completionDate.split(' ');
+            const completionYear = parseInt(parts[1]);
+            const completionMonth = MONTHS.indexOf(parts[0]);
+            
+            if (completionYear > targetYear || 
+                (completionYear === targetYear && completionMonth > targetMonth)) {
+                smoothingExtendedDate = true;
+            }
+        });
+    }
+    
+    if (unmetDemand.length > 0 || smoothingExtendedDate) {
         return {
-            feasible: false,
-            reason: 'Cannot meet all training targets by the specified date',
+            feasible: false, // Not feasible if we have unmet demand or smoothing extended the date
+            reason: smoothingExtendedDate 
+                ? 'Schedule smoothing extended training beyond target date to avoid trainer deficits' 
+                : 'Cannot meet all training targets by the specified date',
             unmetDemand,
             partialSchedule: cohorts,
-            capacityAnalysis
+            capacityAnalysis,
+            smoothingExtended: smoothingExtendedDate
         };
     }
     
@@ -2568,6 +3179,9 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true) 
 function applyOptimizedSchedule() {
     if (!window.pendingOptimizedSchedule) return;
     
+    // Find the earliest cohort to scroll to
+    let earliestCohort = null;
+    
     window.pendingOptimizedSchedule.forEach(cohort => {
         activeCohorts.push({
             id: nextCohortId++,
@@ -2576,11 +3190,32 @@ function applyOptimizedSchedule() {
             startYear: cohort.startYear,
             startFortnight: cohort.startFortnight
         });
+        
+        // Track earliest cohort
+        if (!earliestCohort || 
+            cohort.startYear < earliestCohort.startYear || 
+            (cohort.startYear === earliestCohort.startYear && cohort.startFortnight < earliestCohort.startFortnight)) {
+            earliestCohort = cohort;
+        }
     });
     
     updateAllTables();
     renderGanttChart();
     markDirty();
+    
+    // Scroll Gantt chart to the first new cohort
+    if (earliestCohort) {
+        const ganttContainer = document.querySelector('.gantt-container');
+        if (ganttContainer) {
+            // Calculate the column position for the cohort's start date
+            const monthsSinceStart = ((earliestCohort.startYear - START_YEAR) * 12) + 
+                                    Math.floor((earliestCohort.startFortnight - 1) / 2);
+            const columnWidth = 100; // Approximate width of month column
+            const scrollPosition = Math.max(0, (monthsSinceStart * columnWidth) - 200); // Offset to show context
+            
+            ganttContainer.scrollLeft = scrollPosition;
+        }
+    }
     
     // Close modal and reset
     document.getElementById('training-planner-modal').classList.remove('active');
