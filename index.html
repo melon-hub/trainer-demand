@@ -120,6 +120,20 @@
                 </form>
             </section>
 
+            <!-- View Controls Section -->
+            <section class="view-controls-section">
+                <div class="view-controls">
+                    <button id="nav-left" class="nav-arrow" title="Previous period">◀</button>
+                    <button class="view-btn" data-view="6months">6M</button>
+                    <button class="view-btn" data-view="12months">12M</button>
+                    <button id="nav-right" class="nav-arrow" title="Next period">▶</button>
+                    <div class="separator"></div>
+                    <button class="view-btn active" data-view="all">All</button>
+                    <div class="separator"></div>
+                    <button id="today-btn" class="today-btn">📍 Today</button>
+                </div>
+            </section>
+
             <!-- FTE Summary Section -->
             <section class="fte-summary-section">
                 <div class="section-header">
@@ -145,6 +159,7 @@
                             <option value="none">No Grouping</option>
                             <option value="type">Group by Type</option>
                         </select>
+                        <button id="copy-table-data" class="btn btn-secondary" style="margin-left: 10px;">📋 Copy Tables</button>
                     </div>
                 </div>
                 <div id="gantt-chart-container" class="gantt-container">
@@ -375,6 +390,7 @@ Mar 2025: 14 FO, 2 CAD"></textarea>
                         </div>
                         <div id="optimization-results" class="optimization-results"></div>
                         <div class="modal-footer">
+                            <button id="copy-optimization-results" class="btn btn-secondary" style="margin-right: auto;">📋 Copy Results</button>
                             <button type="submit" class="btn btn-secondary">Optimize Schedule</button>
                             <button id="apply-optimized" class="btn btn-primary" disabled>Apply Schedule</button>
                         </div>

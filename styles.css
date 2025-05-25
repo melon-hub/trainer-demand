@@ -516,14 +516,29 @@ select:focus {
 .table-wrapper {
     display: inline-block;
     min-width: 100%;
+    overflow: visible;
+    position: relative;
+}
+
+/* Add opaque background to prevent peek-through */
+.table-wrapper::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 5px;
+    background-color: white;
+    z-index: 15;
 }
 
 /* Consistent table layout for all data tables */
 .data-table {
-    width: 100%;
+    width: max-content;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 14px;
-    table-layout: fixed;
+    table-layout: auto;
     border: 1px solid #ddd;
 }
 
@@ -543,18 +558,21 @@ select:focus {
 /* Sticky first column with consistent width */
 .sticky-first-column {
     position: sticky;
-    left: 0;
+    left: 0 !important;
     background-color: white;
-    z-index: 11;
+    z-index: 20;
     min-width: 200px;
     max-width: 200px;
     width: 200px;
     padding: 10px 12px;
     font-weight: bold;
     border-right: 2px solid #ddd;
+    border-left: 4px solid white;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    box-shadow: 3px 0 6px rgba(0,0,0,0.15);
+    margin-left: -1px;
 }
 
 /* Ensure sticky first column in thead has proper background */
@@ -571,6 +589,7 @@ select:focus {
     padding: 6px;
     border: 1px solid #ddd;
     position: relative;
+    white-space: nowrap;
 }
 
 /* Fortnight headers */
@@ -712,6 +731,19 @@ th[colspan] {
     font-weight: 600;
 }
 
+/* Data cells - use CSS variable for width */
+.data-cell {
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
+}
+
+.fortnight-header {
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
+}
+
 /* Color Coding for Surplus/Deficit */
 .deficit {
     color: #e74c3c;
@@ -736,6 +768,8 @@ th[colspan] {
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     background-color: white;
+    isolation: isolate;
+    padding-left: 0;
 }
 
 #gantt-chart-container {
@@ -748,6 +782,73 @@ th[colspan] {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+}
+
+/* View controls section */
+.view-controls-section {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+}
+
+.view-controls {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    background: #f8f9fa;
+    padding: 8px;
+    border-radius: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.view-btn {
+    padding: 6px 16px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.view-btn:hover {
+    background: #f0f0f0;
+    border-color: #999;
+}
+
+.view-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+.view-btn.active:hover {
+    background: #0056b3;
+}
+
+.separator {
+    width: 1px;
+    height: 24px;
+    background: #ddd;
+    margin: 0 8px;
+}
+
+.today-btn {
+    padding: 6px 16px;
+    border: 1px solid #28a745;
+    background: white;
+    color: #28a745;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.today-btn:hover {
+    background: #28a745;
+    color: white;
 }
 
 .gantt-controls {
@@ -767,6 +868,11 @@ th[colspan] {
 
 .filter-select:hover {
     border-color: #999;
+}
+
+/* CSS Custom Properties */
+:root {
+    --column-width: 50px;
 }
 
 /* Gantt Chart Styles */
@@ -834,6 +940,9 @@ th[colspan] {
 
 .gantt-fortnight-header {
     font-size: 10px;
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
 }
 
 .gantt-cohort-cell {
@@ -893,10 +1002,16 @@ th[colspan] {
     font-size: 10px;
     cursor: pointer;
     font-weight: 500;
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
 }
 
 .gantt-empty-cell {
     background-color: #fafafa;
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
 }
 
 .gantt-wrapper {
@@ -2033,6 +2148,7 @@ body.dark-mode .data-cell {
 
 body.dark-mode .sticky-first-column {
     background-color: #333 !important;
+    border-left: 4px solid #333 !important;
 }
 
 body.dark-mode .fortnight-header {
@@ -2179,6 +2295,10 @@ body.dark-mode .filter-select:hover {
 body.dark-mode .table-container {
     background-color: #2a2a2a;
     border-color: #444;
+}
+
+body.dark-mode .table-wrapper::before {
+    background-color: #2a2a2a;
 }
 
 body.dark-mode .gantt-container {
@@ -2468,4 +2588,192 @@ body.dark-mode #surplus-deficit-container,
 body.dark-mode #pathways-table-container {
     background-color: #2a2a2a;
     border-color: #444;
+}
+
+/* Ensure all table cells use the column width variable */
+.data-table td,
+.data-table th:not(.sticky-first-column):not(.gantt-first-column) {
+    min-width: var(--column-width) \!important;
+    width: var(--column-width) \!important;
+    max-width: var(--column-width) \!important;
+    box-sizing: border-box;
+}
+
+/* Exception for month headers that span multiple columns */
+.data-table th[colspan] {
+    width: auto \!important;
+    min-width: auto \!important;
+    max-width: none \!important;
+}
+
+/* Ensure tables expand to fit content */
+.data-table {
+    width: max-content !important;
+    min-width: 100%;
+}
+
+/* Force column widths for all views */
+body .data-table td.data-cell,
+body .data-table th.fortnight-header,
+body .gantt-table td.gantt-phase-cell,
+body .gantt-table td.gantt-empty-cell,
+body .gantt-table th.gantt-fortnight-header {
+    min-width: var(--column-width) \!important;
+    width: var(--column-width) \!important;
+    max-width: var(--column-width) \!important;
+    padding: 4px \!important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Dark mode view controls */
+body.dark-mode .view-controls-section {
+    background-color: transparent;
+}
+
+body.dark-mode .view-controls {
+    background: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .view-btn {
+    background: #3a3a3a;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .view-btn:hover {
+    background: #4a4a4a;
+    border-color: #666;
+}
+
+body.dark-mode .view-btn.active {
+    background: #007bff;
+    color: white;
+    border-color: #0056b3;
+}
+
+body.dark-mode .view-btn.active:hover {
+    background: #0056b3;
+}
+
+body.dark-mode .separator {
+    background: #555;
+}
+
+body.dark-mode .today-btn {
+    background: #3a3a3a;
+    border-color: #28a745;
+    color: #28a745;
+}
+
+body.dark-mode .today-btn:hover {
+    background: #28a745;
+    color: white;
+}
+
+/* Navigation arrows */
+.nav-arrow {
+    padding: 6px 12px;
+    border: 1px solid #ddd;
+    background: white;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.2s;
+    color: #666;
+}
+
+.nav-arrow:hover {
+    background: #f0f0f0;
+    border-color: #999;
+    color: #333;
+}
+
+.nav-arrow:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.nav-arrow:disabled:hover {
+    background: white;
+    border-color: #ddd;
+    color: #666;
+}
+
+/* Dark mode nav arrows */
+body.dark-mode .nav-arrow {
+    background: #3a3a3a;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+body.dark-mode .nav-arrow:hover {
+    background: #4a4a4a;
+    border-color: #666;
+    color: white;
+}
+
+body.dark-mode .nav-arrow:disabled {
+    opacity: 0.5;
+}
+
+body.dark-mode .nav-arrow:disabled:hover {
+    background: #3a3a3a;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+/* Ensure navigation arrows are properly positioned */
+.view-controls {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+    justify-content: center;
+    flex-wrap: nowrap;
+}
+
+#nav-left {
+    order: 1;
+}
+
+.view-btn[data-view="6months"] {
+    order: 2;
+}
+
+.view-btn[data-view="12months"] {
+    order: 3;
+}
+
+#nav-right {
+    order: 4;
+}
+
+.separator:first-of-type {
+    order: 5;
+}
+
+.view-btn[data-view="all"] {
+    order: 6;
+}
+
+.separator:last-of-type {
+    order: 7;
+}
+
+#today-btn {
+    order: 8;
+}
+
+/* Hide navigation arrows by default */
+.nav-arrow {
+    display: none;
+}
+
+/* Show navigation arrows when in limited views */
+body[data-view="6months"] .nav-arrow,
+body[data-view="12months"] .nav-arrow {
+    display: block;
 }
