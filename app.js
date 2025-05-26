@@ -54,6 +54,9 @@ let priorityConfig = [
     }
 ];
 
+// Location state
+let currentLocation = 'AU';  // Default location
+
 // Drag and Drop State
 let dragState = {
     isDragging: false,
@@ -66,7 +69,23 @@ let dragState = {
     cellWidth: 50 // Will be updated from CSS
 };
 
-// Data Structures - Training pathways
+// Location-aware data structure
+let locationData = {
+    AU: {
+        pathways: [],
+        trainerFTE: {},
+        priorityConfig: [],
+        activeCohorts: []
+    },
+    NZ: {
+        pathways: [],
+        trainerFTE: {},
+        priorityConfig: [],
+        activeCohorts: []
+    }
+};
+
+// Data Structures - Training pathways (legacy - will be migrated)
 let pathways = [
     {
         id: "A202",
@@ -243,11 +262,13 @@ let viewState = {
     isDirty: false, // Track if current state has unsaved changes
     currentView: '12months',  // 'all', '6months', '12months'
     viewOffset: 0,       // Offset in months from current date
-    surplusDeficitView: 'classic'  // 'classic' or 'intuitive'
+    surplusDeficitView: 'classic',  // 'classic' or 'intuitive'
+    currentLocation: 'AU'  // Track current location in view state
 };
 
 // Scenarios storage
 let scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios')) || [];
+let selectedForComparison = new Set(); // Track scenarios selected for comparison
 
 // DOM Elements
 const dashboardView = document.getElementById('dashboard-view');
@@ -337,8 +358,121 @@ function getTimeRangeForView() {
     };
 }
 
+// Switch location
+function switchLocation(newLocation) {
+    if (currentLocation === newLocation) return;
+    
+    // Save current location data
+    locationData[currentLocation].pathways = pathways;
+    locationData[currentLocation].trainerFTE = trainerFTE;
+    locationData[currentLocation].priorityConfig = priorityConfig;
+    locationData[currentLocation].activeCohorts = activeCohorts;
+    
+    // Switch to new location
+    currentLocation = newLocation;
+    viewState.currentLocation = newLocation;
+    
+    // Save location preference
+    localStorage.setItem('currentLocation', newLocation);
+    
+    // Load new location data
+    pathways = locationData[newLocation].pathways;
+    trainerFTE = locationData[newLocation].trainerFTE;
+    priorityConfig = locationData[newLocation].priorityConfig;
+    activeCohorts = locationData[newLocation].activeCohorts;
+    
+    // Update UI
+    document.querySelectorAll('.location-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.location === newLocation);
+    });
+    document.querySelectorAll('.location-toggle').forEach(toggle => {
+        toggle.classList.toggle('active', toggle.dataset.location === newLocation);
+    });
+    
+    // Re-render all views
+    populatePathwaySelect();
+    updateAllTables();
+    renderGanttChart();
+    renderPathwaysTable();
+    renderPrioritySettingsTable();
+    updateDashboard();
+    
+    // Show notification
+    showNotification(`Switched to ${newLocation} location`, 'info');
+}
+
+// Migrate existing data to location-aware structure
+function migrateDataToLocations() {
+    // Check if migration is needed
+    if (locationData.AU.pathways.length > 0) {
+        return; // Already migrated
+    }
+    
+    // Migrate pathways to AU
+    locationData.AU.pathways = [...pathways];
+    
+    // Migrate FTE to AU
+    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+    
+    // Migrate priority config to AU
+    locationData.AU.priorityConfig = JSON.parse(JSON.stringify(priorityConfig));
+    
+    // Migrate active cohorts to AU (add location property)
+    locationData.AU.activeCohorts = activeCohorts.map(cohort => ({
+        ...cohort,
+        location: 'AU'
+    }));
+    
+    // Initialize NZ with copy of AU pathways
+    locationData.NZ.pathways = JSON.parse(JSON.stringify(pathways));
+    
+    // Initialize NZ FTE
+    locationData.NZ.trainerFTE = {};
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        locationData.NZ.trainerFTE[year] = {};
+        TRAINER_CATEGORIES.forEach(category => {
+            locationData.NZ.trainerFTE[year][category] = 240; // Default FTE
+        });
+    }
+    
+    // Copy priority config to NZ
+    locationData.NZ.priorityConfig = JSON.parse(JSON.stringify(priorityConfig));
+    
+    // Empty cohorts for NZ
+    locationData.NZ.activeCohorts = [];
+    
+    // Update current references to point to AU data
+    pathways = locationData.AU.pathways;
+    trainerFTE = locationData.AU.trainerFTE;
+    priorityConfig = locationData.AU.priorityConfig;
+    activeCohorts = locationData.AU.activeCohorts;
+}
+
 // Initialize the application
 function init() {
+    migrateDataToLocations(); // Migrate data first
+    
+    // Load saved location preference
+    const savedLocation = localStorage.getItem('currentLocation');
+    if (savedLocation && (savedLocation === 'AU' || savedLocation === 'NZ')) {
+        currentLocation = savedLocation;
+        viewState.currentLocation = savedLocation;
+        
+        // Load data for saved location
+        pathways = locationData[currentLocation].pathways;
+        trainerFTE = locationData[currentLocation].trainerFTE;
+        priorityConfig = locationData[currentLocation].priorityConfig;
+        activeCohorts = locationData[currentLocation].activeCohorts;
+        
+        // Update UI to reflect saved location
+        document.querySelectorAll('.location-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.location === currentLocation);
+        });
+        document.querySelectorAll('.location-toggle').forEach(toggle => {
+            toggle.classList.toggle('active', toggle.dataset.location === currentLocation);
+        });
+    }
+    
     setupEventListeners();
     populatePathwaySelect();
     populateYearSelect();
@@ -498,6 +632,24 @@ function setupEventListeners() {
     if (editPriorityBtn) {
         editPriorityBtn.addEventListener('click', openPriorityModal);
     }
+    
+    // Location tab switching (Settings page)
+    const locationTabs = document.querySelectorAll('.location-tab');
+    locationTabs.forEach(tab => {
+        tab.addEventListener('click', (e) => {
+            const newLocation = e.target.dataset.location;
+            switchLocation(newLocation);
+        });
+    });
+    
+    // Location toggle switching (Header)
+    const locationToggles = document.querySelectorAll('.location-toggle');
+    locationToggles.forEach(toggle => {
+        toggle.addEventListener('click', (e) => {
+            const newLocation = e.target.dataset.location;
+            switchLocation(newLocation);
+        });
+    });
 
     // Modal controls
     modalCloseButtons.forEach(btn => {
@@ -554,6 +706,7 @@ function setupEventListeners() {
     const exportAllBtn = document.getElementById('export-all-scenarios');
     const importBtn = document.getElementById('import-scenarios');
     const importFileInput = document.getElementById('import-file-input');
+    const compareBtn = document.getElementById('compare-scenarios');
     
     if (exportAllBtn) {
         exportAllBtn.addEventListener('click', exportAllScenarios);
@@ -565,6 +718,10 @@ function setupEventListeners() {
     
     if (importFileInput) {
         importFileInput.addEventListener('change', importScenarios);
+    }
+    
+    if (compareBtn) {
+        compareBtn.addEventListener('click', compareScenarios);
     }
     
     // Sort dropdown
@@ -1309,73 +1466,7 @@ function switchView(viewName) {
             scenariosView.classList.add('active');
             renderScenarioList();
             updateScenarioCount();
-            
-            // Debug alignment issues
-            setTimeout(() => {
-                console.log('=== SCENARIO ALIGNMENT DEBUG ===');
-                const container = document.querySelector('.container');
-                const header = document.querySelector('header');
-                const h1 = document.querySelector('h1');
-                const scenariosView = document.querySelector('#scenarios-view');
-                const scenarioSections = document.querySelectorAll('#scenarios-view section');
-                const plannerSection = document.querySelector('#planner-view section');
-                
-                console.log('Container:', {
-                    width: container.offsetWidth,
-                    clientWidth: container.clientWidth,
-                    padding: window.getComputedStyle(container).padding,
-                    maxWidth: window.getComputedStyle(container).maxWidth
-                });
-                
-                console.log('Header:', {
-                    width: header.offsetWidth,
-                    clientWidth: header.clientWidth,
-                    padding: window.getComputedStyle(header).padding
-                });
-                
-                console.log('H1 Title:', {
-                    width: h1.offsetWidth,
-                    offsetLeft: h1.offsetLeft
-                });
-                
-                console.log('Scenarios View:', {
-                    width: scenariosView.offsetWidth,
-                    clientWidth: scenariosView.clientWidth,
-                    padding: window.getComputedStyle(scenariosView).padding,
-                    margin: window.getComputedStyle(scenariosView).margin
-                });
-                
-                scenarioSections.forEach((section, index) => {
-                    const h2 = section.querySelector('h2');
-                    console.log(`Scenario Section ${index} (${h2?.textContent || 'no title'}):`, {
-                        width: section.offsetWidth,
-                        offsetLeft: section.offsetLeft,
-                        leftEdgeRelativeToContainer: section.getBoundingClientRect().left - container.getBoundingClientRect().left,
-                        padding: window.getComputedStyle(section).padding,
-                        margin: window.getComputedStyle(section).margin
-                    });
-                });
-                
-                if (plannerSection) {
-                    const plannerH2 = plannerSection.querySelector('h2');
-                    console.log('For comparison - Planner Section (Add New Cohort):', {
-                        width: plannerSection.offsetWidth,
-                        offsetLeft: plannerSection.offsetLeft,
-                        leftEdgeRelativeToContainer: plannerSection.getBoundingClientRect().left - container.getBoundingClientRect().left,
-                        padding: window.getComputedStyle(plannerSection).padding
-                    });
-                }
-                
-                // Check title alignment
-                const h1Rect = h1.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                console.log('Title "Pilot Trainer..." alignment:', {
-                    leftEdgeRelativeToViewport: h1Rect.left,
-                    leftEdgeRelativeToContainer: h1Rect.left - containerRect.left
-                });
-                
-                console.log('=== END DEBUG ===');
-            }, 100); // Small delay to ensure rendering is complete
+            updateComparisonUI();
             break;
     }
 }
@@ -1450,7 +1541,8 @@ function handleAddCohort(e) {
         numTrainees: parseInt(formData.get('numTrainees')),
         pathwayId: formData.get('pathway'),
         startYear: parseInt(formData.get('startYear')),
-        startFortnight: parseInt(formData.get('startFortnight'))
+        startFortnight: parseInt(formData.get('startFortnight')),
+        location: currentLocation  // Add location to new cohorts
     };
 
     activeCohorts.push(cohort);
@@ -1745,17 +1837,6 @@ function renderCommencementSummary() {
     html += '</tbody></table></div>';
     
     container.innerHTML = html;
-    
-    // Setup synchronized scrolling
-    const commencementTable = container.querySelector('.table-wrapper');
-    if (commencementTable) {
-        syncScrollables.push(commencementTable);
-        commencementTable.addEventListener('scroll', (e) => {
-            if (!isScrollingSynced) {
-                syncScroll(e.target);
-            }
-        });
-    }
 }
 
 // Render FTE Summary Table
@@ -2540,12 +2621,12 @@ function renderGanttChart() {
             
             if (cell) {
                 const phaseColors = {
-                    'GS+SIM': '#95a5a6',
-                    'Ground School': '#95a5a6',
-                    'LT-CAD': '#3498db',
-                    'LT-CP': '#27ae60',
-                    'LT-FO': '#f39c12',
-                    'Flight Training': '#e74c3c',
+                    'GS+SIM': '#7f8c8d',  // Darker gray
+                    'Ground School': '#7f8c8d',
+                    'LT-CAD': '#2980b9',  // Darker blue
+                    'LT-CP': '#27ae60',   // Green
+                    'LT-FO': '#e67e22',   // Darker orange
+                    'Flight Training': '#c0392b',  // Darker red
                     'Line Training': '#27ae60'
                 };
                 
@@ -2556,7 +2637,8 @@ function renderGanttChart() {
                 // For short phases (1-2 fortnights), use smaller font or abbreviation
                 if (cell.isStart) {
                     if (cell.phase.duration >= 3) {
-                        cellContent = `<span style="font-size: 10px; color: white; font-weight: 500;">${cell.phase.name}</span>`;
+                        const displayName = cell.phase.name === 'GS+SIM' ? 'GS' : cell.phase.name;
+                        cellContent = `<span style="font-size: 10px; color: white; font-weight: 500;">${displayName}</span>`;
                     } else if (cell.phase.duration === 2) {
                         // For 2-fortnight phases, use abbreviated text
                         const abbreviation = cell.phase.name === 'GS+SIM' ? 'GS' : cell.phase.name.replace('LT-', '');
@@ -2571,7 +2653,7 @@ function renderGanttChart() {
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="background-color: ${backgroundColor}; ${isDraggable ? 'cursor: grab;' : ''}" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} style="background-color: ${backgroundColor} !important; ${isDraggable ? 'cursor: grab;' : ''}" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
                 html += '<td class="gantt-empty-cell data-cell"></td>';
@@ -3398,6 +3480,12 @@ function editCohort(cohortId) {
     // Set the values
     document.getElementById('edit-num-trainees').value = cohort.numTrainees;
     
+    // Set location
+    const editLocationSelect = document.getElementById('edit-location');
+    if (editLocationSelect) {
+        editLocationSelect.value = cohort.location || currentLocation;
+    }
+    
     // Store the cohort ID for saving
     document.getElementById('cohort-edit-form').dataset.editingCohortId = cohortId;
     
@@ -3420,7 +3508,8 @@ function handleCohortUpdate(e) {
             numTrainees: parseInt(formData.get('numTrainees')),
             pathwayId: formData.get('pathway'), // Keep as string since pathways now use string IDs
             startYear: parseInt(formData.get('startYear')),
-            startFortnight: parseInt(formData.get('startFortnight'))
+            startFortnight: parseInt(formData.get('startFortnight')),
+            location: formData.get('location') || currentLocation
         };
         
         // Clear the editing ID
@@ -3436,13 +3525,24 @@ function handleCohortUpdate(e) {
 
 // Remove Cohort
 function removeCohort(cohortId) {
-    if (confirm('Are you sure you want to remove this cohort?')) {
-        activeCohorts = activeCohorts.filter(c => c.id !== cohortId);
-        updateAllTables();
-        renderGanttChart();
-        setupSynchronizedScrolling();
-        markDirty();
-    }
+    const cohort = activeCohorts.find(c => c.id === cohortId);
+    if (!cohort) return;
+    
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    const cohortLabel = pathway ? `${cohort.numTrainees} x ${pathway.name}` : 'this cohort';
+    
+    showConfirmDialog(
+        'Remove Cohort',
+        `Are you sure you want to remove ${cohortLabel}?`,
+        () => {
+            activeCohorts = activeCohorts.filter(c => c.id !== cohortId);
+            updateAllTables();
+            renderGanttChart();
+            setupSynchronizedScrolling();
+            markDirty();
+            showNotification(`Cohort removed: ${cohortLabel}`, 'success');
+        }
+    );
 }
 
 // Handle group by change
@@ -3812,7 +3912,8 @@ function applyBulkSchedule() {
             numTrainees: cohort.numTrainees,
             pathwayId: cohort.pathwayId,
             startYear: cohort.year,
-            startFortnight: cohort.fortnight
+            startFortnight: cohort.fortnight,
+            location: currentLocation
         });
     });
     
@@ -5155,7 +5256,8 @@ function applyOptimizedSchedule() {
             numTrainees: cohort.numTrainees,
             pathwayId: cohort.pathwayId,
             startYear: cohort.startYear,
-            startFortnight: cohort.startFortnight
+            startFortnight: cohort.startFortnight,
+            location: currentLocation
         });
         
         // Track earliest cohort
@@ -5209,6 +5311,12 @@ function closeScenariosPanel() {
 }
 
 function getCurrentState() {
+    // Save current location data before creating state
+    locationData[currentLocation].pathways = pathways;
+    locationData[currentLocation].trainerFTE = trainerFTE;
+    locationData[currentLocation].priorityConfig = priorityConfig;
+    locationData[currentLocation].activeCohorts = activeCohorts;
+    
     return {
         cohorts: activeCohorts,
         trainerFTE: trainerFTE,
@@ -5216,8 +5324,12 @@ function getCurrentState() {
         priorityConfig: priorityConfig,
         viewState: {
             groupBy: viewState.groupBy,
-            collapsedGroups: viewState.collapsedGroups
-        }
+            collapsedGroups: viewState.collapsedGroups,
+            currentLocation: currentLocation
+        },
+        // Include all location data
+        locationData: locationData,
+        currentLocation: currentLocation
     };
 }
 
@@ -5517,16 +5629,44 @@ function loadScenario(scenarioId) {
     }
     
     // Load the scenario state
-    activeCohorts = [...scenario.state.cohorts];
-    trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
-    pathways = [...scenario.state.pathways];
-    priorityConfig = [...scenario.state.priorityConfig];
+    if (scenario.state.locationData) {
+        // New format with location data
+        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        currentLocation = scenario.state.currentLocation || 'AU';
+        viewState.currentLocation = currentLocation;
+        
+        // Load data for current location
+        pathways = locationData[currentLocation].pathways;
+        trainerFTE = locationData[currentLocation].trainerFTE;
+        priorityConfig = locationData[currentLocation].priorityConfig;
+        activeCohorts = locationData[currentLocation].activeCohorts;
+    } else {
+        // Legacy format - load into AU location
+        activeCohorts = [...scenario.state.cohorts];
+        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+        pathways = [...scenario.state.pathways];
+        priorityConfig = [...scenario.state.priorityConfig];
+        
+        // Migrate to location format
+        locationData.AU.pathways = pathways;
+        locationData.AU.trainerFTE = trainerFTE;
+        locationData.AU.priorityConfig = priorityConfig;
+        locationData.AU.activeCohorts = activeCohorts;
+        currentLocation = 'AU';
+        viewState.currentLocation = 'AU';
+    }
+    
     viewState.groupBy = scenario.state.viewState.groupBy;
     viewState.collapsedGroups = [...scenario.state.viewState.collapsedGroups];
     
     // Update current scenario tracking
     viewState.currentScenarioId = scenarioId;
     viewState.isDirty = false;
+    
+    // Update location tabs UI
+    document.querySelectorAll('.location-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.location === currentLocation);
+    });
     
     // Switch to planner view to show the loaded data
     switchView('planner');
@@ -5634,8 +5774,11 @@ function renderScenarioList() {
         const date = new Date(scenario.date);
         const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
+        const isSelected = selectedForComparison.has(scenario.id);
         return `
-            <div class="scenario-card">
+            <div class="scenario-card ${isSelected ? 'selected-for-compare' : ''}" data-scenario-id="${scenario.id}" onclick="handleCardClick(event, ${scenario.id})">
+                <input type="checkbox" class="select-checkbox" ${isSelected ? 'checked' : ''} 
+                       style="display: none; position: absolute; top: 10px; right: 10px;">
                 <div class="scenario-card-header">
                     <div>
                         <div class="scenario-name">${scenario.name}</div>
@@ -5827,6 +5970,306 @@ function importScenarios(event) {
     
     // Clear the file input for next use
     event.target.value = '';
+}
+
+// Scenario Comparison Functions
+function handleCardClick(event, scenarioId) {
+    // Don't trigger selection if clicking on action buttons
+    if (event.target.closest('.scenario-actions') || event.target.closest('button')) {
+        return;
+    }
+    
+    // Toggle selection
+    toggleScenarioSelection(scenarioId);
+}
+
+function toggleScenarioSelection(scenarioId) {
+    if (selectedForComparison.has(scenarioId)) {
+        selectedForComparison.delete(scenarioId);
+    } else {
+        // Only allow 2 scenarios to be selected
+        if (selectedForComparison.size >= 2) {
+            showNotification('Only 2 scenarios can be compared at a time', 'warning');
+            return;
+        }
+        selectedForComparison.add(scenarioId);
+    }
+    
+    // Update compare button state and UI
+    updateComparisonUI();
+    
+    // Re-render the list to update selected state
+    renderScenarioList();
+}
+
+function updateComparisonUI() {
+    const compareBtn = document.getElementById('compare-scenarios');
+    if (compareBtn) {
+        compareBtn.disabled = selectedForComparison.size !== 2;
+        
+        // Update button text to show selection count
+        if (selectedForComparison.size === 0) {
+            compareBtn.textContent = 'Compare';
+        } else if (selectedForComparison.size === 1) {
+            compareBtn.textContent = 'Compare (1 selected)';
+        } else {
+            compareBtn.textContent = 'Compare (2 selected)';
+        }
+        
+        // Show/hide checkboxes based on selection
+        const checkboxes = document.querySelectorAll('.scenario-card .select-checkbox');
+        if (selectedForComparison.size > 0) {
+            checkboxes.forEach(cb => cb.style.display = 'block');
+        } else {
+            checkboxes.forEach(cb => cb.style.display = 'none');
+        }
+    }
+}
+
+function compareScenarios() {
+    if (selectedForComparison.size !== 2) {
+        showNotification('Please select exactly 2 scenarios to compare', 'warning');
+        return;
+    }
+    
+    const [id1, id2] = Array.from(selectedForComparison);
+    const scenario1 = scenarios.find(s => s.id === id1);
+    const scenario2 = scenarios.find(s => s.id === id2);
+    
+    if (!scenario1 || !scenario2) {
+        showNotification('Error loading scenarios for comparison', 'error');
+        return;
+    }
+    
+    // Show comparison modal
+    const modal = document.getElementById('comparison-modal');
+    const content = document.getElementById('comparison-content');
+    const title = document.getElementById('comparison-title');
+    
+    title.textContent = `Comparing: ${scenario1.name} vs ${scenario2.name}`;
+    
+    // Generate comparison HTML
+    content.innerHTML = generateComparisonHTML(scenario1, scenario2);
+    
+    modal.style.display = 'flex';
+    
+    // Add close handlers if not already added
+    if (!modal.dataset.handlersAdded) {
+        const closeBtn = modal.querySelector('.modal-close');
+        if (closeBtn) {
+            closeBtn.onclick = () => {
+                modal.style.display = 'none';
+                // Clear selections
+                selectedForComparison.clear();
+                updateComparisonUI();
+                renderScenarioList();
+            };
+        }
+        
+        // Close on outside click
+        modal.onclick = (e) => {
+            if (e.target === modal) {
+                modal.style.display = 'none';
+                selectedForComparison.clear();
+                updateComparisonUI();
+                renderScenarioList();
+            }
+        };
+        
+        modal.dataset.handlersAdded = 'true';
+    }
+}
+
+function generateComparisonHTML(scenario1, scenario2) {
+    // Compare basic stats
+    const stats1 = scenario1.stats;
+    const stats2 = scenario2.stats;
+    
+    // Compare cohorts
+    const cohorts1 = scenario1.state.cohorts || [];
+    const cohorts2 = scenario2.state.cohorts || [];
+    
+    // Compare FTE
+    const fte1 = scenario1.state.trainerFTE || {};
+    const fte2 = scenario2.state.trainerFTE || {};
+    
+    let html = '<div class="comparison-grid">';
+    
+    // Left column - Scenario 1
+    html += `
+        <div class="comparison-column">
+            <h3>${scenario1.name}</h3>
+            <div class="scenario-date" style="margin-bottom: 20px;">${new Date(scenario1.date).toLocaleString()}</div>
+            
+            <div class="comparison-section">
+                <h4>Summary Statistics</h4>
+                <div class="diff-item diff-unchanged">
+                    <strong>Total Cohorts:</strong> ${stats1.totalCohorts}
+                </div>
+                <div class="diff-item diff-unchanged">
+                    <strong>Total Trainees:</strong> ${stats1.totalTrainees}
+                </div>
+                <div class="diff-item diff-unchanged">
+                    <strong>CP:</strong> ${stats1.cpCount} trainees
+                </div>
+                <div class="diff-item diff-unchanged">
+                    <strong>FO:</strong> ${stats1.foCount} trainees
+                </div>
+                <div class="diff-item diff-unchanged">
+                    <strong>CAD:</strong> ${stats1.cadCount} trainees
+                </div>
+            </div>
+            
+            <div class="comparison-section">
+                <h4>Trainer FTE Summary</h4>
+                ${generateFTESummary(fte1)}
+            </div>
+        </div>
+    `;
+    
+    // Right column - Scenario 2
+    html += `
+        <div class="comparison-column">
+            <h3>${scenario2.name}</h3>
+            <div class="scenario-date" style="margin-bottom: 20px;">${new Date(scenario2.date).toLocaleString()}</div>
+            
+            <div class="comparison-section">
+                <h4>Summary Statistics</h4>
+                <div class="diff-item ${getDiffClass(stats1.totalCohorts, stats2.totalCohorts)}">
+                    <strong>Total Cohorts:</strong> ${stats2.totalCohorts} 
+                    ${getDiffIndicator(stats1.totalCohorts, stats2.totalCohorts)}
+                </div>
+                <div class="diff-item ${getDiffClass(stats1.totalTrainees, stats2.totalTrainees)}">
+                    <strong>Total Trainees:</strong> ${stats2.totalTrainees}
+                    ${getDiffIndicator(stats1.totalTrainees, stats2.totalTrainees)}
+                </div>
+                <div class="diff-item ${getDiffClass(stats1.cpCount, stats2.cpCount)}">
+                    <strong>CP:</strong> ${stats2.cpCount} trainees
+                    ${getDiffIndicator(stats1.cpCount, stats2.cpCount)}
+                </div>
+                <div class="diff-item ${getDiffClass(stats1.foCount, stats2.foCount)}">
+                    <strong>FO:</strong> ${stats2.foCount} trainees
+                    ${getDiffIndicator(stats1.foCount, stats2.foCount)}
+                </div>
+                <div class="diff-item ${getDiffClass(stats1.cadCount, stats2.cadCount)}">
+                    <strong>CAD:</strong> ${stats2.cadCount} trainees
+                    ${getDiffIndicator(stats1.cadCount, stats2.cadCount)}
+                </div>
+            </div>
+            
+            <div class="comparison-section">
+                <h4>Trainer FTE Summary</h4>
+                ${generateFTESummary(fte2, fte1)}
+            </div>
+        </div>
+    `;
+    
+    html += '</div>';
+    
+    // Add detailed differences section
+    html += `
+        <div class="comparison-section" style="margin-top: 30px;">
+            <h4>Detailed Differences</h4>
+            ${generateDetailedDifferences(scenario1, scenario2)}
+        </div>
+    `;
+    
+    return html;
+}
+
+function getDiffClass(val1, val2) {
+    if (val1 === val2) return 'diff-unchanged';
+    if (val1 < val2) return 'diff-added';
+    return 'diff-removed';
+}
+
+function getDiffIndicator(val1, val2) {
+    const diff = val2 - val1;
+    if (diff === 0) return '';
+    if (diff > 0) return `<span style="color: green;">(+${diff})</span>`;
+    return `<span style="color: red;">(${diff})</span>`;
+}
+
+function generateFTESummary(fte, compareFte = null) {
+    let html = '';
+    const categories = ['CATB', 'CATA', 'STP', 'RHS', 'LHS'];
+    
+    categories.forEach(cat => {
+        let total = 0;
+        let compareTotal = 0;
+        
+        Object.keys(fte).forEach(year => {
+            total += (fte[year] && fte[year][cat]) || 0;
+            if (compareFte) {
+                compareTotal += (compareFte[year] && compareFte[year][cat]) || 0;
+            }
+        });
+        
+        const diffClass = compareFte ? getDiffClass(compareTotal, total) : 'diff-unchanged';
+        html += `<div class="diff-item ${diffClass}">
+            <strong>${cat}:</strong> ${total} FTE
+            ${compareFte ? getDiffIndicator(compareTotal, total) : ''}
+        </div>`;
+    });
+    
+    return html;
+}
+
+function generateDetailedDifferences(scenario1, scenario2) {
+    const cohorts1 = scenario1.state.cohorts || [];
+    const cohorts2 = scenario2.state.cohorts || [];
+    
+    // Find cohorts only in scenario1
+    const onlyIn1 = cohorts1.filter(c1 => 
+        !cohorts2.some(c2 => 
+            c2.year === c1.year && 
+            c2.fortnight === c1.fortnight && 
+            c2.pathwayId === c1.pathwayId
+        )
+    );
+    
+    // Find cohorts only in scenario2
+    const onlyIn2 = cohorts2.filter(c2 => 
+        !cohorts1.some(c1 => 
+            c1.year === c2.year && 
+            c1.fortnight === c2.fortnight && 
+            c1.pathwayId === c2.pathwayId
+        )
+    );
+    
+    let html = '';
+    
+    if (onlyIn1.length > 0) {
+        html += '<div style="margin-bottom: 20px;">';
+        html += `<h5>Cohorts only in ${scenario1.name}:</h5>`;
+        onlyIn1.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            html += `<div class="diff-item diff-removed">
+                ${pathway ? pathway.name : 'Unknown'} - ${cohort.numTrainees} trainees 
+                (${cohort.year} F${cohort.fortnight})
+            </div>`;
+        });
+        html += '</div>';
+    }
+    
+    if (onlyIn2.length > 0) {
+        html += '<div style="margin-bottom: 20px;">';
+        html += `<h5>Cohorts only in ${scenario2.name}:</h5>`;
+        onlyIn2.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            html += `<div class="diff-item diff-added">
+                ${pathway ? pathway.name : 'Unknown'} - ${cohort.numTrainees} trainees 
+                (${cohort.year} F${cohort.fortnight})
+            </div>`;
+        });
+        html += '</div>';
+    }
+    
+    if (onlyIn1.length === 0 && onlyIn2.length === 0) {
+        html += '<p style="color: #666;">No differences in cohort schedules</p>';
+    }
+    
+    return html;
 }
 
 // Show import conflict dialog
@@ -6755,7 +7198,8 @@ function applyGridEntries() {
             numTrainees: cohort.numTrainees,
             pathwayId: cohort.pathwayId,
             startYear: cohort.year,
-            startFortnight: cohort.fortnight
+            startFortnight: cohort.fortnight,
+            location: currentLocation
         });
     });
     

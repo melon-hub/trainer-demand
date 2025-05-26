@@ -27,6 +27,10 @@
                     <button class="nav-tab" data-view="settings">Settings</button>
                     <button class="nav-tab" data-view="scenarios">Scenarios</button>
                 </nav>
+                <div class="location-selector">
+                    <button class="location-toggle active" data-location="AU">AU</button>
+                    <button class="location-toggle" data-location="NZ">NZ</button>
+                </div>
                 <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle Dark Mode">
                     <span class="dark-mode-icon">🌙</span>
                 </button>
@@ -250,6 +254,10 @@
                     <h2>Training Pathways</h2>
                     <button id="add-pathway-btn" class="btn btn-primary">Add New Pathway</button>
                 </div>
+                <div class="location-tabs">
+                    <button class="location-tab active" data-location="AU">AU</button>
+                    <button class="location-tab" data-location="NZ">NZ</button>
+                </div>
                 <div id="pathways-table-container" class="table-container">
                     <!-- Pathways table will be generated here -->
                 </div>
@@ -332,6 +340,13 @@
                             <label for="edit-start-fortnight">Start Fortnight:</label>
                             <select id="edit-start-fortnight" name="startFortnight" required>
                                 <option value="">Select fortnight</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="edit-location">Location:</label>
+                            <select id="edit-location" name="location" required>
+                                <option value="AU">AU</option>
+                                <option value="NZ">NZ</option>
                             </select>
                         </div>
                         <div class="modal-footer">
