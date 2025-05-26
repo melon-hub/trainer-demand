@@ -1309,6 +1309,73 @@ function switchView(viewName) {
             scenariosView.classList.add('active');
             renderScenarioList();
             updateScenarioCount();
+            
+            // Debug alignment issues
+            setTimeout(() => {
+                console.log('=== SCENARIO ALIGNMENT DEBUG ===');
+                const container = document.querySelector('.container');
+                const header = document.querySelector('header');
+                const h1 = document.querySelector('h1');
+                const scenariosView = document.querySelector('#scenarios-view');
+                const scenarioSections = document.querySelectorAll('#scenarios-view section');
+                const plannerSection = document.querySelector('#planner-view section');
+                
+                console.log('Container:', {
+                    width: container.offsetWidth,
+                    clientWidth: container.clientWidth,
+                    padding: window.getComputedStyle(container).padding,
+                    maxWidth: window.getComputedStyle(container).maxWidth
+                });
+                
+                console.log('Header:', {
+                    width: header.offsetWidth,
+                    clientWidth: header.clientWidth,
+                    padding: window.getComputedStyle(header).padding
+                });
+                
+                console.log('H1 Title:', {
+                    width: h1.offsetWidth,
+                    offsetLeft: h1.offsetLeft
+                });
+                
+                console.log('Scenarios View:', {
+                    width: scenariosView.offsetWidth,
+                    clientWidth: scenariosView.clientWidth,
+                    padding: window.getComputedStyle(scenariosView).padding,
+                    margin: window.getComputedStyle(scenariosView).margin
+                });
+                
+                scenarioSections.forEach((section, index) => {
+                    const h2 = section.querySelector('h2');
+                    console.log(`Scenario Section ${index} (${h2?.textContent || 'no title'}):`, {
+                        width: section.offsetWidth,
+                        offsetLeft: section.offsetLeft,
+                        leftEdgeRelativeToContainer: section.getBoundingClientRect().left - container.getBoundingClientRect().left,
+                        padding: window.getComputedStyle(section).padding,
+                        margin: window.getComputedStyle(section).margin
+                    });
+                });
+                
+                if (plannerSection) {
+                    const plannerH2 = plannerSection.querySelector('h2');
+                    console.log('For comparison - Planner Section (Add New Cohort):', {
+                        width: plannerSection.offsetWidth,
+                        offsetLeft: plannerSection.offsetLeft,
+                        leftEdgeRelativeToContainer: plannerSection.getBoundingClientRect().left - container.getBoundingClientRect().left,
+                        padding: window.getComputedStyle(plannerSection).padding
+                    });
+                }
+                
+                // Check title alignment
+                const h1Rect = h1.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                console.log('Title "Pilot Trainer..." alignment:', {
+                    leftEdgeRelativeToViewport: h1Rect.left,
+                    leftEdgeRelativeToContainer: h1Rect.left - containerRect.left
+                });
+                
+                console.log('=== END DEBUG ===');
+            }, 100); // Small delay to ensure rendering is complete
             break;
     }
 }
@@ -2530,7 +2597,7 @@ function renderGanttChart() {
     setupGanttDragAndDrop();
     
     // Re-establish synchronized scrolling after rendering
-    const timeout = viewState.currentView === 'all' ? 100 : 50;
+    const timeout = viewState.currentView === 'all' ? 150 : 100;
     setTimeout(() => {
         setupSynchronizedScrolling();
         console.log('Sync re-established after Gantt chart render');

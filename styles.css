@@ -1383,9 +1383,53 @@ th[colspan] {
 }
 
 .gantt-cohort-buttons {
-    display: flex;
+    display: none; /* Hidden by default */
     gap: 5px;
     flex-shrink: 0;
+}
+
+/* Show buttons on row hover */
+.gantt-cohort-row:hover .gantt-cohort-buttons {
+    display: flex;
+}
+
+.gantt-edit-btn,
+.gantt-remove-btn {
+    padding: 2px 6px;
+    border: none;
+    background: rgba(0, 0, 0, 0.1);
+    color: #666;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.gantt-edit-btn:hover {
+    background: #3498db;
+    color: white;
+}
+
+.gantt-remove-btn:hover {
+    background: #e74c3c;
+    color: white;
+}
+
+/* Dark mode */
+body.dark-mode .gantt-edit-btn,
+body.dark-mode .gantt-remove-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #aaa;
+}
+
+body.dark-mode .gantt-edit-btn:hover {
+    background: #3498db;
+    color: white;
+}
+
+body.dark-mode .gantt-remove-btn:hover {
+    background: #e74c3c;
+    color: white;
 }
 
 .gantt-edit-btn,
@@ -3995,10 +4039,15 @@ body.dark-mode .preview-value {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 10001; /* Increased to ensure visibility above modals */
     display: flex;
     flex-direction: column;
     gap: 10px;
+    pointer-events: none; /* Allow clicks through container */
+}
+
+.toast-container .toast {
+    pointer-events: auto; /* But allow clicks on toasts themselves */
 }
 
 .toast {
