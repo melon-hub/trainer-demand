@@ -190,6 +190,10 @@ Training demands are served in priority order with cascading allocation:
 ## Deployment
 Simply serve the files via any web server or open index.html directly in a browser. No build process required.
 
+#Github
+- Never commit to main
+- When committing anything at users request, it must always have a tag
+
 ## Version History
 - **v0.9**: Major improvements to optimizer and UI
   - Enhanced Training Planner with grid entry, bulk input, and target optimizer

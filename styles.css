@@ -315,6 +315,36 @@ h1 {
     display: block;
 }
 
+/* Fix scenarios view width - force it to match container content width */
+#scenarios-view {
+    width: 1320px !important; /* Container width minus padding */
+    max-width: 1320px !important;
+    margin: 0 auto;
+    padding: 0;
+}
+
+/* Responsive adjustments for scenarios view */
+@media (max-width: 1400px) {
+    #scenarios-view {
+        width: calc(100vw - 80px) !important;
+        max-width: calc(100vw - 80px) !important;
+    }
+}
+
+@media (max-width: 768px) {
+    #scenarios-view {
+        width: calc(100vw - 40px) !important;
+        max-width: calc(100vw - 40px) !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #scenarios-view {
+        width: calc(100vw - 30px) !important;
+        max-width: calc(100vw - 30px) !important;
+    }
+}
+
 /* Section Styles */
 section {
     background-color: #fff;
@@ -1383,9 +1413,48 @@ th[colspan] {
 }
 
 .gantt-cohort-buttons {
-    display: flex;
+    display: flex; /* Always show buttons */
     gap: 5px;
     flex-shrink: 0;
+}
+
+.gantt-edit-btn,
+.gantt-remove-btn {
+    padding: 2px 6px;
+    border: none;
+    background: rgba(0, 0, 0, 0.1);
+    color: #666;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 12px;
+    transition: all 0.2s;
+}
+
+.gantt-edit-btn:hover {
+    background: #3498db;
+    color: white;
+}
+
+.gantt-remove-btn:hover {
+    background: #e74c3c;
+    color: white;
+}
+
+/* Dark mode */
+body.dark-mode .gantt-edit-btn,
+body.dark-mode .gantt-remove-btn {
+    background: rgba(255, 255, 255, 0.1);
+    color: #aaa;
+}
+
+body.dark-mode .gantt-edit-btn:hover {
+    background: #3498db;
+    color: white;
+}
+
+body.dark-mode .gantt-remove-btn:hover {
+    background: #e74c3c;
+    color: white;
 }
 
 .gantt-edit-btn,
@@ -1415,13 +1484,21 @@ th[colspan] {
 }
 
 .gantt-phase-cell {
-    color: white;
+    color: white !important;
     font-size: 10px;
     cursor: pointer;
     font-weight: 500;
     min-width: var(--column-width) !important;
     width: var(--column-width) !important;
     max-width: var(--column-width) !important;
+    text-align: center;
+    vertical-align: middle;
+}
+
+/* Ensure phase cells keep their background colors in dark mode */
+body.dark-mode .gantt-phase-cell {
+    color: white !important;
+    opacity: 1 !important;
 }
 
 .gantt-empty-cell {
@@ -3551,6 +3628,98 @@ body.dark-mode #grid-container {
 
 /* Scenario sections now use standard section styling */
 
+/* Scenario selection for comparison */
+.scenario-card {
+    position: relative;
+    cursor: pointer;
+}
+
+.scenario-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.scenario-card.selected-for-compare {
+    border: 2px solid #3498db;
+    background-color: #e3f2fd;
+}
+
+.scenario-card.selected-for-compare .select-checkbox {
+    display: block !important;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+}
+
+/* Show checkboxes when any scenario is selected */
+.scenario-card .select-checkbox {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    width: 20px;
+    height: 20px;
+    pointer-events: none;
+}
+
+/* Comparison modal styles */
+.comparison-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.comparison-column {
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 20px;
+    background-color: #f9f9f9;
+}
+
+.comparison-column h3 {
+    margin-top: 0;
+    color: #2c3e50;
+    border-bottom: 2px solid #3498db;
+    padding-bottom: 10px;
+}
+
+.comparison-section {
+    margin: 20px 0;
+}
+
+.comparison-section h4 {
+    color: #34495e;
+    margin-bottom: 10px;
+}
+
+.diff-item {
+    padding: 5px 10px;
+    margin: 5px 0;
+    border-radius: 4px;
+}
+
+.diff-added {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.diff-removed {
+    background-color: #f8d7da;
+    color: #721c24;
+}
+
+.diff-changed {
+    background-color: #fff3cd;
+    color: #856404;
+}
+
+.diff-unchanged {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
 .scenario-status {
     padding: 8px 16px;
     background-color: #f0f7ff;
@@ -3841,6 +4010,46 @@ body.dark-mode .scenario-info-card {
     border-left-color: #3498db;
 }
 
+/* Dark mode comparison styles */
+body.dark-mode .scenario-card.selected-for-compare {
+    border-color: #5dade2;
+    background-color: #1e3a5f;
+}
+
+body.dark-mode .comparison-column {
+    background-color: #2a2a2a;
+    border-color: #555;
+}
+
+body.dark-mode .comparison-column h3 {
+    color: #e0e0e0;
+    border-bottom-color: #5dade2;
+}
+
+body.dark-mode .comparison-section h4 {
+    color: #b0b0b0;
+}
+
+body.dark-mode .diff-added {
+    background-color: #1e4620;
+    color: #90ee90;
+}
+
+body.dark-mode .diff-removed {
+    background-color: #4a1f1f;
+    color: #ff6b6b;
+}
+
+body.dark-mode .diff-changed {
+    background-color: #4a4a1f;
+    color: #ffd93d;
+}
+
+body.dark-mode .diff-unchanged {
+    background-color: #3a3a3a;
+    color: #b0b0b0;
+}
+
 body.dark-mode .scenario-description {
     color: #b0b0b0;
 }
@@ -3995,10 +4204,15 @@ body.dark-mode .preview-value {
     position: fixed;
     top: 20px;
     right: 20px;
-    z-index: 9999;
+    z-index: 10001; /* Increased to ensure visibility above modals */
     display: flex;
     flex-direction: column;
     gap: 10px;
+    pointer-events: none; /* Allow clicks through container */
+}
+
+.toast-container .toast {
+    pointer-events: auto; /* But allow clicks on toasts themselves */
 }
 
 .toast {
@@ -4075,4 +4289,223 @@ body.dark-mode .preview-value {
 
 .toast.removing {
     animation: slideOut 0.3s ease-in;
+}
+
+/* Cohort Edit Modal - Condensed Styling */
+#cohort-modal .modal-content {
+    max-width: 400px;
+    padding: 0;
+}
+
+#cohort-modal .modal-header {
+    padding: 15px 20px;
+}
+
+#cohort-modal .modal-body {
+    padding: 20px;
+}
+
+#cohort-modal .form-group {
+    margin-bottom: 15px;
+}
+
+#cohort-modal .form-group label {
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+#cohort-modal input,
+#cohort-modal select {
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+#cohort-modal .modal-footer {
+    padding: 15px 20px;
+    margin-top: 0;
+}
+
+/* FTE Modal - Condensed Styling */
+#fte-modal .modal-content {
+    max-width: 900px;
+    padding: 0;
+}
+
+#fte-modal .modal-header {
+    padding: 15px 20px;
+}
+
+#fte-modal .modal-body {
+    padding: 20px;
+}
+
+#fte-modal .form-group {
+    margin-bottom: 15px;
+}
+
+#fte-modal .modal-footer {
+    padding: 15px 20px;
+    margin-top: 0;
+}
+
+/* Scenario Save Modal - Condensed Styling */
+#scenario-save-modal .modal-content {
+    max-width: 500px;
+    padding: 0;
+}
+
+#scenario-save-modal .modal-header {
+    padding: 15px 20px;
+}
+
+#scenario-save-modal .modal-body {
+    padding: 20px;
+}
+
+#scenario-save-modal .form-group {
+    margin-bottom: 15px;
+}
+
+#scenario-save-modal .form-group label {
+    font-size: 13px;
+    margin-bottom: 5px;
+}
+
+#scenario-save-modal input,
+#scenario-save-modal textarea {
+    font-size: 14px;
+    padding: 8px 12px;
+}
+
+#scenario-save-modal .scenario-preview {
+    margin-top: 15px;
+    padding: 15px;
+    background-color: #f8f9fa;
+    border-radius: 6px;
+}
+
+#scenario-save-modal .scenario-preview h3 {
+    font-size: 14px;
+    margin-bottom: 10px;
+}
+
+#scenario-save-modal .preview-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+#scenario-save-modal .preview-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+}
+
+#scenario-save-modal .modal-footer {
+    padding: 15px 20px;
+    margin-top: 0;
+}
+
+/* Import Rename Modal - Condensed Styling */
+#import-rename-modal .modal-content {
+    max-width: 450px;
+    padding: 0;
+}
+
+#import-rename-modal .modal-header {
+    padding: 15px 20px;
+}
+
+#import-rename-modal .modal-body {
+    padding: 20px;
+}
+
+#import-rename-modal .modal-actions {
+    gap: 10px;
+    margin-top: 15px;
+}
+
+/* Comparison Modal - Keep larger but condensed */
+#comparison-modal .modal-content {
+    max-width: 1200px;
+    padding: 0;
+}
+
+#comparison-modal .modal-header {
+    padding: 15px 20px;
+}
+
+#comparison-modal .modal-body {
+    padding: 20px;
+}
+
+/* Alert and Confirm Dialogs - Small and centered */
+#alert-dialog .modal-content,
+#confirm-dialog .modal-content {
+    max-width: 400px;
+    padding: 0;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+#alert-dialog .modal-header,
+#confirm-dialog .modal-header {
+    padding: 15px 20px;
+}
+
+#alert-dialog .modal-body,
+#confirm-dialog .modal-body {
+    padding: 20px;
+    text-align: center;
+}
+
+#alert-dialog .modal-body p,
+#confirm-dialog .modal-body p {
+    margin-bottom: 20px;
+}
+
+/* Training Planner Modal - Already has specific styles but ensure consistency */
+#training-planner-modal .modal-header {
+    padding: 15px 20px;
+}
+
+#training-planner-modal .modal-body {
+    padding: 20px;
+}
+
+#training-planner-modal .modal-footer {
+    padding: 15px 20px;
+    margin-top: 0;
+}
+
+/* Dark mode support for condensed modals */
+body.dark-mode #scenario-save-modal .scenario-preview {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode #import-rename-modal .modal-content,
+body.dark-mode #scenario-save-modal .modal-content,
+body.dark-mode #alert-dialog .modal-content,
+body.dark-mode #confirm-dialog .modal-content {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+body.dark-mode #import-rename-modal .modal-header,
+body.dark-mode #scenario-save-modal .modal-header,
+body.dark-mode #alert-dialog .modal-header,
+body.dark-mode #confirm-dialog .modal-header {
+    background-color: #333;
+    border-bottom-color: #555;
+}
+
+body.dark-mode #import-rename-modal input,
+body.dark-mode #scenario-save-modal input,
+body.dark-mode #scenario-save-modal textarea {
+    background-color: #333;
+    color: #e0e0e0;
+    border-color: #555;
 }

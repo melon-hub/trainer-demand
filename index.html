@@ -565,6 +565,7 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                             <button id="view-grid" class="view-btn active" title="Grid view">⊞</button>
                             <button id="view-list" class="view-btn" title="List view">☰</button>
                         </div>
+                        <button id="compare-scenarios" class="btn btn-secondary" title="Compare two scenarios" disabled>Compare</button>
                         <button id="export-all-scenarios" class="btn btn-secondary" title="Export all scenarios">Export All</button>
                         <button id="import-scenarios" class="btn btn-secondary" title="Import scenarios">Import</button>
                         <input type="file" id="import-file-input" accept=".json" style="display: none;">
@@ -576,7 +577,6 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                 </div>
             </section>
         </div>
-    </div>
 
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
@@ -597,6 +597,21 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                     <button id="import-rename-btn" class="btn btn-primary">Rename</button>
                     <button id="import-overwrite-btn" class="btn btn-warning">Overwrite</button>
                     <button id="import-skip-btn" class="btn btn-secondary">Skip</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scenario Comparison Modal -->
+    <div id="comparison-modal" class="modal">
+        <div class="modal-content" style="max-width: 1200px;">
+            <div class="modal-header">
+                <h2 id="comparison-title">Scenario Comparison</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="comparison-content">
+                    <!-- Comparison content will be generated here -->
                 </div>
             </div>
         </div>
