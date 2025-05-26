@@ -1587,8 +1587,10 @@ function renderCommencementSummary() {
     const headers = generateTableHeaders(true, true);
     
     let html = '<div class="table-wrapper"><table class="data-table commencement-table">';
-    html += headers.monthHeaders;
-    html += headers.fortnightHeaders;
+    html += '<thead>';
+    html += headers.monthRow;
+    html += headers.fortnightRow;
+    html += '</thead>';
     
     html += '<tbody>';
     
