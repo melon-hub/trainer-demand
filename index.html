@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pilot Trainer Supply/Demand Planner</title>
     <link rel="stylesheet" href="styles.css">
+    <script>
+        // Apply dark mode immediately to prevent flash
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.documentElement.classList.add('dark-mode-loading');
+            // Also store the active tab for proper styling
+            const activeTab = localStorage.getItem('activeTab') || 'dashboard';
+            document.documentElement.setAttribute('data-active-tab', activeTab);
+        }
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -16,8 +25,8 @@
                     <button class="nav-tab active" data-view="dashboard">Dashboard</button>
                     <button class="nav-tab" data-view="planner">Planner</button>
                     <button class="nav-tab" data-view="settings">Settings</button>
+                    <button class="nav-tab" data-view="scenarios">Scenarios</button>
                 </nav>
-                <button id="scenarios-btn" class="btn btn-primary">Scenarios</button>
                 <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle Dark Mode">
                     <span class="dark-mode-icon">🌙</span>
                 </button>
@@ -167,6 +176,21 @@
                 </div>
             </section>
 
+            <!-- Training Commencement Summary Section -->
+            <section class="commencement-summary-section">
+                <div class="section-header">
+                    <h2>
+                        <button id="toggle-commencement-btn" class="toggle-btn" aria-expanded="false">
+                            <span class="toggle-icon">+</span>
+                        </button>
+                        Training Commencement Summary
+                    </h2>
+                </div>
+                <div id="commencement-summary-container" class="table-container" style="display: none;">
+                    <!-- Commencement summary table will be generated here -->
+                </div>
+            </section>
+
             <!-- Demand Table Section -->
             <section class="demand-table-section">
                 <h2>Trainer Demand</h2>
@@ -177,7 +201,15 @@
 
             <!-- Surplus/Deficit Table Section -->
             <section class="surplus-deficit-section">
-                <h2>Surplus/Deficit Analysis</h2>
+                <div class="section-header">
+                    <h2>Surplus/Deficit Analysis</h2>
+                    <div class="surplus-deficit-controls">
+                        <button id="toggle-sd-view" class="btn btn-secondary" title="Toggle between classic and intuitive view">
+                            <span class="toggle-view-icon">📊</span>
+                            <span class="toggle-view-text">Switch to Intuitive View</span>
+                        </button>
+                    </div>
+                </div>
                 <div id="surplus-deficit-container" class="table-container">
                     <!-- Surplus/Deficit table will be generated here -->
                 </div>
@@ -338,21 +370,93 @@
                 <h2>Training Planner</h2>
                 
                 <div class="planner-tabs">
-                    <button class="planner-tab active" data-tab="bulk">Bulk Input</button>
+                    <button class="planner-tab active" data-tab="grid">Grid Entry</button>
                     <button class="planner-tab" data-tab="target">Target Optimizer</button>
+                    <button class="planner-tab" data-tab="bulk">Bulk Input</button>
                 </div>
                 
-                <!-- Bulk Input Tab -->
-                <div id="bulk-tab" class="planner-content active">
-                    <h3>Bulk Cohort Input</h3>
-                    <p>Enter cohorts in format: "Month Year: X FO, Y CP, Z CAD"</p>
-                    <textarea id="bulk-input" rows="10" style="width: 100%; font-family: monospace;" placeholder="Jan 2025: 12 FO, 8 CP
-Feb 2025: 10 CAD, 6 CP
-Mar 2025: 14 FO, 2 CAD"></textarea>
-                    <div id="bulk-validation" class="validation-results"></div>
-                    <div class="modal-footer">
-                        <button id="validate-bulk" class="btn btn-secondary">Validate</button>
-                        <button id="apply-bulk" class="btn btn-primary" disabled>Apply Schedule</button>
+                <!-- Grid Entry Tab -->
+                <div id="grid-tab" class="planner-content active">
+                    <h3>Grid Entry</h3>
+                    <p>Quickly add multiple cohorts by entering trainee numbers in the grid</p>
+                    <p style="font-size: 0.85em; color: #666; margin-top: -10px;">
+                        💡 Tip: You can paste data from Excel! Copy your data and paste into any cell.
+                    </p>
+                    
+                    <div class="grid-entry-form">
+                        <div class="grid-period-selector" style="display: flex; gap: 15px; margin-bottom: 20px; align-items: center;">
+                            <label>Planning Period:</label>
+                            <select id="grid-start-month" style="width: 120px;">
+                                <option value="0">January</option>
+                                <option value="1">February</option>
+                                <option value="2">March</option>
+                                <option value="3">April</option>
+                                <option value="4">May</option>
+                                <option value="5">June</option>
+                                <option value="6">July</option>
+                                <option value="7">August</option>
+                                <option value="8">September</option>
+                                <option value="9">October</option>
+                                <option value="10">November</option>
+                                <option value="11">December</option>
+                            </select>
+                            <select id="grid-start-year" style="width: 80px;">
+                                <option value="2024">2024</option>
+                                <option value="2025" selected>2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                                <option value="2031">2031</option>
+                                <option value="2032">2032</option>
+                                <option value="2033">2033</option>
+                                <option value="2034">2034</option>
+                            </select>
+                            <label>to</label>
+                            <select id="grid-end-month" style="width: 120px;">
+                                <option value="0">January</option>
+                                <option value="1">February</option>
+                                <option value="2">March</option>
+                                <option value="3">April</option>
+                                <option value="4">May</option>
+                                <option value="5" selected>June</option>
+                                <option value="6">July</option>
+                                <option value="7">August</option>
+                                <option value="8">September</option>
+                                <option value="9">October</option>
+                                <option value="10">November</option>
+                                <option value="11">December</option>
+                            </select>
+                            <select id="grid-end-year" style="width: 80px;">
+                                <option value="2024">2024</option>
+                                <option value="2025" selected>2025</option>
+                                <option value="2026">2026</option>
+                                <option value="2027">2027</option>
+                                <option value="2028">2028</option>
+                                <option value="2029">2029</option>
+                                <option value="2030">2030</option>
+                                <option value="2031">2031</option>
+                                <option value="2032">2032</option>
+                                <option value="2033">2033</option>
+                                <option value="2034">2034</option>
+                            </select>
+                            <button id="show-grid" class="btn btn-secondary" style="display: none;">Show Grid</button>
+                        </div>
+                        
+                        <div id="grid-container" style="display: none;">
+                            <!-- Grid will be generated here -->
+                        </div>
+                        
+                        <div class="modal-footer" style="display: none;" id="grid-footer">
+                            <div style="margin-right: auto;">
+                                <span id="grid-total-cohorts">Total Cohorts: 0</span> | 
+                                <span id="grid-total-trainees">Total Trainees: 0</span>
+                            </div>
+                            <button id="grid-clear" class="btn btn-secondary">Clear</button>
+                            <button id="grid-cancel" class="btn btn-secondary">Cancel</button>
+                            <button id="grid-apply" class="btn btn-primary">Add All Cohorts</button>
+                        </div>
                     </div>
                 </div>
                 
@@ -396,33 +500,184 @@ Mar 2025: 14 FO, 2 CAD"></textarea>
                         </div>
                     </form>
                 </div>
+                
+                <!-- Bulk Input Tab -->
+                <div id="bulk-tab" class="planner-content">
+                    <h3>Bulk Cohort Input</h3>
+                    <p style="margin-bottom: 10px;">Enter cohorts using any of these formats:</p>
+                    <ul style="font-size: 0.9em; margin-bottom: 15px; color: #666;">
+                        <li><strong>Jan 2025: 4 CAD, 2 FO</strong> - Multiple cohorts per month</li>
+                        <li><strong>Jan 25 4 CAD A209</strong> - Specific pathway ID (A209)</li>
+                        <li><strong>4 CAD Jan 2025</strong> - Alternative order</li>
+                        <li>Use 2 or 4 digit years (25 = 2025)</li>
+                    </ul>
+                    <textarea id="bulk-input" rows="6" style="width: 100%; font-family: monospace;" placeholder="Jan 2025: 12 FO, 8 CP
+Feb 25: 10 CAD, 6 CP
+Mar 25 4 CAD A209
+4 FO Apr 2025
+May 2025: 2 CAD A212, 4 FO A210"></textarea>
+                    <div id="bulk-validation" class="validation-results" style="max-height: 300px; overflow-y: auto;"></div>
+                    <div class="modal-footer">
+                        <button id="validate-bulk" class="btn btn-secondary">Validate</button>
+                        <button id="apply-bulk" class="btn btn-primary" disabled>Apply Schedule</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 
-    <!-- Scenarios Panel -->
-    <div id="scenarios-panel" class="scenarios-panel">
-        <div class="scenarios-header">
-            <h2>Scenarios</h2>
-            <button class="close-panel-btn" id="close-scenarios">×</button>
-        </div>
-        <div class="scenarios-content">
-            <div class="current-scenario">
-                <h3>Current Scenario</h3>
-                <div class="scenario-info">
-                    <span id="current-scenario-name">Unsaved Changes</span>
-                    <button id="save-current-scenario" class="btn btn-primary btn-sm">Save As...</button>
+        <!-- Scenarios View -->
+        <div id="scenarios-view" class="view">
+            <!-- Current Scenario Section -->
+            <section>
+                <div class="section-header">
+                    <h2>Current Scenario</h2>
+                    <div class="scenario-status">
+                        <span id="current-scenario-name">New Scenario</span>
+                    </div>
                 </div>
-            </div>
-            <div class="saved-scenarios">
-                <h3>Saved Scenarios</h3>
+                <div class="scenario-actions-container">
+                    <div class="scenario-info-card">
+                        <p class="scenario-description">Save your current configuration as a scenario to reload it later or create variations.</p>
+                        <div class="scenario-actions">
+                            <button id="update-current-scenario" class="btn btn-secondary" style="display: none;">Update Current</button>
+                            <button id="save-current-scenario" class="btn btn-primary">Save As New Scenario</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Saved Scenarios Section -->
+            <section>
+                <div class="section-header">
+                    <h2>Saved Scenarios</h2>
+                    <div class="scenario-controls">
+                        <input type="text" id="scenario-search" placeholder="Search scenarios..." class="search-input">
+                        <select id="scenario-sort" class="filter-select">
+                            <option value="date-desc">Newest First</option>
+                            <option value="date-asc">Oldest First</option>
+                            <option value="name-asc">Name (A-Z)</option>
+                            <option value="name-desc">Name (Z-A)</option>
+                            <option value="size-desc">Largest First</option>
+                            <option value="size-asc">Smallest First</option>
+                        </select>
+                        <div class="view-toggle">
+                            <button id="view-grid" class="view-btn active" title="Grid view">⊞</button>
+                            <button id="view-list" class="view-btn" title="List view">☰</button>
+                        </div>
+                        <button id="export-all-scenarios" class="btn btn-secondary" title="Export all scenarios">Export All</button>
+                        <button id="import-scenarios" class="btn btn-secondary" title="Import scenarios">Import</button>
+                        <input type="file" id="import-file-input" accept=".json" style="display: none;">
+                        <span class="scenario-count">0 scenarios</span>
+                    </div>
+                </div>
                 <div id="scenario-list" class="scenario-list">
                     <!-- Scenario cards will be generated here -->
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Import Rename Modal -->
+    <div id="import-rename-modal" class="modal">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2>Scenario Name Conflict</h2>
+            </div>
+            <div class="modal-body">
+                <p id="import-conflict-message">A scenario with this name already exists.</p>
+                <div class="form-group">
+                    <label for="import-rename-input">New Name:</label>
+                    <input type="text" id="import-rename-input" required>
+                </div>
+                <div class="modal-actions">
+                    <button id="import-rename-btn" class="btn btn-primary">Rename</button>
+                    <button id="import-overwrite-btn" class="btn btn-warning">Overwrite</button>
+                    <button id="import-skip-btn" class="btn btn-secondary">Skip</button>
                 </div>
             </div>
         </div>
     </div>
-    <div id="scenarios-overlay" class="scenarios-overlay"></div>
+
+    <!-- Scenario Save Modal -->
+    <div id="scenario-save-modal" class="modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="scenario-modal-title">Save Scenario</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="scenario-save-form">
+                    <div class="form-group">
+                        <label for="scenario-name">Scenario Name:</label>
+                        <input type="text" id="scenario-name" name="scenarioName" required placeholder="e.g., Q1 2025 Plan">
+                    </div>
+                    <div class="form-group">
+                        <label for="scenario-description">Description (optional):</label>
+                        <textarea id="scenario-description" name="scenarioDescription" rows="3" 
+                                  placeholder="Add notes about this scenario..."></textarea>
+                    </div>
+                    <div class="scenario-preview">
+                        <h3>Preview</h3>
+                        <div class="preview-stats">
+                            <div class="preview-item">
+                                <span class="preview-label">Total Cohorts:</span>
+                                <span id="preview-cohorts" class="preview-value">0</span>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">Total Trainees:</span>
+                                <span id="preview-trainees" class="preview-value">0</span>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">Training Period:</span>
+                                <span id="preview-daterange" class="preview-value">-</span>
+                            </div>
+                            <div class="preview-item">
+                                <span class="preview-label">Pathways:</span>
+                                <span id="preview-pathways" class="preview-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-primary">Save Scenario</button>
+                        <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alert Dialog -->
+    <div id="alert-dialog" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <div class="modal-header">
+                <h2 id="alert-title">Invalid Date Range</h2>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px;">
+                <p id="alert-message" style="margin-bottom: 20px;">The end date cannot be before the start date. Please select a valid date range.</p>
+                <button id="alert-ok" class="btn btn-primary">OK</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirmation Dialog -->
+    <div id="confirm-dialog" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 400px; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);">
+            <div class="modal-header">
+                <h2 id="confirm-title">Clear Grid</h2>
+            </div>
+            <div class="modal-body" style="text-align: center; padding: 20px;">
+                <p id="confirm-message" style="margin-bottom: 20px;">Clear all entries in the grid?</p>
+                <div style="display: flex; gap: 10px; justify-content: center;">
+                    <button id="confirm-yes" class="btn btn-primary">Yes</button>
+                    <button id="confirm-no" class="btn btn-secondary">No</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="app.js"></script>
 </body>

@@ -15,7 +15,21 @@
       "Bash(git branch:*)",
       "Bash(git remote get-url:*)",
       "Bash(git tag:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(claude mcp:*)",
+      "mcp__puppeteer__puppeteer_navigate",
+      "mcp__puppeteer__puppeteer_screenshot",
+      "mcp__puppeteer__puppeteer_click",
+      "mcp__puppeteer__puppeteer_evaluate",
+      "mcp__puppeteer__puppeteer_fill",
+      "mcp__puppeteer__puppeteer_fill",
+      "Bash(rg:*)",
+      "Bash(rg:*)",
+      "Bash(curl:*)",
+      "Bash(kill:*)",
+      "Bash(sed:*)",
+      "Bash(ls:*)"
     ],
     "deny": []
   }

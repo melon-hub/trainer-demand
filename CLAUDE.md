@@ -15,11 +15,12 @@ This is a web-based application for managing pilot training cohorts and forecast
 ### Project Structure
 ```
 trainer-view/
-├── index.html          # Main application HTML with all views (Dashboard, Planner, Settings)
-├── app.js              # Core application logic (~3000+ lines)
+├── index.html          # Main application HTML with all views (Dashboard, Planner, Settings, Scenarios)
+├── app.js              # Core application logic (~7000+ lines)
 ├── styles.css          # Application styling with dark mode support
+├── trainer-view-standalone.html  # Single-file version with embedded CSS/JS
 ├── screenshots/        # UI screenshots for reference
-├── migration-summary.md    # Notes on missing features from previous version
+├── scenario-improvements-todo.md  # Completed scenario enhancements checklist
 ├── fte-dialog-changes.md   # Documentation of FTE dialog simplification
 └── previous-viewer.html    # Reference implementation (do not modify)
 ```
@@ -65,11 +66,14 @@ Training demands are served in priority order with cascading allocation:
 - `priorityConfig[]`: Configurable priority allocation rules
 
 ### Key Functions
-- `calculateDemand()`: Calculates trainer demand across all cohorts (app.js:1070)
-- `calculateSupplyDeficit()`: Calculates surplus/deficit with cascading allocation (app.js:1130)
-- `renderGanttChart()`: Renders the visual cohort timeline (app.js:1850)
-- `optimizeTraining()`: AI-powered optimization with priority constraints (app.js:2650)
-- `updateDashboard()`: Updates executive dashboard metrics (app.js:3200)
+- `calculateDemand()`: Calculates trainer demand across all cohorts
+- `calculateSupplyDeficit()`: Calculates surplus/deficit with cascading allocation
+- `renderGanttChart()`: Renders the visual cohort timeline with drag-drop support
+- `updateDashboard()`: Updates executive dashboard metrics (app.js:5903)
+- `showNotification()`: Displays toast-style notifications
+- `handleDragStart/End()`: Manages drag and drop functionality in Gantt chart
+- `parseBulkInput()`: Parses natural language cohort entries
+- `generateGrid()`: Creates Excel-like grid for cohort entry
 
 ### UI/UX Patterns
 - Modal dialogs for complex inputs (FTE, pathways, priorities)
@@ -83,29 +87,62 @@ Training demands are served in priority order with cascading allocation:
 
 ### Executive Dashboard
 - Key metrics cards: Total trainees, utilization %, upcoming completions, capacity warnings
-- Demand over time chart
-- Training distribution chart
-- Training pipeline visualization
-- Alerts and warnings section
+- Demand over time chart with 12-month forecast
+- Training distribution chart (pie chart by pathway type)
+- Training pipeline visualization showing current cohorts
+- Alerts and warnings section with capacity issues
+- Real-time calculations based on current date
+- Charts update dynamically with dark mode support
 
 ### Training Planner
 - Add individual cohorts with pathway selection
-- Target-based optimizer in separate tab
+- **Training Planner Modal** with three tabs:
+  - **Grid Entry**: Excel-like grid for quick cohort entry with paste support
+  - **Target Optimizer**: Set pilot targets by type and optimize schedule
+  - **Bulk Input**: Parse natural language entries (e.g., "Jan 2025: 12 FO, 8 CP")
 - Visual Gantt chart with grouping options
-- Supply/deficit analysis tables
+- **Drag and Drop**: Move cohorts on Gantt chart timeline
+- Supply/deficit analysis tables with two view modes:
+  - Classic view (positive/negative numbers)
+  - Intuitive view (surplus in green, deficit in red)
+- Copy table data functionality
 
 ### Settings Management
-- Pathway configuration with comments
+- Pathway configuration with comments field
+- Pathway types: CP (Captain), FO (First Officer), CAD (Cadet)
 - Priority settings with trainer capability matrix
 - FTE management by year and category
-- Quick fill options for rapid FTE configuration
+- Quick fill options for rapid FTE configuration:
+  - Fill All (same value across years)
+  - Fill Down (copy to subsequent years)
+  - Copy from Previous Year
+- Detailed FTE dialog with fortnightly entry
+
+### Scenarios Management
+- Dedicated Scenarios tab with enhanced UI
+- Save/load complete configurations
+- Update existing scenarios with changes
+- Duplicate scenarios functionality
+- Export/import scenarios as JSON files
+- Bulk export all scenarios
+- Search and filter scenarios
+- Sort by date, name, or size
+- Grid/list view toggle
+- Scenario preview with statistics
+- Import conflict resolution (rename/overwrite/skip)
+- Persistent current scenario indicator
 
 ### Advanced Features
-- Scenarios functionality for what-if analysis
 - Dark mode with persistent preference
-- Synchronized table scrolling
+- Synchronized table scrolling across demand/supply tables
 - Real-time demand calculations
 - Cascading priority-based allocation
+- **Toast notifications** instead of alerts
+- **Notification system** for user feedback
+- Collapsible sections (FTE Summary, Commencement Summary)
+- Month-based navigation controls (6M, 12M views)
+- "Today" button to jump to current period
+- Standalone single-file version available
 
 ## Testing & Validation
 
@@ -154,10 +191,18 @@ Training demands are served in priority order with cascading allocation:
 Simply serve the files via any web server or open index.html directly in a browser. No build process required.
 
 ## Version History
-- v0.8: Major optimizer improvements with priority-based trainer allocation
-- Added executive dashboard and dark mode
-- Fixed optimizer capacity constraints
-- Improved Training Planner UI and validation
+- **v0.9**: Major improvements to optimizer and UI
+  - Enhanced Training Planner with grid entry, bulk input, and target optimizer
+  - Added drag-and-drop functionality to Gantt chart
+  - Implemented toast notifications system
+  - Added intuitive surplus/deficit view toggle
+  - Improved scenario management with import/export
+  - Added standalone single-file version
+- **v0.8**: Major optimizer improvements with priority-based trainer allocation
+  - Added executive dashboard with real-time metrics
+  - Implemented dark mode support
+  - Fixed optimizer capacity constraints
+  - Improved Training Planner UI and validation
 
 ---
 *Last updated: January 2025*
