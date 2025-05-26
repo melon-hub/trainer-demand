@@ -1502,6 +1502,7 @@ function setupSynchronizedScrolling() {
     const containers = [
         document.getElementById('fte-summary-table-container'),
         document.getElementById('gantt-chart-container'),
+        document.getElementById('commencement-summary-container'),
         document.getElementById('demand-table-container'),
         document.getElementById('surplus-deficit-container')
     ];
@@ -2697,61 +2698,8 @@ function showDropIndicator(cell, year, fortnight) {
     cell.closest('.table-wrapper').appendChild(indicator);
 }
 
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `notification notification-${type}`;
-    
-    // Add icon based on type
-    const icons = {
-        success: '✓',
-        info: 'ℹ',
-        warning: '⚠',
-        error: '✕'
-    };
-    
-    // Set colors based on type
-    const colors = {
-        success: '#27ae60',
-        info: '#3498db',
-        warning: '#f39c12',
-        error: '#e74c3c'
-    };
-    
-    notification.innerHTML = `
-        <span class="notification-icon">${icons[type] || icons.info}</span>
-        <span class="notification-message">${message}</span>
-    `;
-    
-    notification.style.cssText = `
-        position: fixed;
-        top: 20px;
-        right: 20px;
-        background: ${colors[type] || colors.info};
-        color: white;
-        padding: 16px 24px;
-        border-radius: 8px;
-        z-index: 10000;
-        animation: slideIn 0.3s ease-out;
-        display: flex;
-        align-items: center;
-        gap: 12px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        font-size: 14px;
-        font-weight: 500;
-        max-width: 400px;
-        line-height: 1.4;
-    `;
-    
-    document.body.appendChild(notification);
-    
-    // Longer duration for info messages
-    const duration = type === 'info' ? 2000 : 3000;
-    
-    setTimeout(() => {
-        notification.style.animation = 'slideOut 0.3s ease-out';
-        setTimeout(() => notification.remove(), 300);
-    }, duration);
-}
+// REMOVED - Using the showNotification function defined later in the file
+// This was causing a conflict with duplicate function names
 
 // Render Priority Settings Table
 function renderPrioritySettingsTable() {
@@ -5513,11 +5461,18 @@ function loadScenario(scenarioId) {
     viewState.currentScenarioId = scenarioId;
     viewState.isDirty = false;
     
+    // Switch to planner view to show the loaded data
+    switchView('planner');
+    
     // Refresh all views
     updateAllTables();
     renderGanttChart();
     populatePathwaySelect();
-    setupSynchronizedScrolling();
+    
+    // Re-establish synchronized scrolling after a delay to ensure all tables are rendered
+    setTimeout(() => {
+        setupSynchronizedScrolling();
+    }, 150);
     
     updateCurrentScenarioDisplay();
     
