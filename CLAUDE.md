@@ -16,13 +16,15 @@ This is a web-based application for managing pilot training cohorts and forecast
 ```
 trainer-view/
 ├── index.html          # Main application HTML with all views (Dashboard, Planner, Settings, Scenarios)
-├── app.js              # Core application logic (~7000+ lines)
+├── app.js              # Core application logic (~9000+ lines)
 ├── styles.css          # Application styling with dark mode support
 ├── trainer-view-standalone.html  # Single-file version with embedded CSS/JS
+├── smart-excel-import.html  # Excel data extraction tool for FSO training
 ├── screenshots/        # UI screenshots for reference
-├── scenario-improvements-todo.md  # Completed scenario enhancements checklist
-├── fte-dialog-changes.md   # Documentation of FTE dialog simplification
-└── previous-viewer.html    # Reference implementation (do not modify)
+├── dashboard-improvements.md  # Pending dashboard enhancements
+├── import-export-updates.md   # Pending import/export updates
+├── optimizer-improvements.md  # Pending optimizer enhancements
+└── archive/            # Test files, utilities, and completed docs
 ```
 
 ## Business Logic & Domain Knowledge
@@ -60,20 +62,24 @@ Training demands are served in priority order with cascading allocation:
 ## Important Code Patterns
 
 ### Data Structures
+- `locationData{}`: Master object containing AU and NZ data separately
 - `pathways[]`: Array of training pathway definitions
-- `activeCohorts[]`: Array of active training cohorts
-- `trainerFTE{}`: Nested object storing FTE by year and category
+- `activeCohorts[]`: Array of active training cohorts (now per location)
+- `trainerFTE{}`: Nested object storing FTE by year and category (per location)
 - `priorityConfig[]`: Configurable priority allocation rules
+- `crossLocationTraining{}`: Fortnight-level cross-location assignments
 
 ### Key Functions
-- `calculateDemand()`: Calculates trainer demand across all cohorts
+- `calculateDemand()`: Calculates trainer demand with cross-location support
+- `calculateCrossLocationDemand()`: Two-pass algorithm for cross-location allocation
 - `calculateSupplyDeficit()`: Calculates surplus/deficit with cascading allocation
-- `renderGanttChart()`: Renders the visual cohort timeline with drag-drop support
-- `updateDashboard()`: Updates executive dashboard metrics (app.js:5903)
+- `renderGanttChart()`: Renders timeline with cross-location cohorts section
+- `updateDashboardV2()`: Updates enhanced dashboard metrics
 - `showNotification()`: Displays toast-style notifications
 - `handleDragStart/End()`: Manages drag and drop functionality in Gantt chart
 - `parseBulkInput()`: Parses natural language cohort entries
 - `generateGrid()`: Creates Excel-like grid for cohort entry
+- `convertLegacyCrossLocation()`: Migrates old format to new structure
 
 ### UI/UX Patterns
 - Modal dialogs for complex inputs (FTE, pathways, priorities)
@@ -85,12 +91,16 @@ Training demands are served in priority order with cascading allocation:
 
 ## Current Features
 
-### Executive Dashboard
-- Key metrics cards: Total trainees, utilization %, upcoming completions, capacity warnings
+### Executive Dashboard (V2)
+- Enhanced metrics cards with trend indicators:
+  - Total trainees with period-over-period changes
+  - Utilization % with visual indicators
+  - Upcoming completions with timeline
+  - Capacity warnings with severity levels
 - Demand over time chart with 12-month forecast
 - Training distribution chart (pie chart by pathway type)
-- Training pipeline visualization showing current cohorts
-- Alerts and warnings section with capacity issues
+- Enhanced pipeline visualization with phase breakdown
+- Smart alerts system with prioritized warnings
 - Real-time calculations based on current date
 - Charts update dynamically with dark mode support
 
@@ -205,6 +215,12 @@ Simply serve the files via any web server or open index.html directly in a brows
 - When committing anything at users request, it must always have a tag
 
 ## Version History
+- **v1.5.1**: Cross-location fixes and enhancements
+  - Fixed NZ cohorts display in AU Gantt cross-location section
+  - Dashboard V2 with enhanced metrics and trends
+  - Smart Excel import tool for FSO training data
+  - Legacy scenario format migration
+  - Project cleanup and organization
 - **v1.5**: Enhanced cross-location visibility
   - Split view toggle for demand tables (local vs cross-location breakdown)
   - Cross-location cohorts section in Gantt showing only relevant fortnights
@@ -228,5 +244,134 @@ Simply serve the files via any web server or open index.html directly in a brows
   - Improved scenario management with import/export
   - Added standalone single-file version
 
+## Excel Import Tool
+
+### smart-excel-import.html
+Standalone tool for extracting training data from FSO Excel files:
+- Automatically parses cohort data from specific Excel layout
+- Extracts pathways A209 (CAD) and A210 (FO) training schedules
+- Generates scenarios with proper cross-location training format
+- Sets appropriate FTE values (240 for all trainer types)
+- Creates cohorts with correct phase durations and timing
+
+## Local Storage Implementation
+
+### Current Usage
+The application uses browser localStorage for persisting:
+
+1. **Scenarios** (`pilotTrainerScenarios`)
+   - Stores all saved scenarios as JSON array
+   - No size limits implemented
+   - No compression or optimization
+
+2. **UI Preferences**
+   - `darkMode`: Dark mode on/off state
+   - `activeTab`: Last active tab (dashboard/planner/settings/scenarios)
+   - `scenarioViewMode`: Grid or list view in scenarios tab
+   - `dashboardVersion`: Classic or enhanced dashboard
+   - `currentLocation`: Selected location (AU/NZ)
+
+3. **User State**
+   - `acknowledgedAlerts`: Array of dismissed alert IDs
+
+### Storage Analysis
+- **Total Keys**: 7 localStorage keys
+- **Largest Data**: Scenarios array (can grow very large with 90+ cohorts per scenario)
+- **No Data Validation**: Direct JSON parse without error handling
+- **No Size Management**: Could hit browser's ~5-10MB limit
+
+### Data Persistence Gaps
+
+**Current Issue**: FTE, pathways, and priority settings are only saved as part of scenarios. If you configure these but don't save a scenario, they're lost on reload.
+
+### Additional Data NOT Currently Saved
+
+1. **UI Collapse States**
+   - FTE Summary expanded/collapsed state
+   - Training Commencement Summary expanded/collapsed state
+   - Details sections in various tables
+
+2. **View Settings** (partially saved)
+   - ✅ Surplus/Deficit view (classic/intuitive) - saved in scenarios
+   - ✅ Demand split by location toggle - saved in scenarios
+   - ✅ Group by setting - saved in scenarios
+   - ❌ Current time view offset (navigation position)
+   - ❌ Scroll positions in tables
+
+3. **Form States**
+   - ❌ Last used values in add cohort form
+   - ❌ Grid entry date ranges
+   - ❌ Optimizer settings (last targets)
+
+4. **User Preferences Not Saved**
+   - ❌ Preferred number format (with/without decimals)
+   - ❌ Table column widths (if adjustable)
+   - ❌ Default location for new cohorts
+
+5. **Working Data**
+   - ❌ Undo/redo history
+   - ❌ Temporary cohort selections
+   - ❌ Filter states in various views
+
+### Recommended Improvements
+
+1. **Auto-Save Working State**
+   ```javascript
+   // Save working state every 30 seconds
+   setInterval(() => {
+       if (viewState.isDirty) {
+           localStorage.setItem('workingState', JSON.stringify({
+               pathways, trainerFTE, priorityConfig, activeCohorts,
+               lastSaved: new Date().toISOString()
+           }));
+       }
+   }, 30000);
+   ```
+
+2. **Separate Settings Storage**
+   - Save FTE/pathways/priorities independently of scenarios
+   - `localStorage.setItem('defaultFTE', JSON.stringify(trainerFTE))`
+   - `localStorage.setItem('defaultPathways', JSON.stringify(pathways))`
+   - Load these as defaults instead of hardcoded values
+
+3. **Add Storage Management**
+   ```javascript
+   function getStorageSize() {
+       let total = 0;
+       for (let key in localStorage) {
+           total += localStorage[key].length + key.length;
+       }
+       return (total / 1024).toFixed(2) + ' KB';
+   }
+   ```
+
+4. **Implement Scenario Compression**
+   - Use LZ-string or similar for scenario compression
+   - Could reduce storage by 60-80% for large scenarios
+
+5. **Add Error Handling**
+   ```javascript
+   function safeLocalStorage(key, value) {
+       try {
+           localStorage.setItem(key, JSON.stringify(value));
+           return true;
+       } catch (e) {
+           if (e.name === 'QuotaExceededError') {
+               showNotification('Storage full! Please delete old scenarios.', 'error');
+           }
+           return false;
+       }
+   }
+   ```
+
+6. **Add Export/Import All Data**
+   - Single button to export all localStorage data
+   - Useful for backup/restore or sharing between browsers
+
+7. **Storage Cleanup Options**
+   - Delete scenarios older than X months
+   - Archive scenarios to file
+   - Limit number of scenarios (e.g., keep latest 50)
+
 ---
-*Last updated: May 2025*
+*Last updated: January 2025*

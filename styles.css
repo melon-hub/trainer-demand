@@ -57,6 +57,21 @@ html.dark-mode-loading header {
     color: #e0e0e0;
 }
 
+/* Prevent content flash during initial load */
+.gantt-container:empty {
+    min-height: 400px;
+}
+
+/* Smooth transition for dark mode toggle */
+.dark-mode-toggle {
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+}
+
+.dark-mode-toggle.show {
+    opacity: 1;
+}
+
 /* Dark Mode Base Styles */
 body.dark-mode {
     background-color: #1a1a1a;
@@ -662,6 +677,7 @@ body.dark-mode .btn-export-chart:hover {
     max-height: 450px;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 .viz-container h3 {
@@ -680,21 +696,24 @@ body.dark-mode .btn-export-chart:hover {
 /* Heat Map Styles */
 #trainer-heatmap {
     display: grid;
-    grid-template-columns: 120px repeat(12, 1fr);
-    gap: 2px;
-    font-size: 12px;
+    grid-template-columns: 35px repeat(12, minmax(40px, 1fr));
+    gap: 1px;
+    font-size: 9px;
     overflow-x: auto;
     overflow-y: hidden;
     max-width: 100%;
-    padding: 10px;
+    padding: 5px;
+    box-sizing: border-box;
 }
 
 .heatmap-cell {
-    padding: 8px;
+    padding: 4px 2px;
     text-align: center;
-    border-radius: 4px;
+    border-radius: 3px;
     transition: all 0.2s;
     cursor: pointer;
+    min-width: 35px;
+    font-weight: 600;
 }
 
 .heatmap-cell:hover {
@@ -707,8 +726,11 @@ body.dark-mode .btn-export-chart:hover {
     background: #f5f5f5;
     display: flex;
     align-items: center;
-    justify-content: right;
-    padding-right: 10px;
+    justify-content: center;
+    padding: 2px 1px;
+    font-size: 7px;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .heatmap-month {
@@ -3468,6 +3490,14 @@ body.dark-mode .btn-primary:hover {
 body.dark-mode .metric-card {
     background-color: #2a2a2a;
     box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .metric-card.clean .metric-label {
+    color: #999;
+}
+
+body.dark-mode .metric-card.clean .metric-detail {
+    color: #666;
 }
 
 body.dark-mode .metric-value {

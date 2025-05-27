@@ -55,7 +55,7 @@ let priorityConfig = [
 ];
 
 // Location state
-let currentLocation = 'AU';  // Default location
+var currentLocation = 'AU';  // Default location - using var to avoid temporal dead zone
 
 // Drag and Drop State
 let dragState = {
@@ -616,8 +616,9 @@ function calculateMetricsForPeriod(year, fortnight) {
     
     // Calculate trainer utilization
     const { demand } = calculateDemand();
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
     const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-        sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
     const currentDemand = demand[year]?.[fortnight]?.total || 0;
     const utilization = totalSupply > 0 ? Math.round((currentDemand / totalSupply) * 100) : 0;
     
@@ -652,10 +653,12 @@ function init() {
         viewState.currentLocation = savedLocation;
         
         // Load data for saved location
-        pathways = locationData[currentLocation].pathways;
-        trainerFTE = locationData[currentLocation].trainerFTE;
-        priorityConfig = locationData[currentLocation].priorityConfig;
-        activeCohorts = locationData[currentLocation].activeCohorts;
+        if (locationData && locationData[currentLocation]) {
+            pathways = locationData[currentLocation].pathways;
+            trainerFTE = locationData[currentLocation].trainerFTE;
+            priorityConfig = locationData[currentLocation].priorityConfig;
+            activeCohorts = locationData[currentLocation].activeCohorts;
+        }
         
         // Update UI to reflect saved location
         document.querySelectorAll('.location-tab').forEach(tab => {
@@ -666,11 +669,39 @@ function init() {
         });
     }
     
+    // Initialize dark mode FIRST to prevent flash
+    initDarkMode();
+    
+    // Initialize dashboard toggle
+    initDashboardToggle();
+    
+    // Auto-load last scenario BEFORE initial render
+    const lastScenarioId = localStorage.getItem('lastScenarioId');
+    let scenarioLoaded = false;
+    if (lastScenarioId && scenarios.length > 0) {
+        const scenario = scenarios.find(s => s.id === parseInt(lastScenarioId));
+        if (scenario) {
+            console.log(`Auto-loading last scenario: ${scenario.name}`);
+            // Load scenario data directly without UI updates
+            loadScenarioDataOnly(scenario);
+            scenarioLoaded = true;
+            // Delay notification until after UI is ready
+            setTimeout(() => {
+                showNotification(`Loaded: ${scenario.name}`, 'info');
+            }, 500);
+        }
+    }
+    
     setupEventListeners();
     populatePathwaySelect();
     populateYearSelect();
     populateFortnightSelect();
     adjustColumnWidths(); // Set initial column widths
+    
+    // Mark UI elements as initialized to prevent flicker
+    document.querySelector('.view-controls')?.classList.add('initialized');
+    
+    // Now render everything once
     updateAllTables();
     renderGanttChart();
     
@@ -688,18 +719,15 @@ function init() {
         }
     }, 500);
     
-    // Mark UI elements as initialized to prevent flicker (do this early)
-    document.querySelector('.view-controls')?.classList.add('initialized');
-    
-    // Initialize dark mode
-    initDarkMode();
-    
-    // Initialize dashboard toggle
-    initDashboardToggle();
-    
     // Restore last active tab or start with dashboard
     const lastActiveTab = localStorage.getItem('activeTab') || 'dashboard';
     switchView(lastActiveTab);
+    
+    // Mark initial load complete
+    setTimeout(() => {
+        isInitialLoad = false;
+        document.body.classList.add('initialized');
+    }, 100);
     
     // Extra sync setup after everything is loaded
     window.addEventListener('load', () => {
@@ -1247,6 +1275,12 @@ function setupEventListeners() {
     const copyTableDataBtn = document.getElementById('copy-table-data');
     if (copyTableDataBtn) {
         copyTableDataBtn.addEventListener('click', copyTableData);
+    }
+    
+    // Merge cohorts button
+    const mergeCohortsBtn = document.getElementById('merge-cohorts-btn');
+    if (mergeCohortsBtn) {
+        mergeCohortsBtn.addEventListener('click', showMergeCohortsDialog);
     }
     
     // View control buttons
@@ -1898,6 +1932,9 @@ function updateAllTables() {
     renderDemandTable();
     renderSurplusDeficitTable();
     
+    // Always update trainee summary
+    updateGanttTraineeSummary();
+    
     // Update commencement summary if it's expanded
     const commencementBtn = document.getElementById('toggle-commencement-btn');
     if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
@@ -2180,6 +2217,9 @@ function renderCommencementSummary() {
     html += '</tbody></table></div>';
     
     container.innerHTML = html;
+    
+    // Update trainee summary
+    updateGanttTraineeSummary();
 }
 
 // Render FTE Summary Table
@@ -2250,7 +2290,7 @@ function renderDemandTable() {
     const { demand, crossLocationDemand } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
-    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    const activeLocation = document.querySelector('.location-tab.active')?.dataset.location || currentLocation || 'AU';
     
     let html = '<div class="table-wrapper"><table class="data-table">';
     html += '<thead>';
@@ -2293,7 +2333,7 @@ function renderDemandTable() {
             html += '</tr>';
             
             // Cross-location demand row
-            const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+            const otherLocation = activeLocation === 'AU' ? 'NZ' : 'AU';
             html += '<tr>';
             html += `<td class="sticky-first-column" style="padding-left: 30px; font-style: italic; color: #3498db;">${config.trainingType} (from ${otherLocation})</td>`;
             
@@ -2393,7 +2433,7 @@ function renderDemandTable() {
         html += '</tr>';
         
         // Cross-location total row
-        const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+        const otherLocation = activeLocation === 'AU' ? 'NZ' : 'AU';
         html += '<tr>';
         html += `<td class="sticky-first-column total-row" style="padding-left: 30px; font-style: italic; color: #3498db;">Total (from ${otherLocation})</td>`;
         
@@ -2500,8 +2540,8 @@ function renderCrossLocationSummary() {
     if (!container) return;
     
     const { crossLocationDemand } = calculateDemand();
-    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
-    const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+    const activeLocation = document.querySelector('.location-tab.active')?.dataset.location || currentLocation || 'AU';
+    const otherLocation = activeLocation === 'AU' ? 'NZ' : 'AU';
     const range = getTimeRangeForView();
     
     // Check if there's any cross-location demand
@@ -2525,7 +2565,7 @@ function renderCrossLocationSummary() {
     let html = '<div class="table-wrapper"><table class="data-table">';
     html += '<thead><tr>';
     html += '<th class="sticky-first-column">Period</th>';
-    html += `<th>Trainers from ${otherLocation} to ${currentLocation}</th>`;
+    html += `<th>Trainers from ${otherLocation} to ${activeLocation}</th>`;
     html += '<th>Training Type</th>';
     html += '<th>Cohorts Using Cross-Location</th>';
     html += '</tr></thead>';
@@ -2536,8 +2576,8 @@ function renderCrossLocationSummary() {
     let currentFn = range.startFortnight;
     
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-        if (crossLocationDemand[currentYear]?.[currentFn]?.[currentLocation]) {
-            const demand = crossLocationDemand[currentYear][currentFn][currentLocation];
+        if (crossLocationDemand[currentYear]?.[currentFn]?.[activeLocation]) {
+            const demand = crossLocationDemand[currentYear][currentFn][activeLocation];
             
             // Find cohorts using cross-location for this period
             const cohorts = activeCohorts.filter(cohort => {
@@ -2556,7 +2596,7 @@ function renderCrossLocationSummary() {
                     for (let i = 0; i < phase.duration; i++) {
                         if (cohortYear === currentYear && cohortFn === currentFn && phase.trainerDemandType) {
                             // Check if this phase uses cross-location
-                            const crossLoc = cohort.crossLocationTraining[currentLocation];
+                            const crossLoc = cohort.crossLocationTraining[activeLocation];
                             if (crossLoc?.phases?.[phase.name]?.includes(globalFn)) {
                                 return true;
                             }
@@ -2916,16 +2956,18 @@ function calculateDemand() {
     }
 
     // Calculate raw demand from cohorts
-    activeCohorts.forEach(cohort => {
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    cohorts.forEach(cohort => {
         const pathway = pathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
         
         // Only process cohorts for the current location view
-        const viewingLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+        const viewingLocation = (typeof currentLocation !== 'undefined' && currentLocation) ? currentLocation : 'AU';
         const cohortName = cohort.name || `Cohort ${cohort.id}`;
-        console.log(`Processing cohort ${cohortName} from ${cohort.location}, viewing ${viewingLocation}`);
-        if (cohort.location !== viewingLocation) {
-            console.log(`Skipping ${cohortName} - not from current location`);
+        
+        // Handle cohorts that might not have location property (legacy data)
+        const cohortLocation = cohort.location || viewingLocation;
+        if (cohortLocation !== viewingLocation) {
             return;
         }
 
@@ -3019,8 +3061,9 @@ function calculateDemand() {
             const supply = {};
             
             // Get available supply for this fortnight
+            const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
             TRAINER_CATEGORIES.forEach(cat => {
-                supply[cat] = trainerFTE[year][cat] / FORTNIGHTS_PER_YEAR;
+                supply[cat] = locationFTE[year][cat] / FORTNIGHTS_PER_YEAR;
             });
             
             // Allocate by priority order defined in priorityConfig
@@ -3078,10 +3121,10 @@ function calculateDemand() {
     }
 
     // Now process ALL cohorts again to capture cross-location demand for the current view
-    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    const activeLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
     const viewingLocation2 = document.querySelector('.location-toggle.active')?.textContent || 'AU';
-    console.log(`\n=== SECOND PASS: Looking for cohorts using ${currentLocation} trainers (viewing: ${viewingLocation2}) ===`);
+    console.log(`\n=== SECOND PASS: Looking for cohorts using ${activeLocation} trainers (viewing: ${viewingLocation2}) ===`);
     console.log(`Total cohorts to check: ${activeCohorts.length}`);
     
     // We need to check ALL location's cohorts, not just the current view
@@ -3101,18 +3144,18 @@ function calculateDemand() {
         console.log(`Checking cohort ${cohortName} from ${cohort.location}`);
         
         // Skip if this cohort is from the current location (already processed above)
-        if (cohort.location === currentLocation) {
+        if (cohort.location === activeLocation) {
             console.log(`- Skipping ${cohortName} - already processed in first pass`);
             return;
         }
         
         // Check if this cohort uses trainers from the current location
-        if (!cohort.crossLocationTraining || !cohort.crossLocationTraining[currentLocation]) {
-            console.log(`- Skipping ${cohortName} - no cross-location config for ${currentLocation}`);
+        if (!cohort.crossLocationTraining || !cohort.crossLocationTraining[activeLocation]) {
+            console.log(`- Skipping ${cohortName} - no cross-location config for ${activeLocation}`);
             return;
         }
         
-        console.log(`- ${cohortName} HAS cross-location config for ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
+        console.log(`- ${cohortName} HAS cross-location config for ${activeLocation}:`, cohort.crossLocationTraining[activeLocation]);
         
         let currentYear = cohort.startYear;
         let currentFortnight = cohort.startFortnight;
@@ -3127,10 +3170,10 @@ function calculateDemand() {
                     const globalFortnight = (currentYear - 2024) * FORTNIGHTS_PER_YEAR + currentFortnight;
                     
                     // Check if this specific fortnight uses current location's trainers
-                    if (cohort.crossLocationTraining[currentLocation].phases?.[phase.name]?.includes(globalFortnight)) {
+                    if (cohort.crossLocationTraining[activeLocation].phases?.[phase.name]?.includes(globalFortnight)) {
                         const phaseDemand = cohort.numTrainees;
                         
-                        console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${currentLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
+                        console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${activeLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
                         
                         // Add this demand to the current location
                         demand[currentYear][currentFortnight].total += phaseDemand;
@@ -3141,17 +3184,17 @@ function calculateDemand() {
                             (demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] || 0) + phaseDemand;
                         
                         // Also track in crossLocationDemand for split view
-                        if (!crossLocationDemand[currentYear][currentFortnight][currentLocation]) {
-                            crossLocationDemand[currentYear][currentFortnight][currentLocation] = {
+                        if (!crossLocationDemand[currentYear][currentFortnight][activeLocation]) {
+                            crossLocationDemand[currentYear][currentFortnight][activeLocation] = {
                                 total: 0,
                                 byTrainingType: {}
                             };
                         }
-                        crossLocationDemand[currentYear][currentFortnight][currentLocation].total += phaseDemand;
-                        if (!crossLocationDemand[currentYear][currentFortnight][currentLocation].byTrainingType[phase.trainerDemandType]) {
-                            crossLocationDemand[currentYear][currentFortnight][currentLocation].byTrainingType[phase.trainerDemandType] = 0;
+                        crossLocationDemand[currentYear][currentFortnight][activeLocation].total += phaseDemand;
+                        if (!crossLocationDemand[currentYear][currentFortnight][activeLocation].byTrainingType[phase.trainerDemandType]) {
+                            crossLocationDemand[currentYear][currentFortnight][activeLocation].byTrainingType[phase.trainerDemandType] = 0;
                         }
-                        crossLocationDemand[currentYear][currentFortnight][currentLocation].byTrainingType[phase.trainerDemandType] += phaseDemand;
+                        crossLocationDemand[currentYear][currentFortnight][activeLocation].byTrainingType[phase.trainerDemandType] += phaseDemand;
                     }
                 }
                 
@@ -3167,6 +3210,10 @@ function calculateDemand() {
     
     return { demand, ltCpDeficit, crossLocationDemand };
 }
+
+
+// Track if we're in initial load to prevent flicker
+let isInitialLoad = true;
 
 // Render Gantt Chart
 function renderGanttChart() {
@@ -3838,6 +3885,77 @@ function renderPrioritySettingsTable() {
     `;
     
     container.innerHTML = html;
+    
+    // Update trainee summary
+    updateGanttTraineeSummary();
+}
+
+// Update trainee summary in Training Commencement Summary header
+function updateGanttTraineeSummary() {
+    const summaryElement = document.getElementById('trainee-summary');
+    if (!summaryElement) return;
+    
+    // Get time range based on current view
+    const range = getTimeRangeForView();
+    
+    // Count trainees by type in the visible time range
+    let cpCount = 0;
+    let foCount = 0;
+    let cadCount = 0;
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Check if cohort is active in the visible time range
+        let cohortEndYear = cohort.startYear;
+        let cohortEndFortnight = cohort.startFortnight;
+        
+        // Calculate end date
+        pathway.phases.forEach(phase => {
+            cohortEndFortnight += phase.duration;
+            while (cohortEndFortnight > FORTNIGHTS_PER_YEAR) {
+                cohortEndFortnight -= FORTNIGHTS_PER_YEAR;
+                cohortEndYear++;
+            }
+        });
+        
+        // Check if cohort overlaps with view range
+        const cohortStartsBeforeOrInRange = 
+            cohort.startYear < range.endYear || 
+            (cohort.startYear === range.endYear && cohort.startFortnight <= range.endFortnight);
+            
+        const cohortEndsAfterOrInRange = 
+            cohortEndYear > range.startYear || 
+            (cohortEndYear === range.startYear && cohortEndFortnight >= range.startFortnight);
+            
+        if (cohortStartsBeforeOrInRange && cohortEndsAfterOrInRange) {
+            // Cohort is in view range
+            if (pathway.type === 'CP') {
+                cpCount += cohort.numTrainees;
+            } else if (pathway.type === 'FO') {
+                foCount += cohort.numTrainees;
+            } else if (pathway.type === 'CAD') {
+                cadCount += cohort.numTrainees;
+            }
+        }
+    });
+    
+    const totalCount = cpCount + foCount + cadCount;
+    
+    // Build summary HTML
+    let summaryHtml = '';
+    if (cpCount > 0) summaryHtml += `<strong>CP:</strong> ${cpCount} `;
+    if (foCount > 0) summaryHtml += `<strong>FO:</strong> ${foCount} `;
+    if (cadCount > 0) summaryHtml += `<strong>CAD:</strong> ${cadCount} `;
+    
+    if (summaryHtml) {
+        summaryHtml += `<span style="margin-left: 10px;">(Total: ${totalCount})</span>`;
+    } else {
+        summaryHtml = 'No trainees in view';
+    }
+    
+    summaryElement.innerHTML = summaryHtml;
 }
 
 // Render Pathways Table
@@ -4484,6 +4602,9 @@ function editCohort(cohortId) {
     
     // Open modal
     cohortModal.classList.add('active');
+    
+    // Initialize split functionality
+    initSplitCohort();
 }
 
 // Generate cross-location training UI
@@ -4781,6 +4902,378 @@ function removeCohort(cohortId) {
             showNotification(`Cohort removed: ${cohortLabel}`, 'success');
         }
     );
+}
+
+// Show merge cohorts dialog
+function showMergeCohortsDialog() {
+    // Group cohorts by identical settings
+    const mergeable = {};
+    
+    // Get current location's cohorts
+    const currentCohorts = locationData[currentLocation].activeCohorts;
+    
+    currentCohorts.forEach(cohort => {
+        // Create a key from cohort properties that must match for merging
+        const key = `${cohort.pathwayId}_${cohort.startYear}_${cohort.startFortnight}_${cohort.location}_${JSON.stringify(cohort.crossLocationTraining || {})}`;
+        
+        if (!mergeable[key]) {
+            mergeable[key] = [];
+        }
+        mergeable[key].push(cohort);
+    });
+    
+    // Filter to only show groups with 2+ cohorts
+    const mergeableGroups = Object.values(mergeable).filter(group => group.length > 1);
+    
+    if (mergeableGroups.length === 0) {
+        showNotification('No mergeable cohorts found. Cohorts must have identical pathway, start date, location, and cross-location settings.', 'info');
+        return;
+    }
+    
+    // Create and show dialog
+    let html = `
+        <div class="modal active" id="merge-dialog">
+            <div class="modal-content" style="max-width: 800px;">
+                <div class="modal-header">
+                    <h2>Merge Cohorts</h2>
+                    <button class="modal-close" onclick="document.getElementById('merge-dialog').remove()">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p style="margin: 0 0 10px 0; font-size: 0.95em;">Select cohort groups to merge. Only cohorts with identical settings can be merged.</p>
+                    <div style="display: flex; gap: 15px; align-items: center; margin-bottom: 15px;">
+                        <button class="btn btn-secondary" onclick="selectAllMergeGroups()" style="padding: 5px 12px; font-size: 0.9em; white-space: nowrap;">✓ All</button>
+                        <button class="btn btn-secondary" onclick="deselectAllMergeGroups()" style="padding: 5px 12px; font-size: 0.9em; white-space: nowrap;">✗ None</button>
+                        <div style="flex: 1;"></div>
+                        <span id="merge-selection-count" style="font-weight: bold; color: var(--text-secondary); white-space: nowrap;">0 selected</span>
+                    </div>
+                    
+                    <div id="merge-summary" style="background: var(--bg-secondary); padding: 10px; border-radius: 4px; margin-bottom: 15px; display: none;">
+                        <strong>Summary:</strong> <span id="merge-summary-text"></span>
+                    </div>
+                    
+                    <div style="max-height: 400px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 4px;">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead style="position: sticky; top: 0; background: var(--bg-secondary); z-index: 10;">
+                                <tr>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color); width: 40px;">
+                                        <input type="checkbox" id="merge-select-all-checkbox" onchange="toggleAllMergeGroups(this)" style="cursor: pointer;">
+                                    </th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Pathway</th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Location</th>
+                                    <th style="padding: 10px; text-align: left; border-bottom: 2px solid var(--border-color);">Start</th>
+                                    <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-color);">Cohorts</th>
+                                    <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-color);">Total Trainees</th>
+                                    <th style="padding: 10px; text-align: center; border-bottom: 2px solid var(--border-color);">Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+    `;
+    
+    mergeableGroups.forEach((group, index) => {
+        const pathway = pathways.find(p => p.id === group[0].pathwayId);
+        const totalTrainees = group.reduce((sum, c) => sum + c.numTrainees, 0);
+        const avgSize = Math.round(totalTrainees / group.length);
+        
+        html += `
+            <tr style="border-bottom: 1px solid var(--border-color);">
+                <td style="padding: 10px;">
+                    <input type="checkbox" class="merge-group-checkbox" value="${index}" onchange="updateMergeSelection()" style="cursor: pointer;">
+                </td>
+                <td style="padding: 10px; font-weight: bold;">${pathway.name}</td>
+                <td style="padding: 10px;">${group[0].location}</td>
+                <td style="padding: 10px;">Y${group[0].startYear} F${group[0].startFortnight}</td>
+                <td style="padding: 10px; text-align: center;">
+                    <span style="background: var(--bg-tertiary); padding: 2px 8px; border-radius: 12px;">${group.length}</span>
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    <strong>${totalTrainees}</strong>
+                    <span style="font-size: 0.85em; color: var(--text-secondary);">(avg ${avgSize})</span>
+                </td>
+                <td style="padding: 10px; text-align: center;">
+                    <button class="btn btn-secondary" onclick="toggleMergeDetails(${index})" style="padding: 2px 8px; font-size: 0.85em;">
+                        <span id="merge-details-icon-${index}">▶</span> Details
+                    </button>
+                </td>
+            </tr>
+            <tr id="merge-details-${index}" style="display: none; background: var(--bg-secondary);">
+                <td colspan="7" style="padding: 15px 10px 15px 50px;">
+                    <div>
+                        <strong style="display: block; margin-bottom: 10px;">Individual cohorts to be merged:</strong>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <thead>
+                                <tr style="border-bottom: 1px solid var(--border-color);">
+                                    <th style="padding: 5px; text-align: left; font-size: 0.85em;">Cohort ID</th>
+                                    <th style="padding: 5px; text-align: center; font-size: 0.85em;">Trainees</th>
+                                    <th style="padding: 5px; text-align: left; font-size: 0.85em;">Comment</th>
+                                    <th style="padding: 5px; text-align: left; font-size: 0.85em;">Cross-Location Details</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${group.map(c => {
+                                    const crossLocDetails = c.crossLocationTraining && Object.keys(c.crossLocationTraining).length > 0 
+                                        ? Object.entries(c.crossLocationTraining).map(([loc, data]) => {
+                                            const phases = Object.entries(data.phases || {}).map(([phase, fortnights]) => 
+                                                `${phase}: fortnights ${fortnights.join(', ')}`
+                                            ).join('; ');
+                                            return `${loc}: ${phases}`;
+                                        }).join(' | ')
+                                        : 'None';
+                                    
+                                    return `
+                                        <tr style="border-bottom: 1px solid var(--border-color);">
+                                            <td style="padding: 5px; font-size: 0.85em;">#${c.id}</td>
+                                            <td style="padding: 5px; text-align: center; font-size: 0.85em; font-weight: bold;">${c.numTrainees}</td>
+                                            <td style="padding: 5px; font-size: 0.85em; color: var(--text-secondary);">${c.comment || 'No comment'}</td>
+                                            <td style="padding: 5px; font-size: 0.85em; color: var(--text-secondary);">${crossLocDetails}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                        <div style="margin-top: 10px; font-size: 0.9em; color: var(--text-primary);">
+                            <strong>After merge:</strong> ${totalTrainees} trainees in a single cohort starting Year ${group[0].startYear}, Fortnight ${group[0].startFortnight}
+                        </div>
+                    </div>
+                </td>
+            </tr>
+        `;
+    });
+    
+    html += `
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="modal-footer" style="margin-top: 20px;">
+                        <button id="merge-selected-btn" class="btn btn-primary" onclick="performMerge()" disabled>Merge Selected</button>
+                        <button class="btn btn-secondary" onclick="document.getElementById('merge-dialog').remove()">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.insertAdjacentHTML('beforeend', html);
+    
+    // Store mergeable groups for performMerge function
+    window.mergeableGroups = mergeableGroups;
+    
+    // Initialize selection count
+    updateMergeSelection();
+}
+
+// Helper functions for merge dialog
+function toggleAllMergeGroups(checkbox) {
+    const checkboxes = document.querySelectorAll('.merge-group-checkbox');
+    checkboxes.forEach(cb => cb.checked = checkbox.checked);
+    updateMergeSelection();
+}
+
+function selectAllMergeGroups() {
+    const checkboxes = document.querySelectorAll('.merge-group-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    document.getElementById('merge-select-all-checkbox').checked = true;
+    updateMergeSelection();
+}
+
+function deselectAllMergeGroups() {
+    const checkboxes = document.querySelectorAll('.merge-group-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    document.getElementById('merge-select-all-checkbox').checked = false;
+    updateMergeSelection();
+}
+
+function updateMergeSelection() {
+    const checkboxes = document.querySelectorAll('.merge-group-checkbox:checked');
+    const count = checkboxes.length;
+    
+    // Update count display
+    document.getElementById('merge-selection-count').textContent = `${count} selected`;
+    
+    // Enable/disable merge button
+    const mergeBtn = document.getElementById('merge-selected-btn');
+    mergeBtn.disabled = count === 0;
+    
+    // Update summary
+    const summaryDiv = document.getElementById('merge-summary');
+    const summaryText = document.getElementById('merge-summary-text');
+    
+    if (count > 0) {
+        let totalGroups = count;
+        let totalCohorts = 0;
+        let totalTrainees = 0;
+        
+        checkboxes.forEach(checkbox => {
+            const groupIndex = parseInt(checkbox.value);
+            const group = window.mergeableGroups[groupIndex];
+            totalCohorts += group.length;
+            totalTrainees += group.reduce((sum, c) => sum + c.numTrainees, 0);
+        });
+        
+        const cohortsToRemove = totalCohorts - totalGroups;
+        summaryText.textContent = `Will merge ${totalCohorts} cohorts into ${totalGroups} cohorts (removing ${cohortsToRemove} cohorts, keeping ${totalTrainees} total trainees)`;
+        summaryDiv.style.display = 'block';
+    } else {
+        summaryDiv.style.display = 'none';
+    }
+    
+    // Update select all checkbox state
+    const allCheckboxes = document.querySelectorAll('.merge-group-checkbox');
+    const selectAllCheckbox = document.getElementById('merge-select-all-checkbox');
+    if (count === allCheckboxes.length && count > 0) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+    } else if (count > 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+    } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+    }
+}
+
+function toggleMergeDetails(index) {
+    const detailsRow = document.getElementById(`merge-details-${index}`);
+    const icon = document.getElementById(`merge-details-icon-${index}`);
+    
+    if (detailsRow.style.display === 'none') {
+        detailsRow.style.display = 'table-row';
+        icon.textContent = '▼';
+    } else {
+        detailsRow.style.display = 'none';
+        icon.textContent = '▶';
+    }
+}
+
+// Perform the merge operation
+function performMerge() {
+    const checkboxes = document.querySelectorAll('.merge-group-checkbox:checked');
+    if (checkboxes.length === 0) {
+        showNotification('Please select at least one group to merge', 'warning');
+        return;
+    }
+    
+    let mergedCount = 0;
+    let totalMerged = 0;
+    
+    checkboxes.forEach(checkbox => {
+        const groupIndex = parseInt(checkbox.value);
+        const group = window.mergeableGroups[groupIndex];
+        
+        if (group && group.length > 1) {
+            // Keep the first cohort and add all trainees to it
+            const keepCohort = group[0];
+            const totalTrainees = group.reduce((sum, c) => sum + c.numTrainees, 0);
+            
+            // Update the kept cohort
+            keepCohort.numTrainees = totalTrainees;
+            
+            // Remove the other cohorts
+            const removeIds = group.slice(1).map(c => c.id);
+            locationData[currentLocation].activeCohorts = locationData[currentLocation].activeCohorts.filter(c => !removeIds.includes(c.id));
+            
+            // Update global activeCohorts if needed
+            activeCohorts = locationData[currentLocation].activeCohorts;
+            
+            mergedCount++;
+            totalMerged += group.length - 1;
+        }
+    });
+    
+    // Close dialog
+    document.getElementById('merge-dialog').remove();
+    
+    // Update UI
+    updateAllTables();
+    renderGanttChart();
+    setupSynchronizedScrolling();
+    markDirty();
+    
+    showNotification(`Merged ${mergedCount} group(s), removing ${totalMerged} cohort(s)`, 'success');
+}
+
+// Split cohort functionality
+function initSplitCohort() {
+    const splitIntoInput = document.getElementById('split-into');
+    const splitSizeInput = document.getElementById('split-size');
+    const splitPreview = document.getElementById('split-preview');
+    const splitBtn = document.getElementById('split-cohort-btn');
+    const numTraineesInput = document.getElementById('edit-num-trainees');
+    
+    function updateSplitPreview() {
+        const totalTrainees = parseInt(numTraineesInput.value) || 0;
+        const splitCount = parseInt(splitIntoInput.value) || 2;
+        
+        if (totalTrainees > 0) {
+            const baseSize = Math.floor(totalTrainees / splitCount);
+            const remainder = totalTrainees % splitCount;
+            
+            splitSizeInput.value = baseSize;
+            
+            if (remainder > 0) {
+                splitPreview.textContent = `Will create ${splitCount - remainder} cohorts with ${baseSize} trainees and ${remainder} cohorts with ${baseSize + 1} trainees`;
+            } else {
+                splitPreview.textContent = `Will create ${splitCount} cohorts with ${baseSize} trainees each`;
+            }
+        } else {
+            splitSizeInput.value = '';
+            splitPreview.textContent = '';
+        }
+    }
+    
+    // Update preview when inputs change
+    splitIntoInput.addEventListener('input', updateSplitPreview);
+    numTraineesInput.addEventListener('input', updateSplitPreview);
+    
+    // Handle split button click
+    splitBtn.addEventListener('click', () => {
+        const cohortId = parseInt(document.getElementById('cohort-edit-form').dataset.editingCohortId);
+        const cohort = locationData[currentLocation].activeCohorts.find(c => c.id === cohortId);
+        if (!cohort) return;
+        
+        const totalTrainees = parseInt(numTraineesInput.value) || cohort.numTrainees;
+        const splitCount = parseInt(splitIntoInput.value) || 2;
+        
+        if (splitCount < 2 || splitCount > totalTrainees) {
+            showNotification('Invalid split count', 'error');
+            return;
+        }
+        
+        const baseSize = Math.floor(totalTrainees / splitCount);
+        const remainder = totalTrainees % splitCount;
+        
+        // Create new cohorts
+        const newCohorts = [];
+        for (let i = 0; i < splitCount; i++) {
+            const size = i < remainder ? baseSize + 1 : baseSize;
+            newCohorts.push({
+                ...cohort,
+                id: Date.now() + i, // Generate unique IDs
+                numTrainees: size
+            });
+        }
+        
+        // Replace original cohort with new ones
+        const cohortIndex = locationData[currentLocation].activeCohorts.findIndex(c => c.id === cohortId);
+        locationData[currentLocation].activeCohorts.splice(cohortIndex, 1, ...newCohorts);
+        
+        // Update global activeCohorts if needed
+        activeCohorts = locationData[currentLocation].activeCohorts;
+        
+        // Close modal
+        document.getElementById('cohort-edit-modal').classList.remove('active');
+        
+        // Update UI
+        updateAllTables();
+        renderGanttChart();
+        setupSynchronizedScrolling();
+        markDirty();
+        
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        showNotification(`Split ${totalTrainees} x ${pathway.name} into ${splitCount} cohorts`, 'success');
+    });
+    
+    // Initialize preview
+    updateSplitPreview();
 }
 
 // Handle group by change
@@ -6949,6 +7442,78 @@ function updateCurrentScenario() {
     showNotification('Scenario updated successfully', 'success');
 }
 
+function loadScenarioWithoutConfirm(scenarioId) {
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+    
+    loadScenarioData(scenario);
+}
+
+// Load scenario data without updating UI (for initial load)
+function loadScenarioDataOnly(scenario) {
+    // Save this as the last loaded scenario
+    localStorage.setItem('lastScenarioId', scenario.id);
+    
+    // Update current scenario tracking
+    viewState.currentScenarioId = scenario.id;
+    viewState.isDirty = false;
+    
+    // Load the scenario state
+    if (scenario.state.locationData) {
+        // New format with location data
+        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        currentLocation = scenario.state.currentLocation || 'AU';
+        viewState.currentLocation = currentLocation;
+        
+        // Load data for current location
+        pathways = locationData[currentLocation].pathways;
+        trainerFTE = locationData[currentLocation].trainerFTE;
+        priorityConfig = locationData[currentLocation].priorityConfig;
+        activeCohorts = locationData[currentLocation].activeCohorts;
+    } else {
+        // Legacy format - load into AU location
+        activeCohorts = [...scenario.state.cohorts];
+        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+        pathways = [...scenario.state.pathways];
+        priorityConfig = [...scenario.state.priorityConfig];
+        
+        // Migrate to location format
+        locationData.AU.pathways = pathways;
+        locationData.AU.trainerFTE = trainerFTE;
+        locationData.AU.priorityConfig = priorityConfig;
+        
+        // Separate cohorts by location
+        const auCohorts = activeCohorts.filter(c => c.location === 'AU' || !c.location);
+        const nzCohorts = activeCohorts.filter(c => c.location === 'NZ');
+        
+        locationData.AU.activeCohorts = auCohorts;
+        locationData.NZ.activeCohorts = nzCohorts;
+        
+        // Copy settings to NZ location
+        locationData.NZ.pathways = [...pathways];
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        locationData.NZ.priorityConfig = [...priorityConfig];
+        
+        // Set current location
+        currentLocation = nzCohorts.length > 0 && auCohorts.length === 0 ? 'NZ' : 'AU';
+        viewState.currentLocation = currentLocation;
+        
+        // Update activeCohorts to current location's cohorts
+        activeCohorts = locationData[currentLocation].activeCohorts;
+    }
+    
+    viewState.groupBy = scenario.state.viewState?.groupBy || 'none';
+    viewState.collapsedGroups = [...(scenario.state.viewState?.collapsedGroups || [])];
+    
+    // Update location tabs UI
+    document.querySelectorAll('.location-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.location === currentLocation);
+    });
+    
+    // Update current scenario display
+    updateCurrentScenarioDisplay();
+}
+
 function loadScenario(scenarioId) {
     const scenario = scenarios.find(s => s.id === scenarioId);
     if (!scenario) return;
@@ -6958,6 +7523,17 @@ function loadScenario(scenarioId) {
             return;
         }
     }
+    
+    loadScenarioData(scenario);
+}
+
+function loadScenarioData(scenario) {
+    // Save this as the last loaded scenario
+    localStorage.setItem('lastScenarioId', scenario.id);
+    
+    // Update current scenario tracking
+    viewState.currentScenarioId = scenario.id;
+    viewState.isDirty = false;
     
     // Load the scenario state
     if (scenario.state.locationData) {
@@ -7020,10 +7596,6 @@ function loadScenario(scenarioId) {
     
     viewState.groupBy = scenario.state.viewState?.groupBy || 'none';
     viewState.collapsedGroups = [...(scenario.state.viewState?.collapsedGroups || [])];
-    
-    // Update current scenario tracking
-    viewState.currentScenarioId = scenarioId;
-    viewState.isDirty = false;
     
     // Update location tabs UI
     document.querySelectorAll('.location-tab').forEach(tab => {
@@ -8041,72 +8613,162 @@ function updateDemandChart() {
 }
 
 function updateDistributionChart() {
-    const ctx = document.getElementById('distribution-chart').getContext('2d');
+    const canvas = document.getElementById('distribution-chart');
+    if (canvas) {
+        // Legacy - redirect to supply-demand overview
+        updateSupplyDemandOverview();
+        return;
+    }
     
-    // Count trainees by pathway type
-    const distribution = {};
+    updateSupplyDemandOverview();
+}
+
+let supplyDemandOverviewChart = null;
+
+function updateSupplyDemandOverview() {
+    const ctx = document.getElementById('supply-demand-overview')?.getContext('2d');
+    if (!ctx) return;
+    
+    const { demand, crossLocationDemand } = calculateDemand();
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
     
-    activeCohorts.forEach(cohort => {
-        const pathway = pathways.find(p => p.id === cohort.pathwayId);
-        if (!pathway) return;
-        
-        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
-        let endFortnight = cohort.startFortnight + duration - 1;
-        let endYear = cohort.startYear;
-        
-        while (endFortnight > FORTNIGHTS_PER_YEAR) {
-            endFortnight -= FORTNIGHTS_PER_YEAR;
-            endYear++;
+    // Prepare data for the next 12 months
+    const labels = [];
+    const supplyData = [];
+    const localDemandData = [];
+    const crossLocationData = [];
+    
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
         }
         
-        // Check if cohort is currently in training
-        const startPassed = cohort.startYear < currentYear || 
-            (cohort.startYear === currentYear && cohort.startFortnight <= currentFortnight);
-        const endNotReached = endYear > currentYear || 
-            (endYear === currentYear && endFortnight >= currentFortnight);
-            
-        if (startPassed && endNotReached) {
-            const type = pathway.type || 'Other';
-            distribution[type] = (distribution[type] || 0) + cohort.numTrainees;
-        }
-    });
+        labels.push(`${MONTHS[month].substr(0, 3)} ${year}`);
+        
+        // Calculate monthly averages (2 fortnights per month)
+        const fn1 = (month * 2) + 1;
+        const fn2 = (month * 2) + 2;
+        
+        // Total supply from current location
+        const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
+        const monthlySupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR; // Use fortnightly FTE capacity
+        
+        // Get demand for current location
+        const totalDemand1 = demand[year]?.[fn1]?.total || 0;
+        const totalDemand2 = demand[year]?.[fn2]?.total || 0;
+        
+        // Cross-location demand is demand from other location using current location's trainers
+        const crossDemand1 = crossLocationDemand[year]?.[fn1]?.[currentLocation]?.total || 0;
+        const crossDemand2 = crossLocationDemand[year]?.[fn2]?.[currentLocation]?.total || 0;
+        
+        // Local demand is total demand minus cross-location demand
+        // Total demand already includes cross-location, so subtract to get just local
+        const localDemand = ((totalDemand1 - crossDemand1 + totalDemand2 - crossDemand2) / 2);
+        const crossDemand = (crossDemand1 + crossDemand2) / 2;
+        
+        supplyData.push(monthlySupply);
+        localDemandData.push(localDemand);
+        crossLocationData.push(crossDemand); // Just the cross-location portion
+    }
     
-    if (distributionChart) {
-        distributionChart.destroy();
+    if (supplyDemandOverviewChart) {
+        supplyDemandOverviewChart.destroy();
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
     const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    const gridColor = isDarkMode ? '#444' : '#e0e0e0';
     
-    distributionChart = new Chart(ctx, {
-        type: 'doughnut',
+    supplyDemandOverviewChart = new Chart(ctx, {
+        type: 'line',
         data: {
-            labels: Object.keys(distribution),
+            labels: labels,
             datasets: [{
-                data: Object.values(distribution),
-                backgroundColor: [
-                    '#3498db',
-                    '#e74c3c',
-                    '#f39c12',
-                    '#2ecc71',
-                    '#9b59b6'
-                ],
-                borderColor: isDarkMode ? '#2a2a2a' : '#fff',
-                borderWidth: 2
+                label: 'Trainer Supply',
+                data: supplyData,
+                borderColor: '#2ecc71',
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                tension: 0.1,
+                order: 0
+            }, {
+                label: 'Local Demand',
+                data: localDemandData,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.3)',
+                fill: 'origin',
+                tension: 0.3,
+                order: 2
+            }, {
+                label: 'Cross-Location Demand',
+                data: crossLocationData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.3)',
+                fill: '+1',
+                tension: 0.3,
+                order: 1
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
-                    position: 'right',
+                    position: 'top',
                     labels: {
+                        color: textColor,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        footer: function(tooltipItems) {
+                            const supply = supplyData[tooltipItems[0].dataIndex];
+                            const totalDemand = localDemandData[tooltipItems[0].dataIndex] + 
+                                              crossLocationData[tooltipItems[0].dataIndex];
+                            const balance = supply - totalDemand;
+                            
+                            return [
+                                `Total Demand: ${totalDemand.toFixed(1)} FTE`,
+                                `${balance >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(balance).toFixed(1)} FTE`
+                            ];
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'FTE',
                         color: textColor
+                    },
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
                     }
                 }
             }
@@ -8249,12 +8911,12 @@ function updateDashboardV2() {
     updateChartsV2();
     updatePipelineV2();
     updateAlertsV2();
-    // New visualizations - TODO: implement these functions
-    // updateTrainerHeatmap();
-    // updateSupplyDemandChart();
-    // updatePhaseBreakdown();
-    // updateWorkloadChart();
-    // updateDetailCards();
+    // Enhanced visualizations
+    updateTrainerHeatmap();
+    updateSupplyDemandChart();
+    updatePhaseBreakdown();
+    updateWorkloadChart();
+    updateDetailCards();
 }
 
 function updateMetricsV2() {
@@ -8438,83 +9100,173 @@ function updateDemandChartV2() {
 }
 
 function updateDistributionChartV2() {
-    const ctx = document.getElementById('distribution-chart-v2').getContext('2d');
+    const canvas = document.getElementById('distribution-chart-v2');
+    if (canvas) {
+        // Legacy - redirect to supply-demand overview v2
+        updateSupplyDemandOverviewV2();
+        return;
+    }
     
-    // Count trainees by pathway type
-    const distribution = {};
+    updateSupplyDemandOverviewV2();
+}
+
+let supplyDemandOverviewChartV2 = null;
+
+function updateSupplyDemandOverviewV2() {
+    const ctx = document.getElementById('supply-demand-overview-v2')?.getContext('2d');
+    if (!ctx) return;
+    
+    const { demand, crossLocationDemand } = calculateDemand();
     const currentDate = new Date();
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
-    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
     
-    activeCohorts.forEach(cohort => {
-        const pathway = pathways.find(p => p.id === cohort.pathwayId);
-        if (!pathway) return;
-        
-        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
-        let endFortnight = cohort.startFortnight + duration - 1;
-        let endYear = cohort.startYear;
-        
-        while (endFortnight > FORTNIGHTS_PER_YEAR) {
-            endFortnight -= FORTNIGHTS_PER_YEAR;
-            endYear++;
+    // Prepare data for the next 12 months
+    const labels = [];
+    const supplyData = [];
+    const localDemandData = [];
+    const crossLocationData = [];
+    const totalDemandData = []; // For stacking
+    const otherLocationLabel = currentLocation === 'AU' ? 'NZ' : 'AU';
+    
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
         }
         
-        // Check if cohort is currently in training
-        const startPassed = cohort.startYear < currentYear || 
-            (cohort.startYear === currentYear && cohort.startFortnight <= currentFortnight);
-        const endNotReached = endYear > currentYear || 
-            (endYear === currentYear && endFortnight >= currentFortnight);
-            
-        if (startPassed && endNotReached) {
-            const type = pathway.type || 'Other';
-            distribution[type] = (distribution[type] || 0) + cohort.numTrainees;
-        }
-    });
+        labels.push(`${MONTHS[month].substr(0, 3)} ${year}`);
+        
+        // Calculate monthly averages (2 fortnights per month)
+        const fn1 = (month * 2) + 1;
+        const fn2 = (month * 2) + 2;
+        
+        // Total supply from current location
+        const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
+        const monthlySupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR; // Use fortnightly FTE capacity
+        
+        // Get demand for current location
+        const totalDemand1 = demand[year]?.[fn1]?.total || 0;
+        const totalDemand2 = demand[year]?.[fn2]?.total || 0;
+        
+        // Cross-location demand is demand from other location using current location's trainers
+        const crossDemand1 = crossLocationDemand[year]?.[fn1]?.[currentLocation]?.total || 0;
+        const crossDemand2 = crossLocationDemand[year]?.[fn2]?.[currentLocation]?.total || 0;
+        
+        // Local demand is total demand minus cross-location demand
+        // Total demand already includes cross-location, so subtract to get just local
+        const localDemand = ((totalDemand1 - crossDemand1 + totalDemand2 - crossDemand2) / 2);
+        const crossDemand = (crossDemand1 + crossDemand2) / 2;
+        
+        supplyData.push(monthlySupply);
+        localDemandData.push(localDemand);
+        crossLocationData.push(crossDemand); // Just the cross-location portion
+        totalDemandData.push(localDemand + crossDemand); // Total for reference
+    }
     
-    if (distributionChartV2) {
-        distributionChartV2.destroy();
+    if (supplyDemandOverviewChartV2) {
+        supplyDemandOverviewChartV2.destroy();
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
     const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    const gridColor = isDarkMode ? '#444' : '#e0e0e0';
     
-    distributionChartV2 = new Chart(ctx, {
-        type: 'doughnut',
+    supplyDemandOverviewChartV2 = new Chart(ctx, {
+        type: 'line',
         data: {
-            labels: Object.keys(distribution),
+            labels: labels,
             datasets: [{
-                data: Object.values(distribution),
-                backgroundColor: [
-                    '#3498db',
-                    '#e74c3c',
-                    '#f39c12',
-                    '#2ecc71',
-                    '#9b59b6'
-                ],
-                borderColor: isDarkMode ? '#2a2a2a' : '#fff',
-                borderWidth: 2
+                label: `${currentLocation} Demand`,
+                data: localDemandData,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.3)',
+                fill: true,
+                stack: 'demand',
+                borderWidth: 2,
+                tension: 0.3,
+                order: 2
+            }, {
+                label: `${otherLocationLabel} Training in ${currentLocation}`,
+                data: crossLocationData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.3)',
+                fill: true,
+                stack: 'demand',
+                borderWidth: 2,
+                tension: 0.3,
+                order: 1
+            }, {
+                label: 'Trainer Supply',
+                data: supplyData,
+                borderColor: '#2ecc71',
+                backgroundColor: 'transparent',
+                borderWidth: 3,
+                borderDash: [5, 5],
+                pointRadius: 4,
+                pointHoverRadius: 6,
+                tension: 0.1,
+                fill: false,
+                stack: 'supply',
+                order: 0
             }]
         },
         options: {
             responsive: true,
             maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
             plugins: {
                 legend: {
-                    position: 'right',
+                    position: 'top',
                     labels: {
-                        color: textColor
+                        color: textColor,
+                        usePointStyle: true
                     }
                 },
                 tooltip: {
                     callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.parsed;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = ((value / total) * 100).toFixed(1);
-                            return `${label}: ${value} (${percentage}%)`;
+                        footer: function(tooltipItems) {
+                            const supply = supplyData[tooltipItems[0].dataIndex];
+                            const totalDemand = localDemandData[tooltipItems[0].dataIndex] + 
+                                              crossLocationData[tooltipItems[0].dataIndex];
+                            const balance = supply - totalDemand;
+                            
+                            return [
+                                `Total Demand: ${totalDemand.toFixed(1)} FTE`,
+                                `${balance >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(balance).toFixed(1)} FTE`
+                            ];
                         }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    stacked: true,
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'FTE',
+                        color: textColor
+                    },
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
                     }
                 }
             }
@@ -8820,7 +9572,12 @@ function updateTrainerHeatmap() {
     });
     
     // Check if we have any data to display
-    if (!demand || !demand[currentYear] || Object.keys(demand[currentYear]).length === 0) {
+    const hasCurrentYearData = demand && demand[currentYear] && Object.keys(demand[currentYear]).length > 0;
+    const hasAnyData = demand && Object.keys(demand).some(year => 
+        Object.keys(demand[year] || {}).length > 0
+    );
+    
+    if (!hasAnyData) {
         container.innerHTML = `
             <div style="text-align: center; color: #999; padding: 40px;">
                 No training demand data available<br>
@@ -9022,6 +9779,180 @@ function drawGauge(canvasId, demand, supply) {
     ctx.stroke();
 }
 
+let supplyDemandChart = null;
+
+function updateSupplyDemandChart() {
+    const ctx = document.getElementById('supply-demand-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    const { demand } = calculateDemand();
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    // Prepare data for the next 12 months
+    const labels = [];
+    const supplyData = [];
+    const demandData = [];
+    const surplusDeficitData = [];
+    
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
+        }
+        
+        labels.push(`${MONTHS[month]} ${year}`);
+        
+        // Calculate supply and demand for the month
+        const fn1 = (month * 2) + 1;
+        const fn2 = (month * 2) + 2;
+        
+        // Total supply from current location
+        const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
+        const monthlySupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR; // Use fortnightly FTE capacity // Convert annual to monthly
+        
+        // Total demand (average of two fortnights)
+        const monthlyDemand = ((demand[year]?.[fn1]?.total || 0) + 
+                              (demand[year]?.[fn2]?.total || 0)) / 2;
+        
+        supplyData.push(monthlySupply);
+        demandData.push(monthlyDemand);
+        surplusDeficitData.push(monthlySupply - monthlyDemand);
+    }
+    
+    // Check if we have any data
+    const hasData = supplyData.some(s => s > 0) || demandData.some(d => d > 0);
+    
+    if (!hasData) {
+        if (supplyDemandChart) {
+            supplyDemandChart.destroy();
+            supplyDemandChart = null;
+        }
+        
+        const canvas = document.getElementById('supply-demand-chart');
+        const wrapper = canvas.closest('.chart-wrapper');
+        
+        const existingMsg = wrapper.querySelector('#supply-demand-empty-msg');
+        if (existingMsg) existingMsg.remove();
+        
+        canvas.style.display = 'none';
+        
+        const emptyMsg = document.createElement('div');
+        emptyMsg.id = 'supply-demand-empty-msg';
+        emptyMsg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #999; width: 80%;';
+        emptyMsg.innerHTML = 'No supply/demand data available<br><small>Configure FTE and add cohorts to see forecast</small>';
+        wrapper.appendChild(emptyMsg);
+        
+        return;
+    } else {
+        const emptyMsg = document.getElementById('supply-demand-empty-msg');
+        if (emptyMsg) emptyMsg.remove();
+        document.getElementById('supply-demand-chart').style.display = 'block';
+    }
+    
+    if (supplyDemandChart) {
+        supplyDemandChart.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    const gridColor = isDarkMode ? '#444' : '#e0e0e0';
+    
+    supplyDemandChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Supply',
+                data: supplyData,
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.2)',
+                fill: '+1',
+                tension: 0.4
+            }, {
+                label: 'Demand',
+                data: demandData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.2)',
+                fill: 'origin',
+                tension: 0.4
+            }, {
+                label: 'Surplus/Deficit',
+                data: surplusDeficitData,
+                borderColor: '#3498db',
+                backgroundColor: (context) => {
+                    const value = context.parsed?.y;
+                    if (value === undefined || value === null) return 'rgba(52, 152, 219, 0.1)';
+                    return value >= 0 ? 'rgba(46, 204, 113, 0.1)' : 'rgba(231, 76, 60, 0.1)';
+                },
+                fill: true,
+                tension: 0.4,
+                hidden: true
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: textColor,
+                        usePointStyle: true
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            if (context.datasetIndex < 2) {
+                                const supply = supplyData[context.dataIndex];
+                                const demand = demandData[context.dataIndex];
+                                const diff = supply - demand;
+                                return `${diff >= 0 ? 'Surplus' : 'Deficit'}: ${Math.abs(diff).toFixed(1)} FTE`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'FTE',
+                        color: textColor
+                    },
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: textColor,
+                        maxRotation: 45,
+                        minRotation: 45
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                }
+            }
+        }
+    });
+}
+
 let phaseBreakdownChart = null;
 let phaseBreakdownUpdating = false;
 
@@ -9051,8 +9982,9 @@ function updatePhaseBreakdown() {
         'Line Training - FO': 0
     };
     
-    // Use cohorts from current location
-    const cohorts = locationData[currentLocation]?.activeCohorts || activeCohorts;
+    // Use cohorts from current location or fall back to activeCohorts
+    const locationCohorts = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].activeCohorts : null;
+    const cohorts = locationCohorts && locationCohorts.length > 0 ? locationCohorts : activeCohorts;
     
     // Check if we have any cohorts
     if (!cohorts || cohorts.length === 0) {
@@ -9287,6 +10219,10 @@ function updateWorkloadChart() {
 function updateDetailCards() {
     const { demand } = calculateDemand();
     const currentYear = new Date().getFullYear();
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    
+    console.log('UpdateDetailCards - demand:', demand);
+    console.log('UpdateDetailCards - cohorts:', cohorts.length);
     
     // Find peak demand period
     let peakDemand = 0;
@@ -9307,8 +10243,10 @@ function updateDetailCards() {
         }
     }
     
-    document.getElementById('peak-demand-period').textContent = `${peakMonth} ${peakYear}`;
-    document.getElementById('peak-demand-detail').textContent = `${(peakDemand / 2).toFixed(1)} FTE average`;
+    const peakPeriodEl = document.getElementById('peak-demand-period');
+    const peakDetailEl = document.getElementById('peak-demand-detail');
+    if (peakPeriodEl) peakPeriodEl.textContent = peakMonth ? `${peakMonth} ${peakYear}` : '-';
+    if (peakDetailEl) peakDetailEl.textContent = peakDemand > 0 ? `${(peakDemand / 2).toFixed(1)} FTE average` : '-';
     
     // Calculate supply/demand balance
     const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
@@ -9316,19 +10254,25 @@ function updateDetailCards() {
     const avgDemand = calculateAverageDemand(demand, currentYear);
     const balance = totalSupply - avgDemand;
     
-    document.getElementById('supply-balance').textContent = balance >= 0 ? 'Balanced' : 'Deficit';
-    document.getElementById('balance-detail').textContent = `${Math.abs(balance).toFixed(1)} FTE ${balance >= 0 ? 'surplus' : 'shortage'}`;
+    const balanceEl = document.getElementById('supply-balance');
+    const balanceDetailEl = document.getElementById('balance-detail');
+    if (balanceEl) balanceEl.textContent = totalSupply > 0 ? (balance >= 0 ? 'Balanced' : 'Deficit') : '-';
+    if (balanceDetailEl) balanceDetailEl.textContent = totalSupply > 0 ? `${Math.abs(balance).toFixed(1)} FTE ${balance >= 0 ? 'surplus' : 'shortage'}` : '-';
     
     // Calculate training efficiency
     const completionRate = calculateCompletionRate();
-    document.getElementById('training-efficiency').textContent = `${completionRate}%`;
-    document.getElementById('efficiency-detail').textContent = 'On-time completion rate';
+    const efficiencyEl = document.getElementById('training-efficiency');
+    const efficiencyDetailEl = document.getElementById('efficiency-detail');
+    if (efficiencyEl) efficiencyEl.textContent = `${completionRate}%`;
+    if (efficiencyDetailEl) efficiencyDetailEl.textContent = 'On-time completion rate';
     
     // Calculate forecast confidence
-    const dataPoints = activeCohorts.length;
+    const dataPoints = cohorts.length;
     const confidence = Math.min(95, 50 + (dataPoints * 2.5));
-    document.getElementById('forecast-confidence').textContent = `${Math.round(confidence)}%`;
-    document.getElementById('confidence-detail').textContent = `Based on ${dataPoints} active cohorts`;
+    const confidenceEl = document.getElementById('forecast-confidence');
+    const confidenceDetailEl = document.getElementById('confidence-detail');
+    if (confidenceEl) confidenceEl.textContent = `${Math.round(confidence)}%`;
+    if (confidenceDetailEl) confidenceDetailEl.textContent = `Based on ${dataPoints} active cohorts`;
 }
 
 function calculateAverageDemand(demand, year) {
@@ -9952,3 +10896,63 @@ window.toggleDashboardView = function(version) {
     // Save preference
     localStorage.setItem('dashboardVersion', version);
 };
+
+// Get localStorage usage stats
+function getStorageStats() {
+    let stats = {
+        totalSize: 0,
+        items: {},
+        scenarioCount: 0,
+        largestScenario: null,
+        largestScenarioSize: 0
+    };
+    
+    // Calculate size of each localStorage item
+    for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+            const value = localStorage[key];
+            const size = (value.length + key.length) * 2; // UTF-16 = 2 bytes per char
+            stats.items[key] = {
+                size: size,
+                sizeKB: (size / 1024).toFixed(2) + ' KB'
+            };
+            stats.totalSize += size;
+        }
+    }
+    
+    // Analyze scenarios specifically
+    try {
+        const scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios') || '[]');
+        stats.scenarioCount = scenarios.length;
+        
+        scenarios.forEach(scenario => {
+            const scenarioSize = JSON.stringify(scenario).length * 2;
+            if (scenarioSize > stats.largestScenarioSize) {
+                stats.largestScenarioSize = scenarioSize;
+                stats.largestScenario = scenario.name;
+            }
+        });
+    } catch (e) {
+        console.error('Error parsing scenarios:', e);
+    }
+    
+    stats.totalSizeKB = (stats.totalSize / 1024).toFixed(2) + ' KB';
+    stats.totalSizeMB = (stats.totalSize / 1024 / 1024).toFixed(2) + ' MB';
+    stats.percentUsed = ((stats.totalSize / (5 * 1024 * 1024)) * 100).toFixed(1) + '%'; // Assume 5MB limit
+    
+    return stats;
+}
+
+// Log storage stats to console (for debugging)
+function logStorageStats() {
+    const stats = getStorageStats();
+    console.log('=== LocalStorage Usage Stats ===');
+    console.log(`Total Size: ${stats.totalSizeMB} MB (${stats.percentUsed} of typical 5MB limit)`);
+    console.log(`Scenarios: ${stats.scenarioCount} scenarios stored`);
+    if (stats.largestScenario) {
+        console.log(`Largest Scenario: "${stats.largestScenario}" (${(stats.largestScenarioSize / 1024).toFixed(2)} KB)`);
+    }
+    console.log('\nBreakdown by key:');
+    console.table(stats.items);
+    return stats;
+}
