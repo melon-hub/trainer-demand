@@ -45,17 +45,17 @@ Allow cohorts to utilize trainer capacity from other locations for specific Line
   - [x] Add pattern/stripe overlay for cross-location phases
   - [x] Different color intensity for phases using other location
   - [x] Update tooltips to show "Using [Location] trainers"
-  - [ ] Add legend explaining visual indicators
-- [ ] Demand tables:
-  - [ ] Add footnote indicators for cross-location usage
-  - [ ] Show allocation details in tooltips
+  - [x] Add legend explaining visual indicators
+- [x] Demand tables:
+  - [x] Add footnote indicators for cross-location usage
+  - [x] Show allocation details in tooltips
 
 ### Phase 5: Supply/Demand Analysis
-- [ ] Update `calculateSupplyDeficit()` to account for cross-location demand
-- [ ] Create new summary section showing:
-  - [ ] Cross-location trainer movements by period
-  - [ ] Net trainer flow between locations
-  - [ ] Impact on capacity utilization
+- [x] Update `calculateSupplyDeficit()` to account for cross-location demand
+- [x] Create new summary section showing:
+  - [x] Cross-location trainer movements by period
+  - [x] Net trainer flow between locations
+  - [x] Impact on capacity utilization
 - [ ] Add validation warnings for over-allocation
 
 ### Phase 6: Reporting & Analytics

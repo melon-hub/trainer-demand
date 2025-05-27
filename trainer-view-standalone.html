@@ -4701,6 +4701,13 @@ body.dark-mode .location-tab.active {
     color: #495057;
 }
 
+.cross-location-table .phase-header {
+    background: #d6e9f8;
+    font-weight: 600;
+    color: #0066cc;
+    border-bottom: 2px solid #0066cc;
+}
+
 .cross-location-table .fortnight-header {
     background: #f8f9fa;
     font-weight: 500;
@@ -4797,6 +4804,12 @@ body.dark-mode .cross-location-table .sticky-col {
 body.dark-mode .cross-location-table .month-header {
     background: #3a3a3a;
     color: #b0b0b0;
+}
+
+body.dark-mode .cross-location-table .phase-header {
+    background: #1a3a52;
+    color: #6bb6ff;
+    border-bottom-color: #6bb6ff;
 }
 
 body.dark-mode .cross-location-table .fortnight-header {
@@ -9201,138 +9214,175 @@ function generateCrossLocationUI(cohort) {
     const otherLocation = cohort.location === 'AU' ? 'NZ' : 'AU';
     let html = '';
     
-    // Calculate phase fortnights
+    // First, collect all LT phases and their ranges
+    let ltPhases = [];
     let currentFortnight = cohort.startFortnight;
     let currentYear = cohort.startYear;
     
     pathway.phases.forEach((phase, phaseIndex) => {
-        // Only show LT phases (those with trainer demand)
-        if (!phase.trainerDemandType) {
-            // Skip non-LT phases but still advance fortnight counter
-            for (let i = 0; i < phase.duration; i++) {
-                currentFortnight++;
-                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
-                    currentFortnight = 1;
-                    currentYear++;
-                }
-            }
-            return;
+        if (phase.trainerDemandType) {
+            // This is an LT phase
+            ltPhases.push({
+                name: phase.name,
+                startFortnight: currentFortnight,
+                startYear: currentYear,
+                duration: phase.duration,
+                globalStartFortnight: (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight
+            });
         }
         
-        html += `<div class="cross-location-phase">`;
-        html += `<h4>${phase.name} Phase (${phase.duration} fortnights)</h4>`;
-        
-        // Create timeline table for this phase
-        html += `<div class="cross-location-timeline">`;
-        html += `<table class="cross-location-table">`;
-        
-        // Build headers - months and fortnights
-        html += `<thead>`;
-        
-        // Month row
+        // Advance fortnight counter
+        currentFortnight += phase.duration;
+        while (currentFortnight > FORTNIGHTS_PER_YEAR) {
+            currentFortnight -= FORTNIGHTS_PER_YEAR;
+            currentYear++;
+        }
+    });
+    
+    if (ltPhases.length === 0) {
+        container.innerHTML = '<p>No line training phases in this pathway</p>';
+        return;
+    }
+    
+    // Calculate the total range of all LT phases
+    const firstPhase = ltPhases[0];
+    const lastPhase = ltPhases[ltPhases.length - 1];
+    const startFortnight = firstPhase.startFortnight;
+    const startYear = firstPhase.startYear;
+    let endFortnight = lastPhase.startFortnight + lastPhase.duration - 1;
+    let endYear = lastPhase.startYear;
+    while (endFortnight > FORTNIGHTS_PER_YEAR) {
+        endFortnight -= FORTNIGHTS_PER_YEAR;
+        endYear++;
+    }
+    
+    // Create one unified table
+    html += `<div class="cross-location-phase">`;
+    html += `<h4>Line Training Configuration</h4>`;
+    html += `<div class="cross-location-timeline">`;
+    html += `<table class="cross-location-table">`;
+    
+    // Build headers
+    html += `<thead>`;
+    
+    // Phase indicators row (if multiple phases)
+    if (ltPhases.length > 1) {
         html += `<tr>`;
-        html += `<th rowspan="2" class="sticky-col">Location</th>`;
+        html += `<th rowspan="3" class="sticky-col">Location</th>`;
         
-        let tempFortnight = currentFortnight;
-        let tempYear = currentYear;
-        let monthSpans = {};
-        
-        // First pass: count fortnights per month
-        for (let i = 0; i < phase.duration; i++) {
-            const monthIndex = Math.floor((tempFortnight - 1) / 2);
-            const monthKey = `${MONTHS[monthIndex]}-${tempYear}`;
-            monthSpans[monthKey] = (monthSpans[monthKey] || 0) + 1;
-            
-            tempFortnight++;
-            if (tempFortnight > FORTNIGHTS_PER_YEAR) {
-                tempFortnight = 1;
-                tempYear++;
-            }
-        }
-        
-        // Generate month headers
-        Object.entries(monthSpans).forEach(([monthKey, span]) => {
-            html += `<th colspan="${span}" class="month-header">${monthKey}</th>`;
+        ltPhases.forEach((phase, index) => {
+            html += `<th colspan="${phase.duration}" class="phase-header">${phase.name}</th>`;
         });
         html += `</tr>`;
+    }
+    
+    // Month row
+    html += `<tr>`;
+    if (ltPhases.length === 1) {
+        html += `<th rowspan="2" class="sticky-col">Location</th>`;
+    }
+    
+    let tempFortnight = startFortnight;
+    let tempYear = startYear;
+    let monthSpans = {};
+    
+    // Count fortnights per month across all LT phases
+    while (tempYear < endYear || (tempYear === endYear && tempFortnight <= endFortnight)) {
+        const monthIndex = Math.floor((tempFortnight - 1) / 2);
+        const monthKey = `${MONTHS[monthIndex]}-${tempYear}`;
+        monthSpans[monthKey] = (monthSpans[monthKey] || 0) + 1;
         
-        // Fortnight row
-        html += `<tr>`;
-        tempFortnight = currentFortnight;
-        tempYear = currentYear;
-        for (let i = 0; i < phase.duration; i++) {
-            html += `<th class="fortnight-header">FN${String(tempFortnight).padStart(2, '0')}</th>`;
-            tempFortnight++;
-            if (tempFortnight > FORTNIGHTS_PER_YEAR) {
-                tempFortnight = 1;
-                tempYear++;
-            }
+        tempFortnight++;
+        if (tempFortnight > FORTNIGHTS_PER_YEAR) {
+            tempFortnight = 1;
+            tempYear++;
         }
-        html += `</tr>`;
-        html += `</thead>`;
-        
-        // Body with radio buttons
-        html += `<tbody>`;
-        
-        // Home location row
-        html += `<tr>`;
-        html += `<td class="location-label">${cohort.location} (home)</td>`;
-        
+    }
+    
+    // Generate month headers
+    Object.entries(monthSpans).forEach(([monthKey, span]) => {
+        html += `<th colspan="${span}" class="month-header">${monthKey}</th>`;
+    });
+    html += `</tr>`;
+    
+    // Fortnight row
+    html += `<tr>`;
+    tempFortnight = startFortnight;
+    tempYear = startYear;
+    while (tempYear < endYear || (tempYear === endYear && tempFortnight <= endFortnight)) {
+        html += `<th class="fortnight-header">FN${String(tempFortnight).padStart(2, '0')}</th>`;
+        tempFortnight++;
+        if (tempFortnight > FORTNIGHTS_PER_YEAR) {
+            tempFortnight = 1;
+            tempYear++;
+        }
+    }
+    html += `</tr>`;
+    html += `</thead>`;
+    
+    // Body with radio buttons
+    html += `<tbody>`;
+    
+    // Home location row
+    html += `<tr>`;
+    html += `<td class="location-label">${cohort.location} (home)</td>`;
+    
+    tempFortnight = startFortnight;
+    tempYear = startYear;
+    let radioIndex = 0;
+    
+    ltPhases.forEach(phase => {
         for (let i = 0; i < phase.duration; i++) {
-            const fn = currentFortnight;
-            const year = currentYear;
-            const globalFortnight = (year - cohort.startYear) * FORTNIGHTS_PER_YEAR + fn;
+            const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
             const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[phase.name]?.includes(globalFortnight);
             
             html += `<td class="radio-cell">`;
-            html += `<input type="radio" name="cross-loc-${phase.name}-${i}" value="${cohort.location}" 
+            html += `<input type="radio" name="cross-loc-${radioIndex}" value="${cohort.location}" 
                     ${!usesCrossLocation ? 'checked' : ''} data-phase="${phase.name}" data-fortnight="${globalFortnight}">`;
             html += `</td>`;
             
-            currentFortnight++;
-            if (currentFortnight > FORTNIGHTS_PER_YEAR) {
-                currentFortnight = 1;
-                currentYear++;
+            tempFortnight++;
+            if (tempFortnight > FORTNIGHTS_PER_YEAR) {
+                tempFortnight = 1;
+                tempYear++;
             }
+            radioIndex++;
         }
-        html += `</tr>`;
-        
-        // Other location row
-        html += `<tr>`;
-        html += `<td class="location-label">${otherLocation}</td>`;
-        
-        // Reset counters for second row
-        currentFortnight = currentFortnight - phase.duration;
-        currentYear = currentYear;
-        if (currentFortnight < 1) {
-            currentFortnight += FORTNIGHTS_PER_YEAR;
-            currentYear--;
-        }
-        
+    });
+    html += `</tr>`;
+    
+    // Other location row
+    html += `<tr>`;
+    html += `<td class="location-label">${otherLocation}</td>`;
+    
+    tempFortnight = startFortnight;
+    tempYear = startYear;
+    radioIndex = 0;
+    
+    ltPhases.forEach(phase => {
         for (let i = 0; i < phase.duration; i++) {
-            const fn = currentFortnight;
-            const year = currentYear;
-            const globalFortnight = (year - cohort.startYear) * FORTNIGHTS_PER_YEAR + fn;
+            const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
             const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[phase.name]?.includes(globalFortnight);
             
             html += `<td class="radio-cell">`;
-            html += `<input type="radio" name="cross-loc-${phase.name}-${i}" value="${otherLocation}" 
+            html += `<input type="radio" name="cross-loc-${radioIndex}" value="${otherLocation}" 
                     ${usesCrossLocation ? 'checked' : ''} data-phase="${phase.name}" data-fortnight="${globalFortnight}">`;
             html += `</td>`;
             
-            currentFortnight++;
-            if (currentFortnight > FORTNIGHTS_PER_YEAR) {
-                currentFortnight = 1;
-                currentYear++;
+            tempFortnight++;
+            if (tempFortnight > FORTNIGHTS_PER_YEAR) {
+                tempFortnight = 1;
+                tempYear++;
             }
+            radioIndex++;
         }
-        html += `</tr>`;
-        
-        html += `</tbody>`;
-        html += `</table>`;
-        html += `</div>`;
-        html += `</div>`;
     });
+    html += `</tr>`;
+    
+    html += `</tbody>`;
+    html += `</table>`;
+    html += `</div>`;
+    html += `</div>`;
     
     // Add summary
     html += `<div class="cross-location-summary" id="cross-location-summary">`;

@@ -190,6 +190,13 @@ Training demands are served in priority order with cascading allocation:
 ## Deployment
 Simply serve the files via any web server or open index.html directly in a browser. No build process required.
 
+## Screenshots analysis 
+- When user mention "latest screenshot" or ask you to review a screenshot, please check the screenshots/ folder in this project directory and analyze the most recently created/modified image file.
+- Check the screenshots/ folder
+- Identify the most recent file by timestamp
+- Analyze that image and provide feedback
+- If multiple recent screenshots exist, ask which specific one to review
+
 #Github
 - Never commit to main
 - When committing anything at users request, it must always have a tag
