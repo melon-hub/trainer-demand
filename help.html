@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help - Pilot Trainer Supply/Demand Planner</title>
+    <link rel="stylesheet" href="help-styles.css">
+</head>
+<body>
+    <div id="help-container">
+        <!-- Header with Search -->
+        <header class="help-header">
+            <div class="help-search-container">
+                <input type="text" id="help-search" placeholder="🔍 Search for help..." autocomplete="off">
+                <div id="search-results" class="search-results"></div>
+            </div>
+            <button id="help-close" class="help-close" title="Close Help">×</button>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="help-main">
+            <!-- Navigation Sidebar -->
+            <nav class="help-nav">
+                <div class="nav-section">
+                    <h3>Getting Started</h3>
+                    <ul>
+                        <li><a href="#welcome" class="nav-link active">Welcome</a></li>
+                        <li><a href="#quick-start" class="nav-link">Quick Start Guide</a></li>
+                        <li><a href="#key-concepts" class="nav-link">Key Concepts</a></li>
+                        <li><a href="#navigation" class="nav-link">Navigation</a></li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Dashboard</h3>
+                    <ul>
+                        <li><a href="#dashboard-overview" class="nav-link">Overview</a></li>
+                        <li><a href="#metrics-cards" class="nav-link">Metrics Cards</a></li>
+                        <li><a href="#demand-charts" class="nav-link">Demand Charts</a></li>
+                        <li><a href="#heat-map" class="nav-link">Utilization Heat Map</a></li>
+                        <li><a href="#training-pipeline" class="nav-link">Training Pipeline</a></li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Training Planner</h3>
+                    <ul>
+                        <li><a href="#planner-overview" class="nav-link">Overview</a></li>
+                        <li><a href="#adding-cohorts" class="nav-link">Adding Cohorts</a></li>
+                        <li><a href="#gantt-chart" class="nav-link">Gantt Chart</a></li>
+                        <li><a href="#demand-tables" class="nav-link">Demand Tables</a></li>
+                        <li><a href="#cross-location" class="nav-link">Cross-Location Training</a></li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Settings</h3>
+                    <ul>
+                        <li><a href="#pathways" class="nav-link">Training Pathways</a></li>
+                        <li><a href="#fte-management" class="nav-link">FTE Management</a></li>
+                        <li><a href="#priorities" class="nav-link">Priority Configuration</a></li>
+                        <li><a href="#trainer-categories" class="nav-link">Trainer Categories</a></li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Scenarios</h3>
+                    <ul>
+                        <li><a href="#scenarios-overview" class="nav-link">Overview</a></li>
+                        <li><a href="#creating-scenarios" class="nav-link">Creating Scenarios</a></li>
+                        <li><a href="#comparing-scenarios" class="nav-link">Comparing Scenarios</a></li>
+                        <li><a href="#import-export" class="nav-link">Import/Export</a></li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Calculations</h3>
+                    <ul>
+                        <li><a href="#supply-calc" class="nav-link">Supply Calculation</a></li>
+                        <li><a href="#demand-calc" class="nav-link">Demand Calculation</a></li>
+                        <li><a href="#utilization-calc" class="nav-link">Utilization</a></li>
+                        <li><a href="#allocation" class="nav-link">Cascading Allocation</a></li>
+                    </ul>
+                </div>
+                
+                <div class="nav-section">
+                    <h3>Tips & Best Practices</h3>
+                    <ul>
+                        <li><a href="#capacity-planning" class="nav-link">Capacity Planning</a></li>
+                        <li><a href="#optimization" class="nav-link">Optimization Tips</a></li>
+                        <li><a href="#troubleshooting" class="nav-link">Troubleshooting</a></li>
+                        <li><a href="#keyboard-shortcuts" class="nav-link">Keyboard Shortcuts</a></li>
+                    </ul>
+                </div>
+            </nav>
+
+            <!-- Content Area -->
+            <main class="help-content" id="help-content">
+                <!-- Content will be dynamically loaded here -->
+            </main>
+        </div>
+    </div>
+
+    <!-- Help Content Templates -->
+    <div id="help-templates" style="display: none;">
+        <!-- Welcome Content -->
+        <template id="welcome-content">
+            <div class="content-section">
+                <h1>Welcome to Pilot Trainer Supply/Demand Planner</h1>
+                <div class="welcome-hero">
+                    <p class="lead">Optimize your airline's pilot training capacity with intelligent supply and demand forecasting.</p>
+                </div>
+                
+                <div class="quick-actions">
+                    <button class="action-button primary" onclick="startTour()">
+                        <span class="icon">🚀</span>
+                        Start Guided Tour
+                    </button>
+                    <button class="action-button" onclick="loadContent('quick-start')">
+                        <span class="icon">📖</span>
+                        Quick Start Guide
+                    </button>
+                    <button class="action-button" onclick="loadContent('key-concepts')">
+                        <span class="icon">💡</span>
+                        Key Concepts
+                    </button>
+                </div>
+
+                <h2>What is this application?</h2>
+                <p>The Pilot Trainer Supply/Demand Planner is a comprehensive tool designed to help airlines manage their pilot training programs efficiently. It allows you to:</p>
+                
+                <ul class="feature-list">
+                    <li><strong>Forecast Training Demand:</strong> Plan cohorts of pilots through various training pathways</li>
+                    <li><strong>Manage Trainer Supply:</strong> Track trainer availability across different categories</li>
+                    <li><strong>Identify Capacity Constraints:</strong> Visualize when demand exceeds supply</li>
+                    <li><strong>Optimize Resources:</strong> Use cross-location training and priority allocation</li>
+                    <li><strong>Compare Scenarios:</strong> Test different training strategies</li>
+                </ul>
+
+                <h2>Key Benefits</h2>
+                <div class="benefits-grid">
+                    <div class="benefit-card">
+                        <span class="benefit-icon">📊</span>
+                        <h3>Data-Driven Decisions</h3>
+                        <p>Make informed decisions based on accurate supply and demand forecasts</p>
+                    </div>
+                    <div class="benefit-card">
+                        <span class="benefit-icon">⚡</span>
+                        <h3>Real-Time Analysis</h3>
+                        <p>Instantly see the impact of changes to your training schedule</p>
+                    </div>
+                    <div class="benefit-card">
+                        <span class="benefit-icon">🌏</span>
+                        <h3>Multi-Location Support</h3>
+                        <p>Manage training across multiple locations with cross-location capabilities</p>
+                    </div>
+                    <div class="benefit-card">
+                        <span class="benefit-icon">📈</span>
+                        <h3>Capacity Optimization</h3>
+                        <p>Maximize trainer utilization while meeting training demands</p>
+                    </div>
+                </div>
+
+                <div class="help-tip">
+                    <span class="tip-icon">💡</span>
+                    <strong>Tip:</strong> Press F1 at any time to open this help guide, or click the help icon in the top-right corner.
+                </div>
+            </div>
+        </template>
+
+        <!-- Quick Start Content -->
+        <template id="quick-start-content">
+            <div class="content-section">
+                <h1>Quick Start Guide</h1>
+                <p class="lead">Get up and running with the Trainer Planner in just a few minutes.</p>
+
+                <div class="steps-container">
+                    <div class="step">
+                        <div class="step-number">1</div>
+                        <div class="step-content">
+                            <h3>Configure Your Settings</h3>
+                            <p>Start by setting up your training pathways and trainer FTE (Full-Time Equivalent) numbers.</p>
+                            <ol>
+                                <li>Go to the <strong>Settings</strong> tab</li>
+                                <li>Review the default pathways (CAD, FO, CP) or add custom ones</li>
+                                <li>Set your trainer FTE for each category and year</li>
+                            </ol>
+                            <div class="step-visual">
+                                <img src="screenshots/settings-overview.png" alt="Settings Overview">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">2</div>
+                        <div class="step-content">
+                            <h3>Add Training Cohorts</h3>
+                            <p>Create cohorts of pilots that will go through training.</p>
+                            <ol>
+                                <li>Navigate to the <strong>Planner</strong> tab</li>
+                                <li>Click <strong>Add Cohort</strong> or use bulk entry options</li>
+                                <li>Select pathway, number of trainees, and start date</li>
+                                <li>Optionally configure cross-location training</li>
+                            </ol>
+                            <button class="inline-demo" onclick="showDemo('add-cohort')">Show Demo</button>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">3</div>
+                        <div class="step-content">
+                            <h3>Analyze Supply & Demand</h3>
+                            <p>View your training timeline and identify capacity issues.</p>
+                            <ol>
+                                <li>Check the Gantt chart for visual timeline</li>
+                                <li>Review demand tables for detailed numbers</li>
+                                <li>Look for red cells indicating trainer shortages</li>
+                                <li>Use the dashboard for high-level metrics</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <div class="step">
+                        <div class="step-number">4</div>
+                        <div class="step-content">
+                            <h3>Save Your Scenario</h3>
+                            <p>Preserve your work and create variations.</p>
+                            <ol>
+                                <li>Go to the <strong>Scenarios</strong> tab</li>
+                                <li>Click <strong>Save Current</strong></li>
+                                <li>Give your scenario a descriptive name</li>
+                                <li>Add notes about assumptions or goals</li>
+                            </ol>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="try-it-section">
+                    <h2>Try It Yourself</h2>
+                    <p>Practice adding a cohort with this interactive example:</p>
+                    <div class="interactive-example">
+                        <div class="example-controls">
+                            <label>Pathway: 
+                                <select id="example-pathway">
+                                    <option value="CAD">Cadet (CAD)</option>
+                                    <option value="FO">First Officer (FO)</option>
+                                    <option value="CP">Captain (CP)</option>
+                                </select>
+                            </label>
+                            <label>Trainees: 
+                                <input type="number" id="example-trainees" value="12" min="1" max="50">
+                            </label>
+                            <label>Start: 
+                                <input type="month" id="example-start" value="2025-03">
+                            </label>
+                            <button onclick="calculateExample()">Calculate Demand</button>
+                        </div>
+                        <div id="example-result" class="example-result"></div>
+                    </div>
+                </div>
+            </div>
+        </template>
+
+        <!-- Add more content templates... -->
+    </div>
+
+    <script src="help.js"></script>
+</body>
+</html>

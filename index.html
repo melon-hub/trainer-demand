@@ -68,6 +68,13 @@
                 <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle Dark Mode">
                     <span class="dark-mode-icon">🌙</span>
                 </button>
+                <button id="help-icon" class="help-icon" onclick="showHelpModal()" title="Help (F1)">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                </button>
             </div>
         </header>
 
@@ -942,6 +949,37 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                     <button id="confirm-yes" class="btn btn-primary">Yes</button>
                     <button id="confirm-no" class="btn btn-secondary">No</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div id="help-modal" class="modal help-modal" style="display: none;">
+        <div class="modal-content help-modal-content">
+            <div class="help-header">
+                <input type="text" id="help-search" class="help-search" placeholder="🔍 Search help..." autocomplete="off">
+                <button class="modal-close help-close">&times;</button>
+            </div>
+            <div class="help-body">
+                <nav class="help-nav">
+                    <ul class="help-nav-list">
+                        <li><a href="#" data-section="getting-started" class="help-nav-item active">Getting Started</a></li>
+                        <li><a href="#" data-section="dashboard" class="help-nav-item">Dashboard</a></li>
+                        <li><a href="#" data-section="planner" class="help-nav-item">Training Planner</a></li>
+                        <li><a href="#" data-section="settings" class="help-nav-item">Settings</a></li>
+                        <li><a href="#" data-section="scenarios" class="help-nav-item">Scenarios</a></li>
+                        <li><a href="#" data-section="calculations" class="help-nav-item">Calculations</a></li>
+                        <li><a href="#" data-section="tips" class="help-nav-item">Tips & Tricks</a></li>
+                        <li><a href="#" data-section="qa" class="help-nav-item">Q&A</a></li>
+                    </ul>
+                </nav>
+                <main class="help-content" id="help-content">
+                    <!-- Content will be loaded dynamically -->
+                </main>
+            </div>
+            <div class="help-footer">
+                <button id="help-tour-btn" class="btn btn-secondary">Start Interactive Tour</button>
+                <span class="help-version">Version 1.5.1</span>
             </div>
         </div>
     </div>

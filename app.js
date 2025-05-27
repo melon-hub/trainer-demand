@@ -57,6 +57,13 @@ let priorityConfig = [
 // Location state
 var currentLocation = 'AU';  // Default location - using var to avoid temporal dead zone
 
+// Help System State
+let helpState = {
+    currentSection: 'getting-started',
+    searchQuery: '',
+    tourActive: false
+};
+
 // Drag and Drop State
 let dragState = {
     isDragging: false,
@@ -10956,3 +10963,875 @@ function logStorageStats() {
     console.table(stats.items);
     return stats;
 }
+
+// ========================================
+// Help System Implementation
+// ========================================
+
+// Help content database
+const helpContent = {
+    'getting-started': {
+        title: 'Getting Started',
+        content: `
+            <h2>Welcome to Pilot Trainer Supply/Demand Planner</h2>
+            <p>This application helps you manage pilot training cohorts and forecast trainer supply and demand across multiple years. It's designed to optimize training capacity by tracking trainer availability, cohort scheduling, and identifying capacity constraints.</p>
+            
+            <h3>Key Concepts</h3>
+            <ul>
+                <li><strong>FTE (Full-Time Equivalent):</strong> A measure of trainer capacity. 1 FTE = 1 full-time trainer working standard hours.</li>
+                <li><strong>Fortnights:</strong> The system uses 2-week periods (fortnights) as the base time unit, with 24 fortnights per year.</li>
+                <li><strong>Cohorts:</strong> Groups of pilot trainees who progress through training phases together.</li>
+                <li><strong>Pathways:</strong> Pre-defined training programs consisting of multiple phases (Ground School, Simulator, Line Training).</li>
+                <li><strong>Line Training (LT):</strong> The final phase requiring 1:1 trainer-to-trainee ratio.</li>
+            </ul>
+            
+            <h3>Quick Start Guide</h3>
+            <ol>
+                <li><strong>Configure Trainer Capacity:</strong> Navigate to Settings → Edit FTE and enter your annual trainer numbers by category.</li>
+                <li><strong>Review Training Pathways:</strong> Check Settings → Training Pathways to ensure durations match your organization.</li>
+                <li><strong>Schedule Training Cohorts:</strong> Go to Planner → Add New Cohort or use the Training Planner for bulk entry.</li>
+                <li><strong>Monitor Performance:</strong> View the Dashboard to track utilization, identify bottlenecks, and see upcoming completions.</li>
+                <li><strong>Save Your Work:</strong> Create scenarios to save different planning options and compare alternatives.</li>
+            </ol>
+            
+            <div class="help-tip">
+                <strong>💡 Tip:</strong> Start with the Dashboard to get an overview of your current training situation. The Enhanced Dashboard provides more detailed analytics and visualizations.
+            </div>
+        `
+    },
+    'dashboard': {
+        title: 'Dashboard',
+        content: `
+            <h2>Understanding the Dashboard</h2>
+            <p>The Dashboard provides a comprehensive overview of your training operations with key metrics and visualizations.</p>
+            
+            <h3>Key Performance Indicators (KPIs)</h3>
+            <ul>
+                <li><strong>Trainees in Training:</strong> Total number of pilots currently in any training phase (GS+SIM or Line Training).</li>
+                <li><strong>Trainer Utilization:</strong> Percentage of available trainer capacity being used. Target range: 80-90% for optimal efficiency.</li>
+                <li><strong>Upcoming Completions:</strong> Number of trainees who will complete all training phases within the next 3 months.</li>
+                <li><strong>Capacity Warnings:</strong> Number of future periods where trainer demand exceeds available supply.</li>
+            </ul>
+            
+            <h3>Charts Explained</h3>
+            <h4>Trainer Demand Over Time</h4>
+            <p>Shows projected trainer demand compared to available supply. Red areas indicate shortages.</p>
+            
+            <h4>Supply & Demand Overview</h4>
+            <p>Visualizes the balance between trainer capacity and training demand across all categories.</p>
+            
+            <h4>Heat Map (Enhanced Dashboard)</h4>
+            <p>Monthly utilization by trainer category. Colors indicate:</p>
+            <ul>
+                <li>🟢 Green: 0-60% (Underutilized)</li>
+                <li>🔵 Blue: 60-80% (Optimal)</li>
+                <li>🟡 Amber: 80-100% (High utilization)</li>
+                <li>🔴 Red: >100% (Over capacity)</li>
+            </ul>
+            
+            <div class="help-warning">
+                <strong>⚠️ Warning:</strong> Utilization over 100% means you don't have enough trainers to meet demand. Consider cross-location training or adjusting cohort schedules.
+            </div>
+        `
+    },
+    'planner': {
+        title: 'Training Planner',
+        content: `
+            <h2>Training Planner Guide</h2>
+            <p>The Planner is where you schedule training cohorts and analyze capacity.</p>
+            
+            <h3>Adding Cohorts</h3>
+            <h4>Individual Entry</h4>
+            <ol>
+                <li>Enter the number of trainees</li>
+                <li>Select a pathway (CP, FO, or CAD)</li>
+                <li>Choose start year and fortnight</li>
+                <li>Click "Add Cohort"</li>
+            </ol>
+            
+            <h4>Bulk Entry Options</h4>
+            <ul>
+                <li><strong>Grid Entry:</strong> Excel-like interface for quick data entry. You can paste from spreadsheets!</li>
+                <li><strong>Target Optimizer:</strong> Set pilot targets and let the system optimize the schedule.</li>
+                <li><strong>Bulk Input:</strong> Enter multiple cohorts using natural language (e.g., "Jan 2025: 12 FO, 8 CP").</li>
+            </ul>
+            
+            <h3>Gantt Chart (Visual Timeline)</h3>
+            <p>Interactive timeline displaying all scheduled training cohorts:</p>
+            <ul>
+                <li><strong>Blue bars:</strong> Ground School + Simulator phases (no trainer required)</li>
+                <li><strong>Green bars:</strong> Line Training phases (requires 1:1 trainer-to-trainee ratio)</li>
+                <li><strong>🏁 Flag icons:</strong> Indicates cross-location training (using trainers from other location)</li>
+                <li><strong>Drag & Drop:</strong> Click and drag cohort bars to reschedule</li>
+            </ul>
+            
+            <div class="help-tip">
+                <strong>💡 Drag & Drop:</strong> You can drag cohorts on the Gantt chart to reschedule them. The system will recalculate demand automatically.
+            </div>
+            
+            <h3>Reading the Tables</h3>
+            <h4>Demand Table</h4>
+            <p>Shows trainer requirements by category and time period. Use "Split by Location" to see local vs. cross-location demand.</p>
+            
+            <h4>Surplus/Deficit Analysis</h4>
+            <p>Shows whether you have enough trainers:</p>
+            <ul>
+                <li>Positive numbers (green): Surplus capacity</li>
+                <li>Negative numbers (red): Trainer shortage</li>
+            </ul>
+        `
+    },
+    'settings': {
+        title: 'Settings',
+        content: `
+            <h2>Settings Configuration</h2>
+            <p>Customize the application to match your organization's training structure.</p>
+            
+            <h3>Priority Settings</h3>
+            <p>Defines how trainers are allocated when demand exceeds supply:</p>
+            <ol>
+                <li><strong>P1 (LT-CAD):</strong> Highest priority, served by CATB/CATA/STP only</li>
+                <li><strong>P2 (LT-CP):</strong> Served by RHS, with overflow from P1 trainers</li>
+                <li><strong>P3 (LT-FO):</strong> Served by LHS, with overflow from all other trainers</li>
+            </ol>
+            
+            <h3>Training Pathways</h3>
+            <p>Configure training programs with their phases:</p>
+            <ul>
+                <li><strong>CP (Captain):</strong> Shortest pathway, typically 3-8 fortnights</li>
+                <li><strong>FO (First Officer):</strong> Medium pathway, typically 11 fortnights</li>
+                <li><strong>CAD (Cadet):</strong> Longest pathway, typically 8-12 fortnights</li>
+            </ul>
+            
+            <h3>FTE Management</h3>
+            <p>Set trainer capacity by year and category:</p>
+            <ul>
+                <li><strong>Annual FTE:</strong> Enter yearly values (e.g., 240)</li>
+                <li><strong>Fortnightly FTE:</strong> Automatically calculated (Annual ÷ 24)</li>
+                <li><strong>Quick Fill:</strong> Use buttons to rapidly configure multiple years</li>
+            </ul>
+            
+            <div class="help-example">
+                <strong>Example FTE Calculation:</strong><br>
+                Annual FTE: 240<br>
+                Fortnightly FTE: 240 ÷ 24 = 10<br>
+                This means 10 trainers available each fortnight
+            </div>
+        `
+    },
+    'scenarios': {
+        title: 'Scenarios',
+        content: `
+            <h2>Scenario Management</h2>
+            <p>Save and compare different training plans to make informed decisions.</p>
+            
+            <h3>Creating Scenarios</h3>
+            <ol>
+                <li>Set up your cohorts, FTE, and pathways</li>
+                <li>Click "Save As New Scenario"</li>
+                <li>Give it a descriptive name (e.g., "Q1 2025 Aggressive Plan")</li>
+                <li>Add optional notes about assumptions</li>
+            </ol>
+            
+            <h3>Working with Scenarios</h3>
+            <ul>
+                <li><strong>Load:</strong> Apply a saved scenario to continue working on it</li>
+                <li><strong>Update:</strong> Save changes to the current scenario</li>
+                <li><strong>Duplicate:</strong> Create a copy to test variations</li>
+                <li><strong>Compare:</strong> See differences between two scenarios</li>
+                <li><strong>Export/Import:</strong> Share scenarios or backup your work</li>
+            </ul>
+            
+            <h3>Best Practices</h3>
+            <ul>
+                <li>Create a baseline scenario with current plans</li>
+                <li>Test "what-if" scenarios for different growth rates</li>
+                <li>Document key assumptions in the description</li>
+                <li>Export important scenarios for backup</li>
+            </ul>
+            
+            <div class="help-tip">
+                <strong>💡 Pro Tip:</strong> Use descriptive names like "Conservative-NoGrowth-2025" or "Aggressive-20%-Growth" to quickly identify scenarios later.
+            </div>
+        `
+    },
+    'calculations': {
+        title: 'Calculations Explained',
+        content: `
+            <h2>How Calculations Work</h2>
+            <p>Understanding the math behind the planner helps you make better decisions.</p>
+            
+            <h3>Supply Calculation</h3>
+            <div class="help-calculator" id="supply-calc">
+                <h4>FTE to Fortnightly Capacity</h4>
+                <div class="calc-input">
+                    <label>Annual FTE per Category:</label>
+                    <input type="number" id="calc-annual-fte" value="240" min="0">
+                </div>
+                <div class="calc-input">
+                    <label>Number of Categories:</label>
+                    <input type="number" id="calc-categories" value="5" min="1" max="5">
+                </div>
+                <button class="btn btn-secondary" onclick="calculateSupplyExample()">Calculate</button>
+                <div class="calc-result" id="supply-result" style="display:none;"></div>
+            </div>
+            
+            <h3>Demand Calculation</h3>
+            <div class="help-example">
+                <strong>Example:</strong><br>
+                Cohort: 12 FO trainees in Line Training<br>
+                Trainer Ratio: 1:1<br>
+                Demand: 12 × 1 = 12 FTE<br><br>
+                Multiple cohorts in the same period add up.
+            </div>
+            
+            <h3>Utilization Formula</h3>
+            <code>Utilization % = (Total Demand ÷ Total Supply) × 100</code>
+            
+            <h3>Cross-Location Training</h3>
+            <p>When NZ uses AU trainers:</p>
+            <ol>
+                <li>Demand is added to AU's total</li>
+                <li>Demand is subtracted from NZ's local demand</li>
+                <li>Both locations see the impact in their tables</li>
+            </ol>
+            
+            <h3>Cascading Allocation</h3>
+            <p>When demand exceeds supply for primary trainers:</p>
+            <ol>
+                <li>P1 (LT-CAD) gets first allocation from CATB/CATA/STP</li>
+                <li>P2 (LT-CP) uses RHS first, then surplus from P1 pool</li>
+                <li>P3 (LT-FO) uses LHS first, then surplus from all other pools</li>
+            </ol>
+            
+            <div class="help-warning">
+                <strong>Important:</strong> The system assumes perfect trainer flexibility within their qualified areas. Real-world constraints (leave, location, qualifications) may reduce effective capacity by 10-20%.
+            </div>
+        `
+    },
+    'tips': {
+        title: 'Tips & Tricks',
+        content: `
+            <h2>Tips & Best Practices</h2>
+            
+            <h3>Capacity Planning</h3>
+            <ul>
+                <li>🎯 Aim for 80-90% utilization - leaves room for unexpected events</li>
+                <li>📅 Plan 3-6 months ahead minimum</li>
+                <li>🌊 Consider seasonal variations (holidays, peak travel)</li>
+                <li>🔄 Review and adjust monthly</li>
+            </ul>
+            
+            <h3>Cross-Location Training</h3>
+            <ul>
+                <li>✈️ Use sparingly - travel costs add up quickly</li>
+                <li>📍 Best for short-term peak demands</li>
+                <li>🗓️ Plan 2-3 months in advance for logistics</li>
+                <li>💰 Factor in accommodation and per diem costs</li>
+            </ul>
+            
+            <h3>Optimization Strategies</h3>
+            <ul>
+                <li>🔀 Stagger cohort starts to smooth demand</li>
+                <li>📊 Use the optimizer to find efficient schedules</li>
+                <li>🎛️ Adjust pathway durations if flexible</li>
+                <li>👥 Consider smaller, more frequent cohorts</li>
+            </ul>
+            
+            <h3>Data Management</h3>
+            <ul>
+                <li>💾 Save scenarios before major changes</li>
+                <li>📝 Document assumptions in scenario descriptions</li>
+                <li>📤 Export important scenarios regularly</li>
+                <li>🔍 Use descriptive names for easy searching</li>
+            </ul>
+            
+            <h3>Keyboard Shortcuts</h3>
+            <ul>
+                <li><kbd>F1</kbd> - Open help</li>
+                <li><kbd>Ctrl</kbd> + <kbd>S</kbd> - Save current scenario</li>
+                <li><kbd>Esc</kbd> - Close modals</li>
+            </ul>
+            
+            <div class="help-tip">
+                <strong>🚀 Power User Tip:</strong> Use the bulk input feature with Excel. Copy your planning data from Excel and paste directly into the grid entry tool!
+            </div>
+        `
+    },
+    'qa': {
+        title: 'Questions & Answers',
+        content: `
+            <h2>Frequently Asked Questions</h2>
+            <div class="qa-search-box">
+                <input type="text" id="qa-search" class="qa-search-input" placeholder="Type your question here..." onkeyup="searchQA(this.value)">
+            </div>
+            <div id="qa-results" class="qa-results"></div>
+        `
+    }
+};
+
+// Q&A Database
+const qaDatabase = [
+    {
+        id: 1,
+        questions: [
+            "How do I handle trainer shortage?",
+            "What to do when demand exceeds supply?",
+            "Not enough trainers available",
+            "trainer deficit",
+            "shortage of trainers"
+        ],
+        keywords: ["shortage", "deficit", "exceed", "insufficient", "not enough"],
+        answer: {
+            summary: "When demand exceeds supply, use cross-location training, adjust cohort timing, or optimize allocation priorities.",
+            full: `
+                <h4>Handling Trainer Shortages - Step by Step</h4>
+                <p>When you see red cells in your Surplus/Deficit table, try these solutions in order:</p>
+                <ol>
+                    <li><strong>Quick Fix - Cross-Location Training:</strong>
+                        <ul>
+                            <li>Right-click the affected cohort in the Gantt chart</li>
+                            <li>Select "Edit Cohort"</li>
+                            <li>Enable "Cross-location trainer usage"</li>
+                            <li>Select the specific fortnights needing external trainers</li>
+                        </ul>
+                    </li>
+                    <li><strong>Reschedule Cohorts:</strong>
+                        <ul>
+                            <li>Drag cohorts on the Gantt chart to periods with green (surplus) capacity</li>
+                            <li>Consider delaying non-critical training by 1-2 fortnights</li>
+                        </ul>
+                    </li>
+                    <li><strong>Split Large Cohorts:</strong>
+                        <ul>
+                            <li>Edit cohorts with 10+ trainees</li>
+                            <li>Use the "Split Cohort" feature to create smaller groups</li>
+                            <li>Stagger their start dates by 2-4 weeks</li>
+                        </ul>
+                    </li>
+                    <li><strong>Long-term Solution:</strong>
+                        <ul>
+                            <li>Go to Settings → Edit FTE</li>
+                            <li>Increase trainer numbers for future years</li>
+                            <li>Focus on the trainer categories showing consistent shortages</li>
+                        </ul>
+                    </li>
+                </ol>
+                <div class="help-warning">
+                    <strong>⚠️ Important:</strong> Cross-location training should be planned 2-3 months in advance to arrange travel and accommodation.
+                </div>
+            `
+        },
+        relatedTopics: ["cross-location", "priorities", "optimization"]
+    },
+    {
+        id: 2,
+        questions: [
+            "How is utilization calculated?",
+            "What does utilization percentage mean?",
+            "utilization formula",
+            "calculate utilization"
+        ],
+        keywords: ["utilization", "calculate", "percentage", "formula"],
+        answer: {
+            summary: "Utilization = (Total Demand ÷ Total Supply) × 100%. It shows how much of your trainer capacity is being used.",
+            full: `
+                <h4>Understanding Utilization</h4>
+                <p>Utilization measures how effectively you're using available trainer capacity.</p>
+                <div class="help-example">
+                    <strong>Formula:</strong> Utilization % = (Demand ÷ Supply) × 100<br><br>
+                    <strong>Example:</strong><br>
+                    Supply: 50 trainer FTE<br>
+                    Demand: 45 trainer FTE<br>
+                    Utilization: 45 ÷ 50 × 100 = 90%
+                </div>
+                <p><strong>Target Ranges:</strong></p>
+                <ul>
+                    <li>🟢 0-60%: Underutilized (too many trainers)</li>
+                    <li>🔵 60-80%: Good flexibility</li>
+                    <li>🟡 80-95%: Optimal efficiency</li>
+                    <li>🔴 95-100%: Very tight (risky)</li>
+                    <li>⚫ >100%: Over capacity (shortage)</li>
+                </ul>
+            `
+        },
+        relatedTopics: ["calculations", "supply", "demand"]
+    },
+    {
+        id: 3,
+        questions: [
+            "What does FTE mean?",
+            "What is FTE?",
+            "FTE meaning",
+            "full time equivalent"
+        ],
+        keywords: ["FTE", "full-time", "equivalent", "meaning"],
+        answer: {
+            summary: "FTE (Full-Time Equivalent) is a unit measuring trainer capacity. 1 FTE = 1 full-time trainer working standard hours.",
+            full: `
+                <h4>FTE (Full-Time Equivalent) Explained</h4>
+                <p>FTE is a standardized way to measure workforce capacity:</p>
+                <ul>
+                    <li>1.0 FTE = 1 full-time trainer</li>
+                    <li>0.5 FTE = Half-time trainer</li>
+                    <li>2.0 FTE = 2 full-time trainers</li>
+                </ul>
+                <div class="help-example">
+                    <strong>Example:</strong><br>
+                    You have:<br>
+                    - 10 full-time trainers = 10.0 FTE<br>
+                    - 4 half-time trainers = 2.0 FTE<br>
+                    - Total capacity = 12.0 FTE
+                </div>
+                <p><strong>In This System:</strong> Annual FTE is divided by 24 to get fortnightly capacity.</p>
+            `
+        },
+        relatedTopics: ["settings", "calculations"]
+    },
+    {
+        id: 4,
+        questions: [
+            "How to add multiple cohorts?",
+            "Bulk add cohorts",
+            "Add many cohorts at once",
+            "mass cohort entry"
+        ],
+        keywords: ["multiple", "bulk", "many", "mass", "cohorts"],
+        answer: {
+            summary: "Use Training Planner → Grid Entry for Excel-like input, or Bulk Input for text-based entry of multiple cohorts.",
+            full: `
+                <h4>Adding Multiple Cohorts Efficiently</h4>
+                <p>Three methods for bulk cohort entry:</p>
+                
+                <h5>1. Grid Entry (Recommended)</h5>
+                <ul>
+                    <li>Click "Training Planner" button</li>
+                    <li>Select "Grid Entry" tab</li>
+                    <li>Enter numbers in the grid</li>
+                    <li>Or paste from Excel!</li>
+                </ul>
+                
+                <h5>2. Bulk Text Input</h5>
+                <p>Use natural language like:</p>
+                <code>Jan 2025: 12 FO, 8 CP<br>Feb 2025: 10 CAD</code>
+                
+                <h5>3. Target Optimizer</h5>
+                <p>Set total pilot targets and let the system create an optimized schedule.</p>
+                
+                <div class="help-tip">
+                    <strong>Pro Tip:</strong> Copy your training plan from Excel and paste directly into the Grid Entry tool!
+                </div>
+            `
+        },
+        relatedTopics: ["planner", "optimization"]
+    },
+    {
+        id: 5,
+        questions: [
+            "How to set up cross-location training?",
+            "Cross location training",
+            "Use trainers from another location",
+            "borrow trainers"
+        ],
+        keywords: ["cross-location", "location", "borrow", "another"],
+        answer: {
+            summary: "Edit a cohort and enable 'cross-location trainer usage', then select which fortnights will use trainers from the other location.",
+            full: `
+                <h4>Setting Up Cross-Location Training</h4>
+                <ol>
+                    <li><strong>Edit the cohort:</strong> Right-click on Gantt chart or click edit icon</li>
+                    <li><strong>Enable cross-location:</strong> Check "Enable cross-location trainer usage"</li>
+                    <li><strong>Select fortnights:</strong> Choose which periods need external trainers</li>
+                    <li><strong>Save changes:</strong> System will show flags 🏁 for cross-location periods</li>
+                </ol>
+                
+                <p><strong>Visual Indicators:</strong></p>
+                <ul>
+                    <li>🏁 Flags on cohort bars</li>
+                    <li>Striped pattern in tables</li>
+                    <li>Footnotes showing trainer source</li>
+                </ul>
+                
+                <div class="help-warning">
+                    <strong>Important:</strong> Cross-location training adds cost and complexity. Use only when necessary and plan 2-3 months ahead.
+                </div>
+            `
+        },
+        relatedTopics: ["planner", "tips"]
+    },
+    {
+        id: 6,
+        questions: [
+            "Why doesn't my math add up?",
+            "Numbers don't match",
+            "Calculation seems wrong",
+            "Math error"
+        ],
+        keywords: ["math", "add up", "wrong", "error", "match"],
+        answer: {
+            summary: "Common causes: forgetting fortnightly conversion (÷24), cross-location demand, or cascading allocation effects.",
+            full: `
+                <h4>Common Calculation Issues</h4>
+                
+                <h5>1. Annual vs Fortnightly FTE</h5>
+                <p>Annual FTE must be divided by 24 for fortnightly capacity:</p>
+                <code>240 annual FTE ÷ 24 = 10 fortnightly FTE</code>
+                
+                <h5>2. Cross-Location Effects</h5>
+                <p>Cross-location training appears in both locations:</p>
+                <ul>
+                    <li>Added to receiving location's demand</li>
+                    <li>Subtracted from sending location's demand</li>
+                </ul>
+                
+                <h5>3. Cascading Allocation</h5>
+                <p>Trainers cascade from higher to lower priorities, which can make simple math appear wrong.</p>
+                
+                <h5>4. Rounding</h5>
+                <p>The system rounds to whole numbers for display but uses decimals internally.</p>
+                
+                <div class="help-tip">
+                    Check the "Split by Location" view to see local vs cross-location demand separately.
+                </div>
+            `
+        },
+        relatedTopics: ["calculations", "cross-location"]
+    },
+    {
+        id: 7,
+        questions: [
+            "What's the difference between CP, FO, and CAD?",
+            "Pathway types explained",
+            "What does CP FO CAD mean?",
+            "pilot training types"
+        ],
+        keywords: ["CP", "FO", "CAD", "pathway", "types", "captain", "first officer", "cadet"],
+        answer: {
+            summary: "CP = Captain upgrade training, FO = First Officer training, CAD = Cadet (ab-initio) training. They differ in duration and complexity.",
+            full: `
+                <h4>Understanding Training Pathway Types</h4>
+                <p>The system supports three standard pilot training pathways:</p>
+                
+                <h5>🎖️ CP (Captain)</h5>
+                <ul>
+                    <li><strong>Purpose:</strong> Upgrade experienced First Officers to Captain</li>
+                    <li><strong>Duration:</strong> Shortest pathway (typically 3-8 fortnights)</li>
+                    <li><strong>Phases:</strong> Brief ground school + simulator, followed by line training</li>
+                    <li><strong>Trainer Type:</strong> Requires RHS trainers for line training (P2 priority)</li>
+                </ul>
+                
+                <h5>✈️ FO (First Officer)</h5>
+                <ul>
+                    <li><strong>Purpose:</strong> Train pilots to become First Officers</li>
+                    <li><strong>Duration:</strong> Medium pathway (typically 11 fortnights)</li>
+                    <li><strong>Phases:</strong> Moderate ground school + simulator, then line training</li>
+                    <li><strong>Trainer Type:</strong> Requires LHS trainers for line training (P3 priority)</li>
+                </ul>
+                
+                <h5>🎓 CAD (Cadet)</h5>
+                <ul>
+                    <li><strong>Purpose:</strong> Train new pilots from zero experience (ab-initio)</li>
+                    <li><strong>Duration:</strong> Longest pathway (typically 8-12 fortnights)</li>
+                    <li><strong>Phases:</strong> Extended ground school + simulator, then line training</li>
+                    <li><strong>Trainer Type:</strong> Requires specialized CATB/CATA/STP trainers (P1 priority)</li>
+                </ul>
+                
+                <div class="help-tip">
+                    <strong>💡 Planning Tip:</strong> CAD training gets first priority for trainer allocation because it requires specialized trainers who can't be substituted.
+                </div>
+            `
+        },
+        relatedTopics: ["settings", "priorities", "planner"]
+    }
+];
+
+// Show help modal
+function showHelpModal() {
+    const modal = document.getElementById('help-modal');
+    modal.style.display = 'flex';
+    
+    // Load default section
+    loadHelpSection('getting-started');
+    
+    // Focus search box
+    document.getElementById('help-search').focus();
+}
+
+// Load help section
+function loadHelpSection(section) {
+    const content = helpContent[section];
+    if (!content) return;
+    
+    const contentDiv = document.getElementById('help-content');
+    contentDiv.innerHTML = content.content;
+    
+    // Update active nav item
+    document.querySelectorAll('.help-nav-item').forEach(item => {
+        if (item.dataset.section === section) {
+            item.classList.add('active');
+        } else {
+            item.classList.remove('active');
+        }
+    });
+    
+    // Update state
+    helpState.currentSection = section;
+    
+    // Initialize Q&A if needed
+    if (section === 'qa') {
+        initializeQA();
+    }
+}
+
+// Initialize Q&A section
+function initializeQA() {
+    // Display all questions by default
+    displayQAResults(qaDatabase);
+}
+
+// Search Q&A
+function searchQA(query) {
+    if (!query || query.trim() === '') {
+        displayQAResults(qaDatabase);
+        return;
+    }
+    
+    const results = fuzzySearchQA(query.toLowerCase());
+    displayQAResults(results);
+}
+
+// Fuzzy search implementation
+function fuzzySearchQA(query) {
+    const words = query.split(' ').filter(w => w.length > 2);
+    
+    return qaDatabase.map(qa => {
+        let score = 0;
+        
+        // Check exact matches in questions
+        qa.questions.forEach(q => {
+            if (q.toLowerCase().includes(query)) {
+                score += 10;
+            }
+            words.forEach(word => {
+                if (q.toLowerCase().includes(word)) {
+                    score += 3;
+                }
+            });
+        });
+        
+        // Check keywords
+        qa.keywords.forEach(keyword => {
+            if (query.includes(keyword)) {
+                score += 5;
+            }
+            words.forEach(word => {
+                if (keyword.includes(word) || word.includes(keyword)) {
+                    score += 2;
+                }
+            });
+        });
+        
+        // Check answer content
+        const answerText = qa.answer.summary.toLowerCase() + qa.answer.full.toLowerCase();
+        words.forEach(word => {
+            if (answerText.includes(word)) {
+                score += 1;
+            }
+        });
+        
+        return { ...qa, score };
+    })
+    .filter(qa => qa.score > 0)
+    .sort((a, b) => b.score - a.score);
+}
+
+// Display Q&A results
+function displayQAResults(results) {
+    const container = document.getElementById('qa-results');
+    if (!container) return;
+    
+    if (results.length === 0) {
+        container.innerHTML = `
+            <div class="qa-item">
+                <div class="qa-question">No results found</div>
+                <div class="qa-answer">Try rephrasing your question or browse the help sections for more information.</div>
+            </div>
+        `;
+        return;
+    }
+    
+    container.innerHTML = results.map(qa => {
+        const matchScore = qa.score ? `<span class="qa-match-score">${Math.min(95, qa.score * 5)}% match</span>` : '';
+        return `
+            <div class="qa-item" onclick="expandQA(${qa.id})">
+                <div class="qa-question">
+                    ${qa.questions[0]}
+                    ${matchScore}
+                </div>
+                <div class="qa-answer">${qa.answer.summary}</div>
+                <div id="qa-full-${qa.id}" style="display: none;">
+                    ${qa.answer.full}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+// Expand Q&A answer
+function expandQA(id) {
+    const fullAnswer = document.getElementById(`qa-full-${id}`);
+    if (fullAnswer) {
+        fullAnswer.style.display = fullAnswer.style.display === 'none' ? 'block' : 'none';
+    }
+}
+
+// Calculate supply example
+function calculateSupplyExample() {
+    const annualFTE = parseFloat(document.getElementById('calc-annual-fte').value) || 0;
+    const categories = parseInt(document.getElementById('calc-categories').value) || 0;
+    
+    const fortnightlyPerCategory = annualFTE / FORTNIGHTS_PER_YEAR;
+    const totalFortnightly = fortnightlyPerCategory * categories;
+    
+    const resultDiv = document.getElementById('supply-result');
+    resultDiv.innerHTML = `
+        <strong>Results:</strong><br>
+        Annual FTE per category: ${annualFTE}<br>
+        Fortnightly FTE per category: ${fortnightlyPerCategory.toFixed(1)}<br>
+        Number of categories: ${categories}<br>
+        <strong>Total fortnightly capacity: ${totalFortnightly.toFixed(1)} FTE</strong>
+    `;
+    resultDiv.style.display = 'block';
+}
+
+// Help search functionality
+document.addEventListener('DOMContentLoaded', function() {
+    // Help modal close button
+    const helpCloseBtn = document.querySelector('.help-close');
+    if (helpCloseBtn) {
+        helpCloseBtn.addEventListener('click', function() {
+            document.getElementById('help-modal').style.display = 'none';
+        });
+    }
+    
+    // Help navigation
+    document.querySelectorAll('.help-nav-item').forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            loadHelpSection(this.dataset.section);
+        });
+    });
+    
+    // Help search
+    const helpSearchInput = document.getElementById('help-search');
+    if (helpSearchInput) {
+        let searchTimeout;
+        helpSearchInput.addEventListener('keyup', function(e) {
+            clearTimeout(searchTimeout);
+            const query = this.value.trim();
+            
+            if (query.length > 2) {
+                searchTimeout = setTimeout(() => {
+                    searchHelp(query);
+                }, 300);
+            } else if (query.length === 0) {
+                // Load current section again
+                loadHelpSection(helpState.currentSection);
+            }
+        });
+    }
+    
+    // F1 key to open help
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'F1') {
+            e.preventDefault();
+            showHelpModal();
+        }
+    });
+    
+    // Start tour button
+    const tourBtn = document.getElementById('help-tour-btn');
+    if (tourBtn) {
+        tourBtn.addEventListener('click', startInteractiveTour);
+    }
+});
+
+// Search help content
+function searchHelp(query) {
+    const results = [];
+    const searchTerms = query.toLowerCase().split(' ').filter(term => term.length > 2);
+    
+    // Search through all help content
+    Object.entries(helpContent).forEach(([key, section]) => {
+        const text = (section.title + ' ' + section.content).toLowerCase();
+        let score = 0;
+        
+        searchTerms.forEach(term => {
+            const matches = (text.match(new RegExp(term, 'g')) || []).length;
+            score += matches;
+        });
+        
+        if (score > 0) {
+            results.push({
+                section: key,
+                title: section.title,
+                score: score,
+                preview: extractPreview(section.content, searchTerms[0])
+            });
+        }
+    });
+    
+    // Display search results
+    displaySearchResults(results.sort((a, b) => b.score - a.score));
+}
+
+// Extract preview text around search term
+function extractPreview(content, searchTerm) {
+    const plainText = content.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ');
+    const index = plainText.toLowerCase().indexOf(searchTerm);
+    
+    if (index === -1) return plainText.substring(0, 150) + '...';
+    
+    const start = Math.max(0, index - 50);
+    const end = Math.min(plainText.length, index + 100);
+    
+    return '...' + plainText.substring(start, end) + '...';
+}
+
+// Display search results
+function displaySearchResults(results) {
+    const contentDiv = document.getElementById('help-content');
+    
+    if (results.length === 0) {
+        contentDiv.innerHTML = `
+            <h2>No Results Found</h2>
+            <p>No help topics found for your search. Try different keywords or browse the sections on the left.</p>
+        `;
+        return;
+    }
+    
+    contentDiv.innerHTML = `
+        <h2>Search Results</h2>
+        <p>Found ${results.length} results:</p>
+        ${results.map(result => `
+            <div class="help-search-result" onclick="loadHelpSection('${result.section}')">
+                <h3>${result.title}</h3>
+                <p>${result.preview}</p>
+            </div>
+        `).join('')}
+    `;
+}
+
+// Interactive tour functionality
+function startInteractiveTour() {
+    showNotification('Interactive tour coming soon!', 'info');
+    // TODO: Implement interactive tour using intro.js style functionality
+}
+
+// Add help icon tooltip
+window.addEventListener('load', function() {
+    const helpIcon = document.getElementById('help-icon');
+    if (helpIcon) {
+        helpIcon.setAttribute('title', 'Help (F1)');
+    }
+});
