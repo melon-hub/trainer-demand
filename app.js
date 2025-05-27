@@ -265,7 +265,8 @@ let viewState = {
     currentView: '12months',  // 'all', '6months', '12months'
     viewOffset: 0,       // Offset in months from current date
     surplusDeficitView: 'classic',  // 'classic' or 'intuitive'
-    currentLocation: 'AU'  // Track current location in view state
+    currentLocation: 'AU',  // Track current location in view state
+    demandSplitByLocation: false  // Toggle for split view in demand table
 };
 
 // Scenarios storage
@@ -1560,6 +1561,8 @@ function switchView(viewName) {
                 // Scroll to today and update view buttons
                 scrollToToday();
                 updateViewButtons();
+                // Adjust modal height for split view if needed
+                adjustPlannerModalHeight();
             }, 100);
             break;
         case 'settings':
@@ -1675,7 +1678,6 @@ function updateAllTables() {
     renderFTESummaryTable();
     renderDemandTable();
     renderSurplusDeficitTable();
-    renderCrossLocationSummary();
     
     // Update commencement summary if it's expanded
     const commencementBtn = document.getElementById('toggle-commencement-btn');
@@ -1984,7 +1986,7 @@ function renderFTESummaryTable() {
     
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
         const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (trainerFTE[currentYear]?.[cat] || 0), 0);
-        const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(1);
+        const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(0);
         html += `<td class="data-cell total-supply-cell">${fortnightlyTotal}</td>`;
         
         currentFn++;
@@ -2005,7 +2007,7 @@ function renderFTESummaryTable() {
             currentFn = range.startFortnight;
             
             while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-                const fortnightlyFTE = ((trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(1);
+                const fortnightlyFTE = ((trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
                 html += `<td class="data-cell category-detail-cell">${fortnightlyFTE}</td>`;
                 
                 currentFn++;
@@ -2040,26 +2042,97 @@ function renderDemandTable() {
     
     // Demand rows by training type (using priority config order)
     priorityConfig.forEach(config => {
-        html += '<tr>';
-        html += `<td class="sticky-first-column">${config.trainingType} Demand</td>`;
-        
-        let currentYear = range.startYear;
-        let currentFn = range.startFortnight;
-        
-        while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-            const demandData = demand[currentYear]?.[currentFn] || { byTrainingType: {} };
-            const value = demandData.byTrainingType[config.trainingType] || 0;
+        if (viewState.demandSplitByLocation) {
+            // Split view - show local demand first
+            html += '<tr>';
+            html += `<td class="sticky-first-column">${config.trainingType} (${currentLocation})</td>`;
+            
+            let currentYear = range.startYear;
+            let currentFn = range.startFortnight;
+            
+            while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+                const demandData = demand[currentYear]?.[currentFn] || { byTrainingType: {} };
+                const totalValue = demandData.byTrainingType[config.trainingType] || 0;
+                
+                // Calculate cross-location value
+                let crossLocValue = 0;
+                if (crossLocationDemand[currentYear]?.[currentFn]?.[currentLocation]?.byTrainingType?.[config.trainingType] > 0) {
+                    crossLocValue = crossLocationDemand[currentYear][currentFn][currentLocation].byTrainingType[config.trainingType];
+                }
+                
+                // Local demand is total minus cross-location
+                const localValue = totalValue - crossLocValue;
+                
+                html += `<td class="data-cell" style="background: rgba(0, 123, 255, 0.05);">${localValue.toFixed(0)}</td>`;
+                
+                currentFn++;
+                if (currentFn > FORTNIGHTS_PER_YEAR) {
+                    currentFn = 1;
+                    currentYear++;
+                }
+            }
+            html += '</tr>';
+            
+            // Cross-location demand row
+            const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+            html += '<tr>';
+            html += `<td class="sticky-first-column" style="padding-left: 30px; font-style: italic; color: #3498db;">${config.trainingType} (from ${otherLocation})</td>`;
+            
+            currentYear = range.startYear;
+            currentFn = range.startFortnight;
+            
+            while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+                let crossLocValue = 0;
+                if (crossLocationDemand[currentYear]?.[currentFn]?.[currentLocation]?.byTrainingType?.[config.trainingType] > 0) {
+                    crossLocValue = crossLocationDemand[currentYear][currentFn][currentLocation].byTrainingType[config.trainingType];
+                }
+                
+                if (crossLocValue > 0) {
+                    html += `<td class="data-cell" style="background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;">${crossLocValue.toFixed(0)}</td>`;
+                } else {
+                    html += `<td class="data-cell" style="background: rgba(52, 152, 219, 0.05); color: #999;">-</td>`;
+                }
+                
+                currentFn++;
+                if (currentFn > FORTNIGHTS_PER_YEAR) {
+                    currentFn = 1;
+                    currentYear++;
+                }
+            }
+            html += '</tr>';
+        } else {
+            // Regular merged view
+            html += '<tr>';
+            html += `<td class="sticky-first-column">${config.trainingType} Demand</td>`;
+            
+            let currentYear = range.startYear;
+            let currentFn = range.startFortnight;
+            
+            while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+                const demandData = demand[currentYear]?.[currentFn] || { byTrainingType: {} };
+                const value = demandData.byTrainingType[config.trainingType] || 0;
             
             // Check if this includes cross-location demand
-            let hasCrossLocation = false;
+            let crossLocValue = 0;
             if (crossLocationDemand[currentYear]?.[currentFn]?.[currentLocation]?.byTrainingType?.[config.trainingType] > 0) {
-                hasCrossLocation = true;
+                crossLocValue = crossLocationDemand[currentYear][currentFn][currentLocation].byTrainingType[config.trainingType];
             }
             
-            const tooltip = hasCrossLocation ? `title="Includes cross-location demand from other regions"` : '';
-            const indicator = hasCrossLocation ? '<sup>*</sup>' : '';
+            // Calculate local demand (total - cross-location)
+            const localValue = value - crossLocValue;
             
-            html += `<td class="data-cell" ${tooltip}>${value.toFixed(1)}${indicator}</td>`;
+            let cellContent = '';
+            let tooltip = '';
+            
+            if (crossLocValue > 0) {
+                // Show total value with highlighting for cross-location
+                cellContent = value.toFixed(0);
+                tooltip = `title="Total: ${value.toFixed(0)} (Local: ${localValue.toFixed(0)} + Cross-location: ${crossLocValue.toFixed(0)} from ${currentLocation === 'AU' ? 'NZ' : 'AU'})"`;
+            } else {
+                cellContent = value.toFixed(0);
+            }
+            
+            html += `<td class="data-cell" ${tooltip}>${cellContent}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2069,27 +2142,118 @@ function renderDemandTable() {
         }
         
         html += '</tr>';
+        }
     });
     
     // Total Demand row
-    html += '<tr>';
-    html += '<td class="sticky-first-column total-row">Total Demand</td>';
-    
-    let totalYear = range.startYear;
-    let totalFn = range.startFortnight;
-    
-    while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
-        const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
-        html += `<td class="data-cell total-row">${demandData.total.toFixed(1)}</td>`;
+    if (viewState.demandSplitByLocation) {
+        // Split view total - local demand
+        html += '<tr>';
+        html += `<td class="sticky-first-column total-row">Total (${currentLocation})</td>`;
         
-        totalFn++;
-        if (totalFn > FORTNIGHTS_PER_YEAR) {
-            totalFn = 1;
-            totalYear++;
+        let totalYear = range.startYear;
+        let totalFn = range.startFortnight;
+        
+        while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
+            const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
+            
+            let crossLocTotal = 0;
+            if (crossLocationDemand[totalYear]?.[totalFn]?.[currentLocation]?.total > 0) {
+                crossLocTotal = crossLocationDemand[totalYear][totalFn][currentLocation].total;
+            }
+            
+            const localTotal = demandData.total - crossLocTotal;
+            html += `<td class="data-cell total-row" style="background: rgba(0, 123, 255, 0.05);">${localTotal.toFixed(0)}</td>`;
+            
+            totalFn++;
+            if (totalFn > FORTNIGHTS_PER_YEAR) {
+                totalFn = 1;
+                totalYear++;
+            }
         }
+        html += '</tr>';
+        
+        // Cross-location total row
+        const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+        html += '<tr>';
+        html += `<td class="sticky-first-column total-row" style="padding-left: 30px; font-style: italic; color: #3498db;">Total (from ${otherLocation})</td>`;
+        
+        totalYear = range.startYear;
+        totalFn = range.startFortnight;
+        
+        while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
+            let crossLocTotal = 0;
+            if (crossLocationDemand[totalYear]?.[totalFn]?.[currentLocation]?.total > 0) {
+                crossLocTotal = crossLocationDemand[totalYear][totalFn][currentLocation].total;
+            }
+            
+            if (crossLocTotal > 0) {
+                html += `<td class="data-cell total-row" style="background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;">${crossLocTotal.toFixed(0)}</td>`;
+            } else {
+                html += `<td class="data-cell total-row" style="background: rgba(52, 152, 219, 0.05); color: #999;">-</td>`;
+            }
+            
+            totalFn++;
+            if (totalFn > FORTNIGHTS_PER_YEAR) {
+                totalFn = 1;
+                totalYear++;
+            }
+        }
+        html += '</tr>';
+        
+        // Grand total row
+        html += '<tr>';
+        html += '<td class="sticky-first-column total-row" style="font-weight: bold;">Grand Total</td>';
+        
+        totalYear = range.startYear;
+        totalFn = range.startFortnight;
+        
+        while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
+            const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
+            html += `<td class="data-cell total-row" style="font-weight: bold;">${demandData.total.toFixed(0)}</td>`;
+            
+            totalFn++;
+            if (totalFn > FORTNIGHTS_PER_YEAR) {
+                totalFn = 1;
+                totalYear++;
+            }
+        }
+        html += '</tr>';
+    } else {
+        // Regular merged view total
+        html += '<tr>';
+        html += '<td class="sticky-first-column total-row">Total Demand</td>';
+        
+        let totalYear = range.startYear;
+        let totalFn = range.startFortnight;
+        
+        while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
+            const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
+            
+            // Check for cross-location total
+            let crossLocTotal = 0;
+            if (crossLocationDemand[totalYear]?.[totalFn]?.[currentLocation]?.total > 0) {
+                crossLocTotal = crossLocationDemand[totalYear][totalFn][currentLocation].total;
+            }
+            
+            let cellContent = demandData.total.toFixed(0);
+            let cellTooltip = '';
+            if (crossLocTotal > 0) {
+                const localTotal = demandData.total - crossLocTotal;
+                cellTooltip = `title="Total: ${demandData.total.toFixed(0)} (Local: ${localTotal.toFixed(0)} + Cross-location: ${crossLocTotal.toFixed(0)})"`;
+            }
+            
+            html += `<td class="data-cell total-row" ${cellTooltip}>${cellContent}</td>`;
+            
+            totalFn++;
+            if (totalFn > FORTNIGHTS_PER_YEAR) {
+                totalFn = 1;
+                totalYear++;
+            }
+        }
+        
+        html += '</tr>';
     }
-    
-    html += '</tr>';
     html += '</tbody></table></div>';
     
     // Add footnote if there's cross-location demand
@@ -2247,7 +2411,7 @@ function renderSurplusDeficitTableClassic() {
             const allocated = demand[currentYear]?.[currentFn]?.allocated?.[category] || 0;
             const difference = categorySupply - allocated;
             const isDeficit = difference < 0;
-            html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}">${difference.toFixed(1)}</td>`;
+            html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}">${difference.toFixed(0)}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2269,7 +2433,7 @@ function renderSurplusDeficitTableClassic() {
     while (deficitYear < range.endYear || (deficitYear === range.endYear && deficitFn <= range.endFortnight)) {
         const deficit = ltCpDeficit[deficitYear]?.[deficitFn] || 0;
         const hasDeficit = deficit > 0;
-        html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}">${deficit.toFixed(1)}</td>`;
+        html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}">${deficit.toFixed(0)}</td>`;
         
         deficitFn++;
         if (deficitFn > FORTNIGHTS_PER_YEAR) {
@@ -2302,7 +2466,7 @@ function renderSurplusDeficitTableClassic() {
         // Total Net S/D = Total Initial FTE - Total Line Training Demand
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
-        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(1)}</td>`;
+        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
         
         netFn++;
         if (netFn > FORTNIGHTS_PER_YEAR) {
@@ -2349,7 +2513,7 @@ function renderSurplusDeficitTableIntuitive() {
         
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
-        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(1)}</td>`;
+        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
         
         netFn++;
         if (netFn > FORTNIGHTS_PER_YEAR) {
@@ -2756,6 +2920,19 @@ function calculateDemand() {
                         // Mark as cross-location demand for footnotes
                         demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] = 
                             (demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] || 0) + phaseDemand;
+                        
+                        // Also track in crossLocationDemand for split view
+                        if (!crossLocationDemand[currentYear][currentFortnight][currentLocation]) {
+                            crossLocationDemand[currentYear][currentFortnight][currentLocation] = {
+                                total: 0,
+                                byTrainingType: {}
+                            };
+                        }
+                        crossLocationDemand[currentYear][currentFortnight][currentLocation].total += phaseDemand;
+                        if (!crossLocationDemand[currentYear][currentFortnight][currentLocation].byTrainingType[phase.trainerDemandType]) {
+                            crossLocationDemand[currentYear][currentFortnight][currentLocation].byTrainingType[phase.trainerDemandType] = 0;
+                        }
+                        crossLocationDemand[currentYear][currentFortnight][currentLocation].byTrainingType[phase.trainerDemandType] += phaseDemand;
                     }
                 }
                 
@@ -3051,6 +3228,12 @@ function renderGanttChart() {
                     // For 1-fortnight phases, no text (too small)
                 }
                 
+                // Add flag badge for cross-location training
+                if (cell.usesCrossLocation) {
+                    const flag = cell.crossLocationTo === 'AU' ? '🇦🇺' : '🇳🇿';
+                    cellContent += `<span class="cross-location-flag" style="position: absolute; top: 1px; right: 1px; font-size: 12px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));">${flag}</span>`;
+                }
+                
                 let tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name}\nFortnight ${cell.progress}/${cell.totalDuration}\nYear ${renderYear}, Fortnight ${renderFn}`;
                 
                 // Add cross-location indicator
@@ -3065,7 +3248,7 @@ function renderGanttChart() {
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''}" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative;" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
                 html += '<td class="gantt-empty-cell data-cell"></td>';
@@ -3081,6 +3264,132 @@ function renderGanttChart() {
         html += '</tr>';
         });
     });
+    
+    // Add cross-location cohorts section
+    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+    const crossLocationCohorts = [];
+    
+    // Find cohorts from other locations that use current location's trainers
+    const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
+    otherLocationCohorts.forEach(cohort => {
+        if (cohort.crossLocationTraining && cohort.crossLocationTraining[currentLocation]) {
+            // Check if any phases have cross-location training
+            const hasRelevantTraining = Object.values(cohort.crossLocationTraining[currentLocation].phases || {}).some(fortnights => fortnights.length > 0);
+            if (hasRelevantTraining) {
+                crossLocationCohorts.push(cohort);
+            }
+        }
+    });
+    
+    // Render cross-location cohorts if any exist
+    if (crossLocationCohorts.length > 0) {
+        // Add group header for cross-location cohorts
+        html += `<tr class="group-header cross-location-group">`;
+        html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
+        html += `<span style="color: #3498db; font-weight: bold;">📍 Training from ${otherLocation}</span>`;
+        html += `</td>`;
+        
+        // Fill remaining cells
+        let fillYear = range.startYear;
+        let fillFn = range.startFortnight;
+        
+        while (fillYear < range.endYear || (fillYear === range.endYear && fillFn <= range.endFortnight)) {
+            html += `<td class="group-header-cell" style="background: rgba(52, 152, 219, 0.1);"></td>`;
+            
+            fillFn++;
+            if (fillFn > FORTNIGHTS_PER_YEAR) {
+                fillFn = 1;
+                fillYear++;
+            }
+        }
+        html += '</tr>';
+        
+        // Render each cross-location cohort
+        crossLocationCohorts.forEach(cohort => {
+            const cohortPathways = locationData[otherLocation].pathways;
+            const pathway = cohortPathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            html += `<tr class="gantt-cohort-row cross-location-row">`;
+            
+            // Cohort label
+            const cohortLabel = `${cohort.numTrainees} x ${pathway.name} (${otherLocation})`;
+            html += `<td class="sticky-first-column gantt-cohort-cell" style="background: rgba(52, 152, 219, 0.05);" title="${cohortLabel}">`;
+            html += `<div class="cohort-info">`;
+            html += `<span class="cohort-label">${cohortLabel}</span>`;
+            html += `</div>`;
+            html += `</td>`;
+            
+            // Calculate which fortnights to show
+            let tempYear = cohort.startYear;
+            let tempFortnight = cohort.startFortnight;
+            let globalFortnightCounter = 0;
+            const crossLocationCells = {};
+            
+            pathway.phases.forEach((phase, pIndex) => {
+                for (let i = 0; i < phase.duration; i++) {
+                    globalFortnightCounter++;
+                    
+                    // Calculate globalFortnight the same way as in demand calculation
+                    const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
+                    
+                    // Check if this fortnight uses cross-location training
+                    if (cohort.crossLocationTraining[currentLocation]?.phases?.[phase.name]?.includes(globalFortnight)) {
+                        const key = `${tempYear}-${tempFortnight}`;
+                        crossLocationCells[key] = {
+                            phase: phase,
+                            progress: i + 1,
+                            totalDuration: phase.duration
+                        };
+                    }
+                    
+                    tempFortnight++;
+                    if (tempFortnight > FORTNIGHTS_PER_YEAR) {
+                        tempFortnight = 1;
+                        tempYear++;
+                    }
+                }
+            });
+            
+            // Render cells
+            let renderYear = range.startYear;
+            let renderFn = range.startFortnight;
+            
+            while (renderYear < range.endYear || (renderYear === range.endYear && renderFn <= range.endFortnight)) {
+                const cellKey = `${renderYear}-${renderFn}`;
+                const cell = crossLocationCells[cellKey];
+                
+                if (cell) {
+                    const phaseColors = {
+                        'LT-CAD': '#2980b9',
+                        'LT-CP': '#27ae60',
+                        'LT-FO': '#e67e22'
+                    };
+                    
+                    const backgroundColor = phaseColors[cell.phase.name] || '#9b59b6';
+                    const tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name} (from ${otherLocation})\nUsing ${currentLocation} trainers`;
+                    
+                    // Show the training type abbreviation
+                    const abbreviation = cell.phase.name.replace('LT-', '');
+                    
+                    html += `<td class="gantt-phase-cell data-cell" style="background-color: ${backgroundColor} !important; position: relative;" title="${tooltip}">`;
+                    html += `<span style="font-size: 9px; color: white; font-weight: 500;">${abbreviation}</span>`;
+                    html += `</td>`;
+                } else {
+                    html += '<td class="gantt-empty-cell data-cell"></td>';
+                }
+                
+                renderFn++;
+                if (renderFn > FORTNIGHTS_PER_YEAR) {
+                    renderFn = 1;
+                    renderYear++;
+                }
+            }
+            
+            html += '</tr>';
+        });
+    }
     
     html += '</tbody>';
     html += '</table></div>';
@@ -4259,6 +4568,59 @@ function toggleGroup(groupName) {
         viewState.collapsedGroups.push(groupName);
     }
     renderGanttChart();
+}
+
+// Toggle Demand Split View
+function toggleDemandSplitView() {
+    viewState.demandSplitByLocation = !viewState.demandSplitByLocation;
+    
+    // Update button text
+    const btnText = document.getElementById('split-view-text');
+    const btnIcon = document.getElementById('split-view-icon');
+    if (viewState.demandSplitByLocation) {
+        btnText.textContent = 'Merged View';
+        btnIcon.textContent = '🔀';
+    } else {
+        btnText.textContent = 'Split by Location';
+        btnIcon.textContent = '📊';
+    }
+    
+    renderDemandTable();
+    setupSynchronizedScrolling();
+    
+    // Adjust modal height dynamically if in planner view
+    if (document.getElementById('planner-view').style.display !== 'none') {
+        adjustPlannerModalHeight();
+    }
+}
+
+// Adjust planner view height based on content
+function adjustPlannerModalHeight() {
+    // Check if we're in the planner view
+    const plannerView = document.getElementById('planner-view');
+    if (!plannerView || !plannerView.classList.contains('active')) return;
+    
+    // Specifically target the demand table container
+    const demandContainer = document.getElementById('demand-table-container');
+    
+    if (demandContainer && viewState.demandSplitByLocation) {
+        // In split view, remove height restrictions to show all rows
+        demandContainer.style.maxHeight = 'none';
+        demandContainer.style.overflowY = 'visible';
+        
+        // Keep horizontal scroll for wide tables
+        demandContainer.style.overflowX = 'auto';
+    } else if (demandContainer) {
+        // In merged view, restore normal height with scroll
+        demandContainer.style.maxHeight = '400px';
+        demandContainer.style.overflowY = 'auto';
+        demandContainer.style.overflowX = 'auto';
+    }
+    
+    // Ensure synchronized scrolling still works
+    setTimeout(() => {
+        setupSynchronizedScrolling();
+    }, 50);
 }
 
 // Training Planner Functions

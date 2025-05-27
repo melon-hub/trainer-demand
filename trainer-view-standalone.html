@@ -4,22 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pilot Trainer Supply/Demand Planner</title>
-    <script>
-        // Apply dark mode immediately to prevent flash
-        if (localStorage.getItem("darkMode") === "true") {
-            document.documentElement.classList.add("dark-mode-loading");
-            // Also store the active tab for proper styling
-            const activeTab = localStorage.getItem("activeTab") || "dashboard";
-            document.documentElement.setAttribute("data-active-tab", activeTab);
-        }
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
 /* General Styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* Prevent flicker on page load */
+.view-controls {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.view-controls.initialized {
+    opacity: 1 !important;
+}
+
+/* Dark mode toggle - initially hidden to prevent flicker */
+#dark-mode-toggle {
+    visibility: hidden;
+}
+
+#dark-mode-toggle.show {
+    visibility: visible;
 }
 
 body {
@@ -378,20 +387,22 @@ section {
     margin-bottom: 20px;
 }
 
-/* General h2 styles */
-h2 {
+.section-header h2 {
     color: #2c3e50;
     font-size: 1.5rem;
-    margin: 0;
-    line-height: 1;
-}
-
-/* Section header h2 styles with flexbox */
-.section-header h2 {
     display: flex;
     align-items: center;
     gap: 0;
+    margin: 0;
+    line-height: 1;
     vertical-align: middle;
+}
+
+/* Keep general h2 styles separate */
+h2 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+    margin: 0 0 20px 0;
 }
 
 /* Toggle Button Styles */
@@ -696,7 +707,7 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
     overflow-y: auto;
     position: relative;
     background-color: white;
-    box-sizing: border-box;
+    scrollbar-gutter: stable; /* Reserve space for scrollbar */
 }
 
 /* Table wrapper for better structure */
@@ -707,12 +718,10 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
     position: relative;
 }
 
-/* Table wrapper for better structure */
-.table-wrapper {
-    display: inline-block;
-    min-width: 100%;
-    overflow: visible;
-    position: relative;
+/* Prevent table flicker on updates */
+.table-container {
+    min-height: 100px; /* Maintain minimum height during updates */
+    contain: layout; /* Prevent layout shifts */
 }
 
 /* Consistent table layout for all data tables */
@@ -741,7 +750,7 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
 /* Sticky first column with consistent width */
 .sticky-first-column {
     position: sticky;
-    left: -1px !important;
+    left: 0 !important;
     background-color: white;
     z-index: 20;
     min-width: 200px;
@@ -1009,7 +1018,7 @@ th[colspan] {
     max-height: 400px;
     margin-top: 20px;
     position: relative;
-    border: 1px solid #e0e0e0;
+    border: none;
     border-radius: 4px;
     background-color: white;
     isolation: isolate;
@@ -1023,7 +1032,7 @@ th[colspan] {
     max-height: 700px; /* Further increased height */
     margin-top: 20px;
     position: relative;
-    border: 1px solid #e0e0e0;
+    border: none;
     border-radius: 4px;
     background-color: white;
     isolation: isolate;
@@ -3394,7 +3403,7 @@ body.dark-mode #demand-table-container,
 body.dark-mode #surplus-deficit-container,
 body.dark-mode #pathways-table-container {
     background-color: #2a2a2a;
-    border-color: #444;
+    border: none;
 }
 
 /* Ensure all table cells use the column width variable */
@@ -4321,6 +4330,25 @@ body.dark-mode .preview-value {
     }
 }
 
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    25% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    75% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
 .toast.removing {
     animation: slideOut 0.3s ease-in;
 }
@@ -4701,18 +4729,31 @@ body.dark-mode .location-tab.active {
     color: #495057;
 }
 
-.cross-location-table .phase-header {
-    background: #d6e9f8;
-    font-weight: 600;
-    color: #0066cc;
-    border-bottom: 2px solid #0066cc;
+/* Style for phase cells - same as fortnight headers */
+.cross-location-table .phase-cell {
+    background: #f8f9fa;
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 12px;
+    padding: 6px 8px;
+    text-align: center;
+    border: 1px solid #dee2e6;
 }
+
+/* Add visible border between different phases */
+.cross-location-table .phase-cell + .phase-cell {
+    border-left: 3px solid #999;
+}
+
+
 
 .cross-location-table .fortnight-header {
     background: #f8f9fa;
     font-weight: 500;
     color: #6c757d;
     font-size: 12px;
+    border: 1px solid #dee2e6;
+    padding: 6px 8px;
 }
 
 .cross-location-table .location-label {
@@ -4777,6 +4818,41 @@ body.dark-mode .location-tab.active {
     color: #0066cc;
 }
 
+/* Table footnote */
+.table-footnote {
+    font-size: 12px;
+    color: #666;
+    font-style: italic;
+    margin-top: 8px;
+    padding: 5px 10px;
+}
+
+/* Gantt chart legend */
+.gantt-legend {
+    margin-top: 15px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 5px;
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    font-size: 13px;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.legend-box {
+    display: inline-block;
+    width: 20px;
+    height: 14px;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+}
+
 /* Dark mode for cross-location */
 body.dark-mode .cross-location-section {
     background: #2a2a2a;
@@ -4794,7 +4870,7 @@ body.dark-mode .cross-location-phase h4 {
 
 body.dark-mode .cross-location-table th,
 body.dark-mode .cross-location-table td {
-    border-color: #444;
+    border-color: #444 !important;
 }
 
 body.dark-mode .cross-location-table .sticky-col {
@@ -4806,15 +4882,22 @@ body.dark-mode .cross-location-table .month-header {
     color: #b0b0b0;
 }
 
-body.dark-mode .cross-location-table .phase-header {
-    background: #1a3a52;
-    color: #6bb6ff;
-    border-bottom-color: #6bb6ff;
+body.dark-mode .cross-location-table .phase-cell {
+    background: #2a2a2a;
+    color: #999;
+    border: 1px solid #444;
 }
+
+body.dark-mode .cross-location-table .phase-cell + .phase-cell {
+    border-left: 3px solid #666;
+}
+
+
 
 body.dark-mode .cross-location-table .fortnight-header {
     background: #2a2a2a;
     color: #999;
+    border-color: #444;
 }
 
 body.dark-mode .cross-location-table .location-label {
@@ -4829,7 +4912,76 @@ body.dark-mode .cross-location-summary {
     background: #1a3a52;
     color: #6bb6ff;
 }
+
+/* Dark mode for Gantt legend */
+body.dark-mode .gantt-legend {
+    background: #2a2a2a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .legend-box {
+    border-color: #555;
+}
+
+body.dark-mode .table-footnote {
+    color: #999;
+}
+
+/* Cross-location visual enhancements */
+.cross-location-flag {
+    display: inline-block;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.data-cell span[style*="color: #3498db"] {
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.cross-location-summary-section {
+    margin-top: 2rem;
+}
+
+/* Enhanced visibility for cross-location cells in demand table */
+.data-cell:has(span[style*="color: #3498db"]) {
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+body.dark-mode .data-cell:has(span[style*="color: #3498db"]) {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Cross-location group styling in Gantt chart */
+.cross-location-group .group-header-cell {
+    background: rgba(52, 152, 219, 0.15) !important;
+    border-top: 2px solid #3498db;
+}
+
+.cross-location-row {
+    opacity: 0.9;
+}
+
+.cross-location-row .gantt-cohort-cell {
+    font-style: italic;
+    color: #2980b9;
+}
+
+body.dark-mode .cross-location-row .gantt-cohort-cell {
+    color: #5dade2;
+}
+
     </style>
+    <\!-- Chart.js from CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -4843,7 +4995,7 @@ body.dark-mode .cross-location-summary {
                     <button class="nav-tab" data-view="scenarios">Scenarios</button>
                 </nav>
                 <div class="location-selector">
-                    <button class="location-toggle active" data-location="AU">AU</button>
+                    <button class="location-toggle" data-location="AU">AU</button>
                     <button class="location-toggle" data-location="NZ">NZ</button>
                 </div>
                 <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle Dark Mode">
@@ -4953,10 +5105,10 @@ body.dark-mode .cross-location-summary {
                 <div class="view-controls">
                     <button id="nav-left" class="nav-arrow" title="Previous period">◀</button>
                     <button class="view-btn" data-view="6months">6M</button>
-                    <button class="view-btn" data-view="12months">12M</button>
+                    <button class="view-btn active" data-view="12months">12M</button>
                     <button id="nav-right" class="nav-arrow" title="Next period">▶</button>
                     <div class="separator"></div>
-                    <button class="view-btn active" data-view="all">All</button>
+                    <button class="view-btn" data-view="all">All</button>
                     <div class="separator"></div>
                     <button id="today-btn" class="today-btn">📍 Today</button>
                 </div>
@@ -4992,6 +5144,20 @@ body.dark-mode .cross-location-summary {
                 </div>
                 <div id="gantt-chart-container" class="gantt-container">
                     <!-- Gantt chart will be generated here -->
+                </div>
+                <div class="gantt-legend">
+                    <span class="legend-item">
+                        <span class="legend-box" style="background: #4CAF50;"></span>
+                        <span>GS+SIM Phase</span>
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-box" style="background: #2196F3;"></span>
+                        <span>Line Training (Home Location)</span>
+                    </span>
+                    <span class="legend-item">
+                        <span class="legend-box" style="background: #2196F3; background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.2) 5px, rgba(255,255,255,0.2) 10px);"></span>
+                        <span>Line Training (Cross-Location)</span>
+                    </span>
                 </div>
             </section>
 
@@ -5031,6 +5197,16 @@ body.dark-mode .cross-location-summary {
                 </div>
                 <div id="surplus-deficit-container" class="table-container">
                     <!-- Surplus/Deficit table will be generated here -->
+                </div>
+            </section>
+
+            <!-- Cross-Location Summary Section -->
+            <section class="cross-location-summary-section">
+                <div class="section-header">
+                    <h2>Cross-Location Trainer Movement Summary</h2>
+                </div>
+                <div id="cross-location-summary-container" class="table-container">
+                    <!-- Cross-location summary will be generated here -->
                 </div>
             </section>
         </div>
@@ -5534,7 +5710,7 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
     </div>
 
     <script src="app.js"></script>
-
+</body>
 <script>
 // Configuration Constants
 const START_YEAR = 2024;
@@ -5787,7 +5963,9 @@ let activeCohorts = [
         numTrainees: 12,
         pathwayId: "A202",
         startYear: 2024,
-        startFortnight: 3
+        startFortnight: 3,
+        location: 'AU',
+        crossLocationTraining: {}
     }
 ];
 let nextCohortId = 2;
@@ -5927,6 +6105,9 @@ function switchLocation(newLocation) {
         toggle.classList.toggle('active', toggle.dataset.location === newLocation);
     });
     
+    // Update HTML data attribute for CSS styling
+    document.documentElement.setAttribute('data-location', newLocation);
+    
     // Re-render all views
     populatePathwaySelect();
     updateAllTables();
@@ -5978,7 +6159,26 @@ function migrateDataToLocations() {
     locationData.NZ.priorityConfig = JSON.parse(JSON.stringify(priorityConfig));
     
     // Empty cohorts for NZ
-    locationData.NZ.activeCohorts = [];
+    locationData.NZ.activeCohorts = [
+        {
+            id: 101,
+            numTrainees: 1,
+            pathwayId: "H209",
+            startYear: 2025,
+            startFortnight: 13,  // July is fortnight 13
+            location: 'NZ',
+            crossLocationTraining: {}
+        },
+        {
+            id: 102,
+            numTrainees: 1,
+            pathwayId: "H209",
+            startYear: 2025,
+            startFortnight: 13,  // July is fortnight 13
+            location: 'NZ',
+            crossLocationTraining: {}
+        }
+    ];
     
     // Update current references to point to AU data
     pathways = locationData.AU.pathways;
@@ -6034,6 +6234,9 @@ function init() {
         }
     }, 500);
     
+    // Mark UI elements as initialized to prevent flicker (do this early)
+    document.querySelector('.view-controls')?.classList.add('initialized');
+    
     // Initialize dark mode
     initDarkMode();
     
@@ -6050,6 +6253,22 @@ function init() {
             }
         }, 500);
     });
+    
+    // Show refresh notification if page was reloaded
+    if (performance.navigation && performance.navigation.type === 1) {
+        // Type 1 is reload
+        setTimeout(() => {
+            showCenterNotification('Page refreshed');
+        }, 100);
+    } else if (performance.getEntriesByType && performance.getEntriesByType("navigation").length > 0) {
+        // Modern API
+        const navEntries = performance.getEntriesByType("navigation");
+        if (navEntries[0].type === "reload") {
+            setTimeout(() => {
+                showCenterNotification('Page refreshed');
+            }, 100);
+        }
+    }
 }
 
 // Generate table headers with months and fortnights
@@ -6253,7 +6472,6 @@ function setupEventListeners() {
                         }
                     });
                     
-                    // Adjust width based on duration
                     // Simple width calculation
                     if (totalLTDuration > 0) {
                         // Location column (80px) + fortnight columns (45px each) + padding
@@ -7160,9 +7378,18 @@ function handleAddCohort(e) {
 
 // Update All Tables
 function updateAllTables() {
+    // Store scroll positions before update
+    const containers = document.querySelectorAll('.table-container');
+    const scrollPositions = Array.from(containers).map(c => ({
+        element: c,
+        left: c.scrollLeft,
+        top: c.scrollTop
+    }));
+    
     renderFTESummaryTable();
     renderDemandTable();
     renderSurplusDeficitTable();
+    renderCrossLocationSummary();
     
     // Update commencement summary if it's expanded
     const commencementBtn = document.getElementById('toggle-commencement-btn');
@@ -7170,14 +7397,21 @@ function updateAllTables() {
         renderCommencementSummary();
     }
     
+    // Restore scroll positions
+    scrollPositions.forEach(pos => {
+        if (pos.element && pos.element.scrollLeft !== undefined) {
+            pos.element.scrollLeft = pos.left;
+            pos.element.scrollTop = pos.top;
+        }
+    });
+    
     // After tables are rendered, adjust widths and re-establish sync
-    // Use longer timeout for ALL view as it has more data
-    const timeout = viewState.currentView === 'all' ? 100 : 50;
-    setTimeout(() => {
+    // Use requestAnimationFrame here for smooth sync setup
+    requestAnimationFrame(() => {
         adjustColumnWidths();
         setupSynchronizedScrolling();
         console.log('Sync re-established after table update');
-    }, timeout);
+    });
     
     // Update dashboard if it's active
     if (dashboardView && dashboardView.classList.contains('active')) {
@@ -7506,9 +7740,10 @@ function renderFTESummaryTable() {
 // Render Demand Table
 function renderDemandTable() {
     const container = document.getElementById('demand-table-container');
-    const { demand } = calculateDemand();
+    const { demand, crossLocationDemand } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
+    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
     
     let html = '<div class="table-wrapper"><table class="data-table">';
     html += '<thead>';
@@ -7528,7 +7763,28 @@ function renderDemandTable() {
         while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
             const demandData = demand[currentYear]?.[currentFn] || { byTrainingType: {} };
             const value = demandData.byTrainingType[config.trainingType] || 0;
-            html += `<td class="data-cell">${value.toFixed(1)}</td>`;
+            
+            // Check if this includes cross-location demand
+            let crossLocValue = 0;
+            if (crossLocationDemand[currentYear]?.[currentFn]?.[currentLocation]?.byTrainingType?.[config.trainingType] > 0) {
+                crossLocValue = crossLocationDemand[currentYear][currentFn][currentLocation].byTrainingType[config.trainingType];
+            }
+            
+            // Calculate local demand (total - cross-location)
+            const localValue = value - crossLocValue;
+            
+            let cellContent = '';
+            let tooltip = '';
+            
+            if (crossLocValue > 0) {
+                // Show as "local + cross-location"
+                cellContent = `<span>${localValue.toFixed(1)}</span> <span style="color: #3498db; font-size: 0.9em;">+${crossLocValue.toFixed(1)}</span>`;
+                tooltip = `title="Local: ${localValue.toFixed(1)} + Cross-location: ${crossLocValue.toFixed(1)} from ${currentLocation === 'AU' ? 'NZ' : 'AU'}"`;
+            } else {
+                cellContent = value.toFixed(1);
+            }
+            
+            html += `<td class="data-cell" ${tooltip}>${cellContent}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -7549,7 +7805,22 @@ function renderDemandTable() {
     
     while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
         const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
-        html += `<td class="data-cell total-row">${demandData.total.toFixed(1)}</td>`;
+        
+        // Check for cross-location total
+        let crossLocTotal = 0;
+        if (crossLocationDemand[totalYear]?.[totalFn]?.[currentLocation]?.total > 0) {
+            crossLocTotal = crossLocationDemand[totalYear][totalFn][currentLocation].total;
+        }
+        
+        let cellContent = '';
+        if (crossLocTotal > 0) {
+            const localTotal = demandData.total - crossLocTotal;
+            cellContent = `<span>${localTotal.toFixed(1)}</span> <span style="color: #3498db; font-size: 0.9em;">+${crossLocTotal.toFixed(1)}</span>`;
+        } else {
+            cellContent = demandData.total.toFixed(1);
+        }
+        
+        html += `<td class="data-cell total-row">${cellContent}</td>`;
         
         totalFn++;
         if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -7559,6 +7830,123 @@ function renderDemandTable() {
     }
     
     html += '</tr>';
+    html += '</tbody></table></div>';
+    
+    // Add footnote if there's cross-location demand
+    let hasCrossLocationDemand = false;
+    for (let year in crossLocationDemand) {
+        for (let fn in crossLocationDemand[year]) {
+            if (crossLocationDemand[year][fn][currentLocation]) {
+                hasCrossLocationDemand = true;
+                break;
+            }
+        }
+        if (hasCrossLocationDemand) break;
+    }
+    
+    if (hasCrossLocationDemand) {
+        html += '<div class="table-footnote">* Includes cross-location trainer demand from other regions</div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+// Render Cross-Location Summary
+function renderCrossLocationSummary() {
+    const container = document.getElementById('cross-location-summary-container');
+    if (!container) return;
+    
+    const { crossLocationDemand } = calculateDemand();
+    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+    const range = getTimeRangeForView();
+    
+    // Check if there's any cross-location demand
+    let hasAnyDemand = false;
+    for (let year in crossLocationDemand) {
+        for (let fn in crossLocationDemand[year]) {
+            if (Object.keys(crossLocationDemand[year][fn]).length > 0) {
+                hasAnyDemand = true;
+                break;
+            }
+        }
+        if (hasAnyDemand) break;
+    }
+    
+    if (!hasAnyDemand) {
+        container.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No cross-location trainer movements in the selected period</p>';
+        return;
+    }
+    
+    // Build summary table
+    let html = '<div class="table-wrapper"><table class="data-table">';
+    html += '<thead><tr>';
+    html += '<th class="sticky-first-column">Period</th>';
+    html += `<th>Trainers from ${otherLocation} to ${currentLocation}</th>`;
+    html += '<th>Training Type</th>';
+    html += '<th>Cohorts Using Cross-Location</th>';
+    html += '</tr></thead>';
+    html += '<tbody>';
+    
+    // Process cross-location demand by period
+    let currentYear = range.startYear;
+    let currentFn = range.startFortnight;
+    
+    while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+        if (crossLocationDemand[currentYear]?.[currentFn]?.[currentLocation]) {
+            const demand = crossLocationDemand[currentYear][currentFn][currentLocation];
+            
+            // Find cohorts using cross-location for this period
+            const cohorts = activeCohorts.filter(cohort => {
+                if (!cohort.crossLocationTraining) return false;
+                
+                // Check if this cohort uses cross-location training in this period
+                const pathway = pathways.find(p => p.id === cohort.pathwayId);
+                if (!pathway) return false;
+                
+                // Calculate if cohort is in LT phase during this period
+                let cohortYear = cohort.startYear;
+                let cohortFn = cohort.startFortnight;
+                let globalFn = 1;
+                
+                for (let phase of pathway.phases) {
+                    for (let i = 0; i < phase.duration; i++) {
+                        if (cohortYear === currentYear && cohortFn === currentFn && phase.trainerDemandType) {
+                            // Check if this phase uses cross-location
+                            const crossLoc = cohort.crossLocationTraining[currentLocation];
+                            if (crossLoc?.phases?.[phase.name]?.includes(globalFn)) {
+                                return true;
+                            }
+                        }
+                        
+                        cohortFn++;
+                        if (cohortFn > FORTNIGHTS_PER_YEAR) {
+                            cohortFn = 1;
+                            cohortYear++;
+                        }
+                        globalFn++;
+                    }
+                }
+                return false;
+            });
+            
+            Object.entries(demand.byTrainingType).forEach(([type, count]) => {
+                html += '<tr>';
+                html += `<td class="sticky-first-column">${currentYear} FN${String(currentFn).padStart(2, '0')}</td>`;
+                html += `<td class="data-cell">${count.toFixed(1)}</td>`;
+                html += `<td>${type}</td>`;
+                html += `<td>${cohorts.map(c => c.name).join(', ') || '-'}</td>`;
+                html += '</tr>';
+            });
+        }
+        
+        currentFn++;
+        if (currentFn > FORTNIGHTS_PER_YEAR) {
+            currentFn = 1;
+            currentYear++;
+        }
+    }
+    
     html += '</tbody></table></div>';
     container.innerHTML = html;
 }
@@ -7888,6 +8276,15 @@ function calculateDemand() {
     activeCohorts.forEach(cohort => {
         const pathway = pathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
+        
+        // Only process cohorts for the current location view
+        const viewingLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+        const cohortName = cohort.name || `Cohort ${cohort.id}`;
+        console.log(`Processing cohort ${cohortName} from ${cohort.location}, viewing ${viewingLocation}`);
+        if (cohort.location !== viewingLocation) {
+            console.log(`Skipping ${cohortName} - not from current location`);
+            return;
+        }
 
         let currentYear = cohort.startYear;
         let currentFortnight = cohort.startFortnight;
@@ -7900,24 +8297,37 @@ function calculateDemand() {
                 // Only track demand for line training phases with trainerDemandType
                 if (phase.trainerDemandType) {
                     const phaseDemand = cohort.numTrainees;
-                    const globalFortnight = phaseStartFortnight + i + 1;
+                    // Calculate globalFortnight the same way as in generateCrossLocationUI
+                    const globalFortnight = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight;
                     
                     // Check if this fortnight uses cross-location training
                     let usesCrossLocation = false;
                     let crossLocationFrom = null;
                     
+                    console.log(`Checking cross-location for ${cohortName}, ${phase.name}, fortnight ${globalFortnight}`);
+                    console.log('Cross-location config:', JSON.stringify(cohort.crossLocationTraining, null, 2));
+                    console.log('Cohort location:', cohort.location, 'Current viewing location:', viewingLocation);
+                    
                     if (cohort.crossLocationTraining) {
                         Object.entries(cohort.crossLocationTraining).forEach(([location, data]) => {
-                            if (data.phases && data.phases[phase.name] && 
-                                data.phases[phase.name].includes(globalFortnight)) {
-                                usesCrossLocation = true;
-                                crossLocationFrom = location;
+                            console.log(`  Checking location ${location}, phases:`, data.phases);
+                            if (data.phases && data.phases[phase.name]) {
+                                console.log(`  Phase ${phase.name} fortnights:`, data.phases[phase.name]);
+                                if (data.phases[phase.name].includes(globalFortnight)) {
+                                    usesCrossLocation = true;
+                                    crossLocationFrom = location;
+                                    console.log(`  ✓ Found cross-location: using ${location} trainers for fortnight ${globalFortnight}`);
+                                }
                             }
                         });
                     }
                     
                     if (usesCrossLocation && crossLocationFrom) {
-                        // This demand should be counted in the other location
+                        // This cohort is using trainers from another location
+                        // Don't add demand to current location - it's using the other location's trainers
+                        console.log(`Cross-location: Cohort ${cohort.name} (${cohort.location}) using ${crossLocationFrom} trainers for ${phase.name} in ${currentYear} FN${currentFortnight} - NO demand in ${viewingLocation}`);
+                        
+                        // Track this in crossLocationDemand for the OTHER location to pick up
                         if (!crossLocationDemand[currentYear][currentFortnight][crossLocationFrom]) {
                             crossLocationDemand[currentYear][currentFortnight][crossLocationFrom] = {
                                 total: 0,
@@ -7929,12 +8339,8 @@ function calculateDemand() {
                             crossLocationDemand[currentYear][currentFortnight][crossLocationFrom].byTrainingType[phase.trainerDemandType] = 0;
                         }
                         crossLocationDemand[currentYear][currentFortnight][crossLocationFrom].byTrainingType[phase.trainerDemandType] += phaseDemand;
-                        
-                        // Track in main demand for visibility
-                        demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] = 
-                            (demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] || 0) + phaseDemand;
                     } else {
-                        // Normal demand for current location
+                        // Normal demand for current location (home trainers)
                         demand[currentYear][currentFortnight].total += phaseDemand;
                         demand[currentYear][currentFortnight].cohortCount += 1;
                         demand[currentYear][currentFortnight].byTrainingType[phase.trainerDemandType] += phaseDemand;
@@ -8028,6 +8434,81 @@ function calculateDemand() {
         }
     }
 
+    // Now process ALL cohorts again to capture cross-location demand for the current view
+    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    
+    const viewingLocation2 = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    console.log(`\n=== SECOND PASS: Looking for cohorts using ${currentLocation} trainers (viewing: ${viewingLocation2}) ===`);
+    console.log(`Total cohorts to check: ${activeCohorts.length}`);
+    
+    // We need to check ALL location's cohorts, not just the current view
+    const allCohorts = [
+        ...locationData.AU.activeCohorts,
+        ...locationData.NZ.activeCohorts
+    ];
+    console.log(`Checking ALL cohorts from both locations: ${allCohorts.length} total`);
+    
+    allCohorts.forEach(cohort => {
+        // Need to find the pathway from the correct location's data
+        const cohortPathways = cohort.location === 'AU' ? locationData.AU.pathways : locationData.NZ.pathways;
+        const pathway = cohortPathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const cohortName = cohort.name || `Cohort ${cohort.id}`;
+        console.log(`Checking cohort ${cohortName} from ${cohort.location}`);
+        
+        // Skip if this cohort is from the current location (already processed above)
+        if (cohort.location === currentLocation) {
+            console.log(`- Skipping ${cohortName} - already processed in first pass`);
+            return;
+        }
+        
+        // Check if this cohort uses trainers from the current location
+        if (!cohort.crossLocationTraining || !cohort.crossLocationTraining[currentLocation]) {
+            console.log(`- Skipping ${cohortName} - no cross-location config for ${currentLocation}`);
+            return;
+        }
+        
+        console.log(`- ${cohortName} HAS cross-location config for ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
+        
+        let currentYear = cohort.startYear;
+        let currentFortnight = cohort.startFortnight;
+        let phaseStartFortnight = 0;
+        
+        pathway.phases.forEach(phase => {
+            for (let i = 0; i < phase.duration; i++) {
+                if (currentYear > END_YEAR) break;
+                
+                if (phase.trainerDemandType) {
+                    // Calculate globalFortnight the same way as in generateCrossLocationUI
+                    const globalFortnight = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight;
+                    
+                    // Check if this specific fortnight uses current location's trainers
+                    if (cohort.crossLocationTraining[currentLocation].phases?.[phase.name]?.includes(globalFortnight)) {
+                        const phaseDemand = cohort.numTrainees;
+                        
+                        console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${currentLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
+                        
+                        // Add this demand to the current location
+                        demand[currentYear][currentFortnight].total += phaseDemand;
+                        demand[currentYear][currentFortnight].byTrainingType[phase.trainerDemandType] += phaseDemand;
+                        
+                        // Mark as cross-location demand for footnotes
+                        demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] = 
+                            (demand[currentYear][currentFortnight].crossLocation[phase.trainerDemandType] || 0) + phaseDemand;
+                    }
+                }
+                
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+            phaseStartFortnight += phase.duration;
+        });
+    });
+    
     return { demand, ltCpDeficit, crossLocationDemand };
 }
 
@@ -8310,6 +8791,12 @@ function renderGanttChart() {
                     // For 1-fortnight phases, no text (too small)
                 }
                 
+                // Add flag badge for cross-location training
+                if (cell.usesCrossLocation) {
+                    const flag = cell.crossLocationTo === 'AU' ? '🇦🇺' : '🇳🇿';
+                    cellContent += `<span class="cross-location-flag" style="position: absolute; top: 1px; right: 1px; font-size: 12px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));">${flag}</span>`;
+                }
+                
                 let tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name}\nFortnight ${cell.progress}/${cell.totalDuration}\nYear ${renderYear}, Fortnight ${renderFn}`;
                 
                 // Add cross-location indicator
@@ -8324,7 +8811,7 @@ function renderGanttChart() {
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''}" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative;" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
                 html += '<td class="gantt-empty-cell data-cell"></td>';
@@ -8340,6 +8827,130 @@ function renderGanttChart() {
         html += '</tr>';
         });
     });
+    
+    // Add cross-location cohorts section
+    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+    const crossLocationCohorts = [];
+    
+    // Find cohorts from other locations that use current location's trainers
+    const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
+    otherLocationCohorts.forEach(cohort => {
+        if (cohort.crossLocationTraining && cohort.crossLocationTraining[currentLocation]) {
+            // Check if any phases have cross-location training
+            const hasRelevantTraining = Object.values(cohort.crossLocationTraining[currentLocation].phases || {}).some(fortnights => fortnights.length > 0);
+            if (hasRelevantTraining) {
+                crossLocationCohorts.push(cohort);
+            }
+        }
+    });
+    
+    // Render cross-location cohorts if any exist
+    if (crossLocationCohorts.length > 0) {
+        // Add group header for cross-location cohorts
+        html += `<tr class="group-header cross-location-group">`;
+        html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
+        html += `<span style="color: #3498db; font-weight: bold;">📍 Cross-Location Training (from ${otherLocation})</span>`;
+        html += `</td>`;
+        
+        // Fill remaining cells
+        let fillYear = range.startYear;
+        let fillFn = range.startFortnight;
+        
+        while (fillYear < range.endYear || (fillYear === range.endYear && fillFn <= range.endFortnight)) {
+            html += `<td class="group-header-cell" style="background: rgba(52, 152, 219, 0.1);"></td>`;
+            
+            fillFn++;
+            if (fillFn > FORTNIGHTS_PER_YEAR) {
+                fillFn = 1;
+                fillYear++;
+            }
+        }
+        html += '</tr>';
+        
+        // Render each cross-location cohort
+        crossLocationCohorts.forEach(cohort => {
+            const cohortPathways = locationData[otherLocation].pathways;
+            const pathway = cohortPathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            html += `<tr class="gantt-cohort-row cross-location-row">`;
+            
+            // Cohort label
+            const cohortLabel = `${cohort.numTrainees} x ${pathway.name} (${otherLocation})`;
+            html += `<td class="sticky-first-column gantt-cohort-cell" style="background: rgba(52, 152, 219, 0.05);" title="${cohortLabel}">`;
+            html += `<div class="cohort-info">`;
+            html += `<span class="cohort-label">${cohortLabel}</span>`;
+            html += `</div>`;
+            html += `</td>`;
+            
+            // Calculate which fortnights to show
+            let tempYear = cohort.startYear;
+            let tempFortnight = cohort.startFortnight;
+            let globalFortnightCounter = 0;
+            const crossLocationCells = {};
+            
+            pathway.phases.forEach((phase, pIndex) => {
+                for (let i = 0; i < phase.duration; i++) {
+                    globalFortnightCounter++;
+                    
+                    // Calculate globalFortnight the same way as in demand calculation
+                    const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
+                    
+                    // Check if this fortnight uses cross-location training
+                    if (cohort.crossLocationTraining[currentLocation]?.phases?.[phase.name]?.includes(globalFortnight)) {
+                        const key = `${tempYear}-${tempFortnight}`;
+                        crossLocationCells[key] = {
+                            phase: phase,
+                            progress: i + 1,
+                            totalDuration: phase.duration
+                        };
+                    }
+                    
+                    tempFortnight++;
+                    if (tempFortnight > FORTNIGHTS_PER_YEAR) {
+                        tempFortnight = 1;
+                        tempYear++;
+                    }
+                }
+            });
+            
+            // Render cells
+            let renderYear = range.startYear;
+            let renderFn = range.startFortnight;
+            
+            while (renderYear < range.endYear || (renderYear === range.endYear && renderFn <= range.endFortnight)) {
+                const cellKey = `${renderYear}-${renderFn}`;
+                const cell = crossLocationCells[cellKey];
+                
+                if (cell) {
+                    const phaseColors = {
+                        'LT-CAD': '#2980b9',
+                        'LT-CP': '#27ae60',
+                        'LT-FO': '#e67e22'
+                    };
+                    
+                    const backgroundColor = phaseColors[cell.phase.name] || '#9b59b6';
+                    const tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name} (from ${otherLocation})\nUsing ${currentLocation} trainers`;
+                    const flag = otherLocation === 'AU' ? '🇦🇺' : '🇳🇿';
+                    
+                    html += `<td class="gantt-phase-cell data-cell" style="background-color: ${backgroundColor} !important; position: relative;" title="${tooltip}">`;
+                    html += `<span class="cross-location-flag" style="position: absolute; top: 1px; right: 1px; font-size: 12px;">${flag}</span>`;
+                    html += `</td>`;
+                } else {
+                    html += '<td class="gantt-empty-cell data-cell"></td>';
+                }
+                
+                renderFn++;
+                if (renderFn > FORTNIGHTS_PER_YEAR) {
+                    renderFn = 1;
+                    renderYear++;
+                }
+            }
+            
+            html += '</tr>';
+        });
+    }
     
     html += '</tbody>';
     html += '</table></div>';
@@ -9214,28 +9825,50 @@ function generateCrossLocationUI(cohort) {
     const otherLocation = cohort.location === 'AU' ? 'NZ' : 'AU';
     let html = '';
     
-    // First, collect all LT phases and their ranges
+    // Collect all LT phases with their details
     let ltPhases = [];
+    let allLTFortnights = [];  // Track all individual fortnights
     let currentFortnight = cohort.startFortnight;
     let currentYear = cohort.startYear;
     
     pathway.phases.forEach((phase, phaseIndex) => {
         if (phase.trainerDemandType) {
-            // This is an LT phase
+            const phaseFortnights = [];
+            
+            // Collect all fortnights for this phase
+            for (let i = 0; i < phase.duration; i++) {
+                const globalFortnight = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight;
+                phaseFortnights.push({
+                    fortnight: currentFortnight,
+                    year: currentYear,
+                    globalFortnight: globalFortnight,
+                    phase: phase.name
+                });
+                allLTFortnights.push({
+                    fortnight: currentFortnight,
+                    year: currentYear,
+                    globalFortnight: globalFortnight,
+                    phase: phase.name
+                });
+                
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+            
             ltPhases.push({
                 name: phase.name,
-                startFortnight: currentFortnight,
-                startYear: currentYear,
-                duration: phase.duration,
-                globalStartFortnight: (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight
+                fortnights: phaseFortnights
             });
-        }
-        
-        // Advance fortnight counter
-        currentFortnight += phase.duration;
-        while (currentFortnight > FORTNIGHTS_PER_YEAR) {
-            currentFortnight -= FORTNIGHTS_PER_YEAR;
-            currentYear++;
+        } else {
+            // Skip non-LT phases
+            currentFortnight += phase.duration;
+            while (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                currentFortnight -= FORTNIGHTS_PER_YEAR;
+                currentYear++;
+            }
         }
     });
     
@@ -9244,19 +9877,7 @@ function generateCrossLocationUI(cohort) {
         return;
     }
     
-    // Calculate the total range of all LT phases
-    const firstPhase = ltPhases[0];
-    const lastPhase = ltPhases[ltPhases.length - 1];
-    const startFortnight = firstPhase.startFortnight;
-    const startYear = firstPhase.startYear;
-    let endFortnight = lastPhase.startFortnight + lastPhase.duration - 1;
-    let endYear = lastPhase.startYear;
-    while (endFortnight > FORTNIGHTS_PER_YEAR) {
-        endFortnight -= FORTNIGHTS_PER_YEAR;
-        endYear++;
-    }
-    
-    // Create one unified table
+    // Create unified table
     html += `<div class="cross-location-phase">`;
     html += `<h4>Line Training Configuration</h4>`;
     html += `<div class="cross-location-timeline">`;
@@ -9265,59 +9886,63 @@ function generateCrossLocationUI(cohort) {
     // Build headers
     html += `<thead>`;
     
-    // Phase indicators row (if multiple phases)
-    if (ltPhases.length > 1) {
-        html += `<tr>`;
-        html += `<th rowspan="3" class="sticky-col">Location</th>`;
-        
-        ltPhases.forEach((phase, index) => {
-            html += `<th colspan="${phase.duration}" class="phase-header">${phase.name}</th>`;
-        });
-        html += `</tr>`;
-    }
-    
     // Month row
     html += `<tr>`;
-    if (ltPhases.length === 1) {
-        html += `<th rowspan="2" class="sticky-col">Location</th>`;
-    }
+    html += `<th rowspan="2" class="sticky-col">Period</th>`;
     
-    let tempFortnight = startFortnight;
-    let tempYear = startYear;
+    // Count fortnights per month for all LT fortnights
     let monthSpans = {};
-    
-    // Count fortnights per month across all LT phases
-    while (tempYear < endYear || (tempYear === endYear && tempFortnight <= endFortnight)) {
-        const monthIndex = Math.floor((tempFortnight - 1) / 2);
-        const monthKey = `${MONTHS[monthIndex]}-${tempYear}`;
-        monthSpans[monthKey] = (monthSpans[monthKey] || 0) + 1;
-        
-        tempFortnight++;
-        if (tempFortnight > FORTNIGHTS_PER_YEAR) {
-            tempFortnight = 1;
-            tempYear++;
+    let monthOrder = [];
+    allLTFortnights.forEach(fn => {
+        const monthIndex = Math.floor((fn.fortnight - 1) / 2);
+        const monthKey = `${MONTHS[monthIndex]}-${fn.year}`;
+        if (!monthSpans[monthKey]) {
+            monthSpans[monthKey] = 0;
+            monthOrder.push(monthKey);
         }
-    }
+        monthSpans[monthKey]++;
+    });
     
     // Generate month headers
-    Object.entries(monthSpans).forEach(([monthKey, span]) => {
-        html += `<th colspan="${span}" class="month-header">${monthKey}</th>`;
+    monthOrder.forEach(monthKey => {
+        html += `<th colspan="${monthSpans[monthKey]}" class="month-header">${monthKey}</th>`;
     });
     html += `</tr>`;
     
     // Fortnight row
     html += `<tr>`;
-    tempFortnight = startFortnight;
-    tempYear = startYear;
-    while (tempYear < endYear || (tempYear === endYear && tempFortnight <= endFortnight)) {
-        html += `<th class="fortnight-header">FN${String(tempFortnight).padStart(2, '0')}</th>`;
-        tempFortnight++;
-        if (tempFortnight > FORTNIGHTS_PER_YEAR) {
-            tempFortnight = 1;
-            tempYear++;
+    allLTFortnights.forEach(fn => {
+        html += `<th class="fortnight-header">FN${String(fn.fortnight).padStart(2, '0')}</th>`;
+    });
+    html += `</tr>`;
+    
+    // Phase row with merged cells
+    html += `<tr>`;
+    html += `<th class="fortnight-header" style="font-weight: 600;">Phase</th>`;
+    
+    // Track phase spans for merging
+    let i = 0;
+    let isFirst = true;
+    while (i < allLTFortnights.length) {
+        const currentPhase = allLTFortnights[i].phase;
+        let span = 1;
+        
+        // Count how many consecutive fortnights have the same phase
+        while (i + span < allLTFortnights.length && allLTFortnights[i + span].phase === currentPhase) {
+            span++;
         }
+        
+        // Add the merged cell with inline styles - match fortnight header exactly
+        const borderLeft = isFirst ? '1px' : '3px';
+        const borderColor = isFirst ? '#dee2e6' : '#999';
+        html += `<th colspan="${span}" class="fortnight-header phase-indicator" style="border-left-width: ${borderLeft}; border-left-color: ${borderColor};">${currentPhase}</th>`;
+        
+        // Move to the next different phase
+        i += span;
+        isFirst = false;
     }
     html += `</tr>`;
+    
     html += `</thead>`;
     
     // Body with radio buttons
@@ -9327,27 +9952,13 @@ function generateCrossLocationUI(cohort) {
     html += `<tr>`;
     html += `<td class="location-label">${cohort.location} (home)</td>`;
     
-    tempFortnight = startFortnight;
-    tempYear = startYear;
-    let radioIndex = 0;
-    
-    ltPhases.forEach(phase => {
-        for (let i = 0; i < phase.duration; i++) {
-            const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
-            const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[phase.name]?.includes(globalFortnight);
-            
-            html += `<td class="radio-cell">`;
-            html += `<input type="radio" name="cross-loc-${radioIndex}" value="${cohort.location}" 
-                    ${!usesCrossLocation ? 'checked' : ''} data-phase="${phase.name}" data-fortnight="${globalFortnight}">`;
-            html += `</td>`;
-            
-            tempFortnight++;
-            if (tempFortnight > FORTNIGHTS_PER_YEAR) {
-                tempFortnight = 1;
-                tempYear++;
-            }
-            radioIndex++;
-        }
+    allLTFortnights.forEach((fn, index) => {
+        const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
+        
+        html += `<td class="radio-cell">`;
+        html += `<input type="radio" name="cross-loc-${index}" value="${cohort.location}" 
+                ${!usesCrossLocation ? 'checked' : ''} data-phase="${fn.phase}" data-fortnight="${fn.globalFortnight}">`;
+        html += `</td>`;
     });
     html += `</tr>`;
     
@@ -9355,27 +9966,13 @@ function generateCrossLocationUI(cohort) {
     html += `<tr>`;
     html += `<td class="location-label">${otherLocation}</td>`;
     
-    tempFortnight = startFortnight;
-    tempYear = startYear;
-    radioIndex = 0;
-    
-    ltPhases.forEach(phase => {
-        for (let i = 0; i < phase.duration; i++) {
-            const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
-            const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[phase.name]?.includes(globalFortnight);
-            
-            html += `<td class="radio-cell">`;
-            html += `<input type="radio" name="cross-loc-${radioIndex}" value="${otherLocation}" 
-                    ${usesCrossLocation ? 'checked' : ''} data-phase="${phase.name}" data-fortnight="${globalFortnight}">`;
-            html += `</td>`;
-            
-            tempFortnight++;
-            if (tempFortnight > FORTNIGHTS_PER_YEAR) {
-                tempFortnight = 1;
-                tempYear++;
-            }
-            radioIndex++;
-        }
+    allLTFortnights.forEach((fn, index) => {
+        const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
+        
+        html += `<td class="radio-cell">`;
+        html += `<input type="radio" name="cross-loc-${index}" value="${otherLocation}" 
+                ${usesCrossLocation ? 'checked' : ''} data-phase="${fn.phase}" data-fortnight="${fn.globalFortnight}">`;
+        html += `</td>`;
     });
     html += `</tr>`;
     
@@ -9425,16 +10022,23 @@ function handleCohortUpdate(e) {
         
         // Process cross-location training data
         let crossLocationTraining = {};
+        console.log('enableCrossLocation checkbox value:', formData.get('enableCrossLocation'));
         if (formData.get('enableCrossLocation')) {
+            console.log('Cross-location enabled, processing radio buttons...');
             const radioButtons = document.querySelectorAll('#cross-location-config input[type="radio"]:checked');
+            console.log(`Found ${radioButtons.length} checked radio buttons`);
+            
             radioButtons.forEach(radio => {
                 const location = radio.value;
                 const phase = radio.dataset.phase;
                 const fortnight = parseInt(radio.dataset.fortnight);
                 const cohortLocation = formData.get('location');
                 
+                console.log(`Radio: location=${location}, phase=${phase}, fortnight=${fortnight}, cohortLocation=${cohortLocation}`);
+                
                 // Only save if using different location than cohort's home
                 if (location !== cohortLocation) {
+                    console.log(`Adding cross-location: ${phase} fortnight ${fortnight} uses ${location} trainers`);
                     if (!crossLocationTraining[location]) {
                         crossLocationTraining[location] = { phases: {} };
                     }
@@ -9444,6 +10048,10 @@ function handleCohortUpdate(e) {
                     crossLocationTraining[location].phases[phase].push(fortnight);
                 }
             });
+            
+            console.log('Final crossLocationTraining:', JSON.stringify(crossLocationTraining, null, 2));
+        } else {
+            console.log('Cross-location NOT enabled');
         }
         
         activeCohorts[cohortIndex] = {
@@ -9455,6 +10063,22 @@ function handleCohortUpdate(e) {
             location: formData.get('location') || currentLocation,
             crossLocationTraining: crossLocationTraining
         };
+        
+        console.log('Updated cohort:', activeCohorts[cohortIndex]);
+        console.log('Cohort cross-location config:', JSON.stringify(activeCohorts[cohortIndex].crossLocationTraining, null, 2));
+        
+        // Debug: Check what's actually stored
+        if (activeCohorts[cohortIndex].crossLocationTraining && Object.keys(activeCohorts[cohortIndex].crossLocationTraining).length > 0) {
+            console.log('Cross-location details:');
+            Object.entries(activeCohorts[cohortIndex].crossLocationTraining).forEach(([loc, data]) => {
+                console.log(`  Location ${loc}:`, data);
+                if (data.phases) {
+                    Object.entries(data.phases).forEach(([phase, fortnights]) => {
+                        console.log(`    Phase ${phase}: fortnights`, fortnights);
+                    });
+                }
+            });
+        }
         
         // Clear the editing ID
         delete e.target.dataset.editingCohortId;
@@ -11453,6 +12077,44 @@ function showNotification(message, type = 'info') {
     }, 5000);
 }
 
+// Show centered notification (for page refresh)
+function showCenterNotification(message) {
+    // Create centered toast container if it doesn't exist
+    let centerContainer = document.getElementById('center-toast-container');
+    if (!centerContainer) {
+        centerContainer = document.createElement('div');
+        centerContainer.id = 'center-toast-container';
+        centerContainer.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10001;
+        `;
+        document.body.appendChild(centerContainer);
+    }
+    
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = 'toast info';
+    toast.style.cssText = 'animation: fadeInOut 1.2s ease-in-out; text-align: center; justify-content: center;';
+    
+    toast.innerHTML = `
+        <span class="toast-message">${message}</span>
+    `;
+    
+    // Add to center container
+    centerContainer.appendChild(toast);
+    
+    // Remove after animation
+    setTimeout(() => {
+        toast.remove();
+        if (centerContainer.children.length === 0) {
+            centerContainer.remove();
+        }
+    }, 1200);
+}
+
 function removeToast(closeBtn) {
     const toast = closeBtn.closest('.toast');
     toast.style.animation = 'slideOut 0.3s ease-in';
@@ -12287,6 +12949,8 @@ function initDarkMode() {
     // Set up dark mode toggle
     const darkModeToggle = document.getElementById('dark-mode-toggle');
     if (darkModeToggle) {
+        // Show the toggle now that dark mode is initialized
+        darkModeToggle.classList.add('show');
         darkModeToggle.addEventListener('click', toggleDarkMode);
     }
 }
@@ -13166,6 +13830,56 @@ function applyGridEntries() {
 }
 
 // Initialize the app when DOM is loaded
-document.addEventListener('DOMContentLoaded', init);</script>
-</body>
+document.addEventListener('DOMContentLoaded', init);
+
+// Test function to add A320 cohorts
+window.addTestCohorts = function() {
+    // Clear existing cohorts first
+    activeCohorts = [];
+    
+    // Add first A320 cohort
+    activeCohorts.push({
+        id: 1,
+        name: 'A320-01',
+        location: 'NZ',
+        numTrainees: 6,
+        pathwayId: '3', // CAD pathway
+        startYear: 2025,
+        startFortnight: 13, // July 2025
+        crossLocationTraining: {}
+    });
+
+    // Add second A320 cohort with some cross-location training pre-configured
+    activeCohorts.push({
+        id: 2,
+        name: 'A320-02',
+        location: 'NZ',
+        numTrainees: 6,
+        pathwayId: '3', // CAD pathway
+        startYear: 2025,
+        startFortnight: 15, // August 2025
+        crossLocationTraining: {
+            'AU': {
+                phases: {
+                    'LT-FO': [9, 10, 11]  // Use AU trainers for fortnights 9, 10, 11
+                }
+            }
+        }
+    });
+    
+    // Switch to NZ view
+    document.querySelector('.location-toggle[data-location="NZ"]')?.click();
+    
+    // Switch to planner view if not already there
+    const plannerTab = document.querySelector('[data-view="planner"]');
+    if (plannerTab && !plannerTab.classList.contains('active')) {
+        plannerTab.click();
+    }
+    
+    updateAllTables();
+    renderGanttChart();
+    console.log('Added 2 test A320 cohorts (A320-02 has cross-location training configured)');
+    console.log('Current cohorts:', activeCohorts);
+};
+</script>
 </html>

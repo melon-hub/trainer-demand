@@ -4919,3 +4919,55 @@ body.dark-mode .legend-box {
 body.dark-mode .table-footnote {
     color: #999;
 }
+
+/* Cross-location visual enhancements */
+.cross-location-flag {
+    display: inline-block;
+    animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+.data-cell span[style*="color: #3498db"] {
+    font-weight: 600;
+    margin-left: 4px;
+}
+
+.cross-location-summary-section {
+    margin-top: 2rem;
+}
+
+/* Enhanced visibility for cross-location cells in demand table */
+.data-cell:has(span[style*="color: #3498db"]) {
+    background-color: rgba(52, 152, 219, 0.05);
+}
+
+body.dark-mode .data-cell:has(span[style*="color: #3498db"]) {
+    background-color: rgba(52, 152, 219, 0.1);
+}
+
+/* Cross-location group styling in Gantt chart */
+.cross-location-group .group-header-cell {
+    background: rgba(52, 152, 219, 0.15) !important;
+    border-top: 2px solid #3498db;
+}
+
+.cross-location-row {
+    opacity: 0.9;
+}
+
+.cross-location-row .gantt-cohort-cell {
+    font-style: italic;
+    color: #2980b9;
+}
+
+body.dark-mode .cross-location-row .gantt-cohort-cell {
+    color: #5dade2;
+}
