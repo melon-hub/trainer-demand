@@ -5,6 +5,8 @@ A web-based application for managing pilot training cohorts and forecasting trai
 ## Features
 
 ### Core Functionality
+- **Multi-Location Support**: Manage training operations across AU and NZ locations
+- **Cross-Location Training**: Assign specific fortnights to use trainers from other locations
 - **Cohort Management**: Add and track multiple training cohorts with different pathways
 - **Trainer FTE Tracking**: Manage trainer availability by category (CATB, CATA, STP, RHS, LHS)
 - **Demand Calculation**: Automatic calculation of trainer demand based on cohort schedules
@@ -12,10 +14,13 @@ A web-based application for managing pilot training cohorts and forecasting trai
 - **Priority-based Allocation**: Cascading trainer allocation based on training priorities
 
 ### Key Components
-1. **Training Pathways**: Pre-configured training programs (CP, FO, CAD) with defined phases
-2. **Gantt Chart**: Visual timeline of all active training cohorts
-3. **FTE Management**: Year-by-year trainer availability configuration
-4. **Priority Settings**: Configurable training priorities with cascading allocation rules
+1. **Executive Dashboard**: Real-time metrics, charts, and alerts for training operations
+2. **Training Pathways**: Pre-configured training programs (CP, FO, CAD) with defined phases
+3. **Gantt Chart**: Visual timeline with drag-and-drop support and cross-location indicators
+4. **FTE Management**: Year-by-year trainer availability configuration
+5. **Priority Settings**: Configurable training priorities with cascading allocation rules
+6. **Scenario Management**: Save, load, and compare different planning scenarios
+7. **Training Planner**: Grid entry, bulk input, and optimization tools
 
 ## Technology Stack
 - Pure JavaScript (ES6+)
@@ -26,13 +31,15 @@ A web-based application for managing pilot training cohorts and forecasting trai
 ## Project Structure
 ```
 trainer-view/
-├── index.html          # Main application HTML
-├── app.js             # Core application logic
-├── styles.css         # Application styling
-├── screenshots/       # Application screenshots
-├── migration-summary.md    # Migration notes from previous version
-├── fte-dialog-changes.md   # FTE dialog implementation notes
-└── previous-viewer.html    # Original implementation reference
+├── index.html                      # Main application HTML
+├── app.js                         # Core application logic (~7000+ lines)
+├── styles.css                     # Application styling with dark mode
+├── trainer-view-standalone.html   # Single-file version with embedded CSS/JS
+├── README.md                      # Project documentation
+├── CLAUDE.md                      # Development instructions and context
+├── screenshots/                   # Application screenshots
+├── previous-viewers/              # Previous implementations
+└── archive/                       # Completed implementation plans
 ```
 
 ## Key Concepts
@@ -80,13 +87,22 @@ Simply open `index.html` in a modern web browser. No build process or server req
 - Edge
 
 ## Version History
-- v1.0: Initial release with core functionality
-- Recent updates:
-  - Added comments field to pathways
-  - Improved pathway organization (CP vs FO/CAD grouping)
-  - Converted priority information to tooltip
-  - Fixed table scrolling issues
-  - Removed group size constraints for flexible trainee numbers
+- **v1.5** (May 2025): Enhanced cross-location visibility
+  - Split view toggle for demand tables
+  - Cross-location cohorts display in Gantt
+  - Cleaner numeric display (removed decimals)
+  - Dynamic UI adjustments
+- **v1.4** (May 2025): Cross-location training support
+  - Multi-location operations (AU/NZ)
+  - Fortnight-level trainer assignments
+  - Visual indicators and movement summaries
+- **v1.3** (May 2025): Major UI enhancements
+  - Executive dashboard with real-time metrics
+  - Dark mode support
+  - Scenario management system
+- **v1.2** (January 2025): Multi-location foundation
+- **v1.1** (January 2025): UI polish and bug fixes
+- **v1.0**: Initial release with core functionality
 
 ## License
 This project is proprietary software. All rights reserved.

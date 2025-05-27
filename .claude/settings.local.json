@@ -34,7 +34,9 @@
       "Bash(sed:*)",
       "Bash(/tmp/build-standalone.sh:*)",
       "Bash(awk:*)",
-      "mcp__puppeteer__puppeteer_select"
+      "mcp__puppeteer__puppeteer_select",
+      "Bash(mv:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

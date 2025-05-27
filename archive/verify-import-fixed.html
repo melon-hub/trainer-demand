@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cohort Import Verification - FIXED</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; position: sticky; top: 0; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .nz { background-color: #e8f5e9; }
+        .summary { margin: 20px 0; padding: 10px; background-color: #f0f0f0; }
+        .filters { margin: 20px 0; }
+        select, input { margin: 0 10px; padding: 5px; }
+        .highlight { background-color: #ffeb3b !important; }
+        .warning { background-color: #ffecb3; padding: 10px; margin: 10px 0; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Cohort Import Verification - 93 Cohorts (CORRECTED)</h1>
+    <div class="warning">
+        <strong>✓ FIXED:</strong> All fortnights have been shifted by +1 to match the actual PDF data alignment.<br>
+        Example: Row 1 (A211) now correctly starts at Feb FN2 (fortnight 4) instead of Feb FN1 (fortnight 3).
+    </div>
+    
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Cohorts: <span id="total">93</span></p>
+        <p>By Pathway: <span id="pathways">A211: 18, A210: 30, A209: 21, A202: 24</span></p>
+        <p>By Location: <span id="locations">AU: 82, NZ: 11</span></p>
+        <p>By Year: <span id="years">2025: 47, 2026: 46</span></p>
+    </div>
+
+    <div class="filters">
+        <label>Filter by Pathway: 
+            <select id="pathwayFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="A211">A211 (CAD Short)</option>
+                <option value="A210">A210 (FO)</option>
+                <option value="A209">A209 (CAD Long)</option>
+                <option value="A202">A202 (CP)</option>
+            </select>
+        </label>
+        <label>Filter by Location:
+            <select id="locationFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="AU">AU</option>
+                <option value="NZ">NZ</option>
+            </select>
+        </label>
+        <label>Filter by Year:
+            <select id="yearFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+        </label>
+        <label>Search Row #:
+            <input type="number" id="rowSearch" placeholder="Row #" onkeyup="searchRow()">
+        </label>
+    </div>
+
+    <table id="cohortTable">
+        <thead>
+            <tr>
+                <th>Row #</th>
+                <th>Pathway</th>
+                <th>Type</th>
+                <th>Crew Size</th>
+                <th>Start Year</th>
+                <th>Start FN</th>
+                <th>Start Month</th>
+                <th>Location</th>
+                <th>Cross-Location</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+
+    <script>
+        // Embedded cohort data - CORRECTED with +1 fortnight shift
+        const cohortData = [
+            { id: 1, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 4, location: "AU", crossLocationTraining: {} },
+            { id: 2, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 5, location: "AU", crossLocationTraining: {} },
+            { id: 3, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 6, location: "AU", crossLocationTraining: {} },
+            { id: 4, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 7, location: "AU", crossLocationTraining: {} },
+            { id: 5, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 8, location: "AU", crossLocationTraining: {} },
+            { id: 6, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 9, location: "AU", crossLocationTraining: {} },
+            { id: 7, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 10, location: "AU", crossLocationTraining: {} },
+            { id: 8, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 11, location: "AU", crossLocationTraining: {} },
+            { id: 9, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 12, location: "AU", crossLocationTraining: {} },
+            { id: 10, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 13, location: "AU", crossLocationTraining: {} },
+            { id: 11, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 14, location: "AU", crossLocationTraining: {} },
+            { id: 12, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 15, location: "AU", crossLocationTraining: {} },
+            { id: 13, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 16, location: "AU", crossLocationTraining: {} },
+            { id: 14, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 17, location: "AU", crossLocationTraining: {} },
+            { id: 15, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 18, location: "AU", crossLocationTraining: {} },
+            { id: 16, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 19, location: "AU", crossLocationTraining: {} },
+            { id: 17, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 20, location: "AU", crossLocationTraining: {} },
+            { id: 18, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 21, location: "AU", crossLocationTraining: {} },
+            { id: 19, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 22, location: "AU", crossLocationTraining: {} },
+            { id: 20, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 23, location: "AU", crossLocationTraining: {} },
+            { id: 21, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 24, location: "AU", crossLocationTraining: {} },
+            { id: 22, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 1, location: "AU", crossLocationTraining: {} },
+            { id: 23, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 2, location: "AU", crossLocationTraining: {} },
+            { id: 24, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 3, location: "AU", crossLocationTraining: {} },
+            { id: 25, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 4, location: "AU", crossLocationTraining: {} },
+            { id: 26, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 5, location: "AU", crossLocationTraining: {} },
+            { id: 27, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 20, location: "AU", crossLocationTraining: {} },
+            { id: 28, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 21, location: "AU", crossLocationTraining: {} },
+            { id: 29, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 20, location: "AU", crossLocationTraining: {} },
+            { id: 30, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 20, location: "AU", crossLocationTraining: {} },
+            { id: 31, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 21, location: "AU", crossLocationTraining: {} },
+            { id: 32, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 22, location: "AU", crossLocationTraining: {} },
+            { id: 33, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 23, location: "AU", crossLocationTraining: {} },
+            { id: 34, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 16, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 35, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 18, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 36, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 19, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 37, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 20, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 38, pathway: "A211", crewSize: 2, startYear: 2025, startFortnight: 21, location: "AU", crossLocationTraining: {} },
+            { id: 39, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 22, location: "AU", crossLocationTraining: {} },
+            { id: 40, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 23, location: "AU", crossLocationTraining: {} },
+            { id: 41, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 24, location: "AU", crossLocationTraining: {} },
+            { id: 42, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 19, location: "AU", crossLocationTraining: {} },
+            { id: 43, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 20, location: "AU", crossLocationTraining: {} },
+            { id: 44, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 21, location: "AU", crossLocationTraining: {} },
+            { id: 45, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 23, location: "AU", crossLocationTraining: {} },
+            { id: 46, pathway: "A210", crewSize: 2, startYear: 2025, startFortnight: 24, location: "AU", crossLocationTraining: {} },
+            { id: 47, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 1, location: "AU", crossLocationTraining: {} },
+            { id: 48, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 2, location: "AU", crossLocationTraining: {} },
+            { id: 49, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 3, location: "AU", crossLocationTraining: {} },
+            { id: 50, pathway: "A202", crewSize: 2, startYear: 2025, startFortnight: 24, location: "AU", crossLocationTraining: {} },
+            { id: 51, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 1, location: "AU", crossLocationTraining: {} },
+            { id: 52, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 2, location: "AU", crossLocationTraining: {} },
+            { id: 53, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 22, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 54, pathway: "A209", crewSize: 2, startYear: 2025, startFortnight: 23, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 55, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 3, location: "AU", crossLocationTraining: {} },
+            { id: 56, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 4, location: "AU", crossLocationTraining: {} },
+            { id: 57, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 5, location: "AU", crossLocationTraining: {} },
+            { id: 58, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 6, location: "AU", crossLocationTraining: {} },
+            { id: 59, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 7, location: "AU", crossLocationTraining: {} },
+            { id: 60, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 6, location: "AU", crossLocationTraining: {} },
+            { id: 61, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 7, location: "AU", crossLocationTraining: {} },
+            { id: 62, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 8, location: "AU", crossLocationTraining: {} },
+            { id: 63, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 9, location: "AU", crossLocationTraining: {} },
+            { id: 64, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 10, location: "AU", crossLocationTraining: {} },
+            { id: 65, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 5, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 66, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 6, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 67, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 9, location: "AU", crossLocationTraining: {} },
+            { id: 68, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 10, location: "AU", crossLocationTraining: {} },
+            { id: 69, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 11, location: "AU", crossLocationTraining: {} },
+            { id: 70, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 9, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 71, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 10, location: "AU", crossLocationTraining: {} },
+            { id: 72, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 11, location: "AU", crossLocationTraining: {} },
+            { id: 73, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 12, location: "AU", crossLocationTraining: {} },
+            { id: 74, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 13, location: "AU", crossLocationTraining: {} },
+            { id: 75, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 14, location: "AU", crossLocationTraining: {} },
+            { id: 76, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 13, location: "AU", crossLocationTraining: {} },
+            { id: 77, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 14, location: "AU", crossLocationTraining: {} },
+            { id: 78, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 15, location: "AU", crossLocationTraining: {} },
+            { id: 79, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 12, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 80, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 13, location: "NZ", crossLocationTraining: {1: "AU", 2: "AU"} },
+            { id: 81, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 16, location: "AU", crossLocationTraining: {} },
+            { id: 82, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 17, location: "AU", crossLocationTraining: {} },
+            { id: 83, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 15, location: "AU", crossLocationTraining: {} },
+            { id: 84, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 16, location: "AU", crossLocationTraining: {} },
+            { id: 85, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 17, location: "AU", crossLocationTraining: {} },
+            { id: 86, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 18, location: "AU", crossLocationTraining: {} },
+            { id: 87, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 19, location: "AU", crossLocationTraining: {} },
+            { id: 88, pathway: "A209", crewSize: 2, startYear: 2026, startFortnight: 20, location: "AU", crossLocationTraining: {} },
+            { id: 89, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 21, location: "AU", crossLocationTraining: {} },
+            { id: 90, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 22, location: "AU", crossLocationTraining: {} },
+            { id: 91, pathway: "A210", crewSize: 2, startYear: 2026, startFortnight: 23, location: "AU", crossLocationTraining: {} },
+            { id: 92, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 19, location: "AU", crossLocationTraining: {} },
+            { id: 93, pathway: "A202", crewSize: 2, startYear: 2026, startFortnight: 20, location: "AU", crossLocationTraining: {} }
+        ];
+
+        // Pathway type mapping
+        const pathwayTypes = {
+            A211: "CAD (Short)",
+            A210: "FO",
+            A209: "CAD (Long)",
+            A202: "CP"
+        };
+
+        // Function to convert fortnight to month
+        function fortnightToMonth(year, fortnight) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthIndex = Math.floor((fortnight - 1) / 2);
+            const fnPart = ((fortnight - 1) % 2) + 1;
+            return `${months[monthIndex]} FN${fnPart}`;
+        }
+
+        // Load and display cohorts
+        function displayCohorts() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            cohortData.forEach((cohort, index) => {
+                const row = tbody.insertRow();
+                row.className = cohort.location === 'NZ' ? 'nz' : '';
+                row.id = `row-${cohort.id}`;
+                
+                row.insertCell(0).textContent = cohort.id;
+                row.insertCell(1).textContent = cohort.pathway;
+                row.insertCell(2).textContent = pathwayTypes[cohort.pathway];
+                row.insertCell(3).textContent = cohort.crewSize;
+                row.insertCell(4).textContent = cohort.startYear;
+                row.insertCell(5).textContent = cohort.startFortnight;
+                row.insertCell(6).textContent = fortnightToMonth(cohort.startYear, cohort.startFortnight);
+                row.insertCell(7).textContent = cohort.location;
+                row.insertCell(8).textContent = Object.keys(cohort.crossLocationTraining).length > 0 ? 'Yes (AU)' : '-';
+            });
+        }
+
+        // Filter table
+        function filterTable() {
+            const pathwayFilter = document.getElementById('pathwayFilter').value;
+            const locationFilter = document.getElementById('locationFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+            const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                const pathway = row.cells[1].textContent;
+                const location = row.cells[7].textContent;
+                const year = row.cells[4].textContent;
+                
+                const showPathway = !pathwayFilter || pathway === pathwayFilter;
+                const showLocation = !locationFilter || location === locationFilter;
+                const showYear = !yearFilter || year === yearFilter;
+                
+                row.style.display = showPathway && showLocation && showYear ? '' : 'none';
+            }
+        }
+
+        // Search for specific row
+        function searchRow() {
+            const searchValue = document.getElementById('rowSearch').value;
+            const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+            
+            // Remove previous highlights
+            for (let row of rows) {
+                row.classList.remove('highlight');
+            }
+            
+            // Highlight matching row
+            if (searchValue) {
+                const targetRow = document.getElementById(`row-${searchValue}`);
+                if (targetRow) {
+                    targetRow.classList.add('highlight');
+                    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        // Load on page load
+        displayCohorts();
+
+        // Export function for console
+        window.exportCohorts = function() {
+            console.log(JSON.stringify(cohortData, null, 2));
+        };
+        console.log("Tip: Run exportCohorts() in console to get the JSON data");
+    </script>
+</body>
+</html>

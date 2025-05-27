@@ -474,6 +474,173 @@ function migrateDataToLocations() {
     activeCohorts = locationData.AU.activeCohorts;
 }
 
+// Dashboard v2 Functions
+let demandChartV2 = null;
+let distributionChartV2 = null;
+let acknowledgedAlerts = new Set(JSON.parse(localStorage.getItem('acknowledgedAlerts') || '[]'));
+
+function initDashboardToggle() {
+    const toggleButtons = document.querySelectorAll('.toggle-option');
+    const classicDashboard = document.getElementById('dashboard-classic');
+    const enhancedDashboard = document.getElementById('dashboard-enhanced');
+    
+    // Load saved preference
+    const savedVersion = localStorage.getItem('dashboardVersion') || 'classic';
+    
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const version = this.dataset.version;
+            
+            // Update active state
+            toggleButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show/hide dashboards
+            if (version === 'classic') {
+                classicDashboard.style.display = 'block';
+                enhancedDashboard.style.display = 'none';
+                updateDashboard();
+            } else {
+                classicDashboard.style.display = 'none';
+                enhancedDashboard.style.display = 'block';
+                updateDashboardV2();
+            }
+            
+            // Save preference
+            localStorage.setItem('dashboardVersion', version);
+        });
+        
+        // Set initial state
+        if (btn.dataset.version === savedVersion) {
+            btn.click();
+        }
+    });
+}
+
+function calculateMetricTrends() {
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    // Calculate previous period (1 month ago)
+    let prevMonth = currentMonth - 1;
+    let prevYear = currentYear;
+    if (prevMonth < 0) {
+        prevMonth = 11;
+        prevYear--;
+    }
+    const prevFortnight = (prevMonth * 2) + 1;
+    
+    // Current metrics
+    const currentMetrics = calculateMetricsForPeriod(currentYear, currentFortnight);
+    const prevMetrics = calculateMetricsForPeriod(prevYear, prevFortnight);
+    
+    // Calculate trends
+    const trends = {
+        totalTrainees: {
+            current: currentMetrics.totalTrainees,
+            previous: prevMetrics.totalTrainees,
+            change: currentMetrics.totalTrainees - prevMetrics.totalTrainees,
+            percentage: prevMetrics.totalTrainees > 0 ? 
+                ((currentMetrics.totalTrainees - prevMetrics.totalTrainees) / prevMetrics.totalTrainees * 100).toFixed(1) : 0
+        },
+        utilization: {
+            current: currentMetrics.utilization,
+            previous: prevMetrics.utilization,
+            change: currentMetrics.utilization - prevMetrics.utilization,
+            percentage: (currentMetrics.utilization - prevMetrics.utilization).toFixed(1)
+        },
+        upcomingCompletions: {
+            current: currentMetrics.upcomingCompletions,
+            previous: prevMetrics.upcomingCompletions,
+            change: currentMetrics.upcomingCompletions - prevMetrics.upcomingCompletions,
+            percentage: prevMetrics.upcomingCompletions > 0 ? 
+                ((currentMetrics.upcomingCompletions - prevMetrics.upcomingCompletions) / prevMetrics.upcomingCompletions * 100).toFixed(1) : 0
+        },
+        capacityWarnings: {
+            current: currentMetrics.capacityWarnings,
+            previous: prevMetrics.capacityWarnings,
+            change: currentMetrics.capacityWarnings - prevMetrics.capacityWarnings,
+            percentage: prevMetrics.capacityWarnings > 0 ? 
+                ((currentMetrics.capacityWarnings - prevMetrics.capacityWarnings) / prevMetrics.capacityWarnings * 100).toFixed(1) : 0
+        }
+    };
+    
+    return trends;
+}
+
+function calculateMetricsForPeriod(year, fortnight) {
+    let totalTrainees = 0;
+    let upcomingCompletions = 0;
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        let endFortnight = cohort.startFortnight + duration - 1;
+        let endYear = cohort.startYear;
+        
+        while (endFortnight > FORTNIGHTS_PER_YEAR) {
+            endFortnight -= FORTNIGHTS_PER_YEAR;
+            endYear++;
+        }
+        
+        // Check if cohort is in training during this period
+        const startPassed = cohort.startYear < year || 
+            (cohort.startYear === year && cohort.startFortnight <= fortnight);
+        const endNotReached = endYear > year || 
+            (endYear === year && endFortnight >= fortnight);
+            
+        if (startPassed && endNotReached) {
+            totalTrainees += cohort.numTrainees;
+        }
+        
+        // Check if completing in next 3 months from this period
+        const monthsAhead = 6;
+        let futureYear = year;
+        let futureFortnight = fortnight + monthsAhead;
+        while (futureFortnight > FORTNIGHTS_PER_YEAR) {
+            futureFortnight -= FORTNIGHTS_PER_YEAR;
+            futureYear++;
+        }
+        
+        const completingSoon = (endYear === year && endFortnight > fortnight && endFortnight <= fortnight + monthsAhead) ||
+            (endYear === futureYear && endFortnight <= futureFortnight);
+            
+        if (completingSoon) {
+            upcomingCompletions += cohort.numTrainees;
+        }
+    });
+    
+    // Calculate trainer utilization
+    const { demand } = calculateDemand();
+    const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+        sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+    const currentDemand = demand[year]?.[fortnight]?.total || 0;
+    const utilization = totalSupply > 0 ? Math.round((currentDemand / totalSupply) * 100) : 0;
+    
+    // Count capacity warnings
+    let capacityWarnings = 0;
+    for (let checkYear in demand) {
+        for (let fn in demand[checkYear]) {
+            const supply = totalSupply;
+            const demandValue = demand[checkYear][fn].total;
+            if (demandValue > supply) {
+                capacityWarnings++;
+            }
+        }
+    }
+    
+    return {
+        totalTrainees,
+        utilization,
+        upcomingCompletions,
+        capacityWarnings
+    };
+}
+
 // Initialize the application
 function init() {
     migrateDataToLocations(); // Migrate data first
@@ -526,6 +693,9 @@ function init() {
     
     // Initialize dark mode
     initDarkMode();
+    
+    // Initialize dashboard toggle
+    initDashboardToggle();
     
     // Restore last active tab or start with dashboard
     const lastActiveTab = localStorage.getItem('activeTab') || 'dashboard';
@@ -1199,6 +1369,49 @@ function setupEventListeners() {
     
     // Grid Entry Event Listeners
     setupGridEntryListeners();
+    
+    // Enhanced Dashboard Event Listeners
+    // Pipeline filter
+    const pipelineFilter = document.getElementById('pipeline-filter');
+    if (pipelineFilter) {
+        pipelineFilter.addEventListener('change', updatePipelineV2);
+    }
+    
+    // Alert filter
+    const alertFilter = document.getElementById('alert-filter');
+    if (alertFilter) {
+        alertFilter.addEventListener('change', updateAlertsV2);
+    }
+    
+    // Clear acknowledged alerts
+    const clearAlertsBtn = document.getElementById('clear-acknowledged');
+    if (clearAlertsBtn) {
+        clearAlertsBtn.addEventListener('click', () => {
+            acknowledgedAlerts.clear();
+            localStorage.setItem('acknowledgedAlerts', '[]');
+            updateAlertsV2();
+            showNotification('Cleared acknowledged alerts', 'success');
+        });
+    }
+    
+    // Export dashboard button
+    const exportDashboardBtn = document.getElementById('export-dashboard');
+    if (exportDashboardBtn) {
+        exportDashboardBtn.addEventListener('click', exportDashboard);
+    }
+    
+    // Chart export buttons
+    document.querySelectorAll('.btn-export-chart').forEach(btn => {
+        btn.addEventListener('click', () => exportChart(btn.dataset.chart));
+    });
+    
+    // Load demo data button
+    const loadDemoBtn = document.getElementById('load-demo-data');
+    if (loadDemoBtn) {
+        loadDemoBtn.addEventListener('click', () => {
+            addDemoDashboardData();
+        });
+    }
 }
 
 // Setup Grid Entry Event Listeners
@@ -1550,7 +1763,13 @@ function switchView(viewName) {
     switch(viewName) {
         case 'dashboard':
             dashboardView.classList.add('active');
-            updateDashboard();
+            // Check which dashboard version to update
+            const dashboardVersion = localStorage.getItem('dashboardVersion') || 'classic';
+            if (dashboardVersion === 'enhanced') {
+                updateDashboardV2();
+            } else {
+                updateDashboard();
+            }
             break;
         case 'planner':
             plannerView.classList.add('active');
@@ -2031,7 +2250,7 @@ function renderDemandTable() {
     const { demand, crossLocationDemand } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
-    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
     let html = '<div class="table-wrapper"><table class="data-table">';
     html += '<thead>';
@@ -2281,7 +2500,7 @@ function renderCrossLocationSummary() {
     if (!container) return;
     
     const { crossLocationDemand } = calculateDemand();
-    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
     const range = getTimeRangeForView();
     
@@ -2722,7 +2941,7 @@ function calculateDemand() {
                 if (phase.trainerDemandType) {
                     const phaseDemand = cohort.numTrainees;
                     // Calculate globalFortnight the same way as in generateCrossLocationUI
-                    const globalFortnight = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight;
+                    const globalFortnight = (currentYear - 2024) * FORTNIGHTS_PER_YEAR + currentFortnight;
                     
                     // Check if this fortnight uses cross-location training
                     let usesCrossLocation = false;
@@ -2859,7 +3078,7 @@ function calculateDemand() {
     }
 
     // Now process ALL cohorts again to capture cross-location demand for the current view
-    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
     const viewingLocation2 = document.querySelector('.location-toggle.active')?.textContent || 'AU';
     console.log(`\n=== SECOND PASS: Looking for cohorts using ${currentLocation} trainers (viewing: ${viewingLocation2}) ===`);
@@ -2905,7 +3124,7 @@ function calculateDemand() {
                 
                 if (phase.trainerDemandType) {
                     // Calculate globalFortnight the same way as in generateCrossLocationUI
-                    const globalFortnight = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight;
+                    const globalFortnight = (currentYear - 2024) * FORTNIGHTS_PER_YEAR + currentFortnight;
                     
                     // Check if this specific fortnight uses current location's trainers
                     if (cohort.crossLocationTraining[currentLocation].phases?.[phase.name]?.includes(globalFortnight)) {
@@ -3266,21 +3485,32 @@ function renderGanttChart() {
     });
     
     // Add cross-location cohorts section
-    const currentLocation = document.querySelector('.location-toggle.active')?.textContent || 'AU';
+    console.log('=== Starting cross-location cohorts section ===');
+    console.log('Global currentLocation:', currentLocation);
+    console.log('locationData:', locationData);
+    
+    // Use the global currentLocation variable instead of querying DOM
     const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
     const crossLocationCohorts = [];
     
     // Find cohorts from other locations that use current location's trainers
     const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
+    console.log(`Checking for cross-location cohorts: currentLocation=${currentLocation}, otherLocation=${otherLocation}`);
+    console.log(`Other location cohorts count: ${otherLocationCohorts.length}`);
+    
     otherLocationCohorts.forEach(cohort => {
         if (cohort.crossLocationTraining && cohort.crossLocationTraining[currentLocation]) {
+            console.log(`Cohort ${cohort.id} has cross-location training to ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
             // Check if any phases have cross-location training
             const hasRelevantTraining = Object.values(cohort.crossLocationTraining[currentLocation].phases || {}).some(fortnights => fortnights.length > 0);
             if (hasRelevantTraining) {
+                console.log(`Adding cohort ${cohort.id} to cross-location display`);
                 crossLocationCohorts.push(cohort);
             }
         }
     });
+    
+    console.log(`Total cross-location cohorts found: ${crossLocationCohorts.length}`);
     
     // Render cross-location cohorts if any exist
     if (crossLocationCohorts.length > 0) {
@@ -3332,16 +3562,17 @@ function renderGanttChart() {
                     globalFortnightCounter++;
                     
                     // Calculate globalFortnight the same way as in demand calculation
-                    const globalFortnight = (tempYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + tempFortnight;
+                    const globalFortnight = (tempYear - 2024) * FORTNIGHTS_PER_YEAR + tempFortnight;
                     
                     // Check if this fortnight uses cross-location training
-                    if (cohort.crossLocationTraining[currentLocation]?.phases?.[phase.name]?.includes(globalFortnight)) {
+                    if (phase.trainerDemandType && cohort.crossLocationTraining[currentLocation]?.phases?.[phase.trainerDemandType]?.includes(globalFortnight)) {
                         const key = `${tempYear}-${tempFortnight}`;
                         crossLocationCells[key] = {
                             phase: phase,
                             progress: i + 1,
                             totalDuration: phase.duration
                         };
+                        console.log(`Cross-location cell added for cohort ${cohort.id}: ${key}, phase: ${phase.trainerDemandType}`);
                     }
                     
                     tempFortnight++;
@@ -4276,7 +4507,7 @@ function generateCrossLocationUI(cohort) {
             
             // Collect all fortnights for this phase
             for (let i = 0; i < phase.duration; i++) {
-                const globalFortnight = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR + currentFortnight;
+                const globalFortnight = (currentYear - 2024) * FORTNIGHTS_PER_YEAR + currentFortnight;
                 phaseFortnights.push({
                     fortnight: currentFortnight,
                     year: currentYear,
@@ -6751,13 +6982,44 @@ function loadScenario(scenarioId) {
         locationData.AU.pathways = pathways;
         locationData.AU.trainerFTE = trainerFTE;
         locationData.AU.priorityConfig = priorityConfig;
-        locationData.AU.activeCohorts = activeCohorts;
-        currentLocation = 'AU';
-        viewState.currentLocation = 'AU';
+        
+        // Separate cohorts by location
+        const auCohorts = activeCohorts.filter(c => c.location === 'AU' || !c.location);
+        const nzCohorts = activeCohorts.filter(c => c.location === 'NZ');
+        
+        console.log('Legacy format migration:');
+        console.log('Total cohorts:', activeCohorts.length);
+        console.log('AU cohorts:', auCohorts.length);
+        console.log('NZ cohorts:', nzCohorts.length);
+        console.log('NZ cohorts with cross-location training:', 
+            nzCohorts.filter(c => c.crossLocationTraining && c.crossLocationTraining.AU).length);
+        
+        locationData.AU.activeCohorts = auCohorts;
+        locationData.NZ.activeCohorts = nzCohorts;
+        
+        // Copy settings to NZ location
+        locationData.NZ.pathways = [...pathways];
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        locationData.NZ.priorityConfig = [...priorityConfig];
+        
+        // Set current location based on where we have cohorts
+        if (nzCohorts.length > 0 && auCohorts.length === 0) {
+            currentLocation = 'NZ';
+            viewState.currentLocation = 'NZ';
+        } else {
+            currentLocation = 'AU';
+            viewState.currentLocation = 'AU';
+        }
+        
+        // Update activeCohorts to current location's cohorts
+        activeCohorts = locationData[currentLocation].activeCohorts;
+        
+        // Force a complete recalculation after migration
+        console.log('Forcing demand recalculation after legacy migration');
     }
     
-    viewState.groupBy = scenario.state.viewState.groupBy;
-    viewState.collapsedGroups = [...scenario.state.viewState.collapsedGroups];
+    viewState.groupBy = scenario.state.viewState?.groupBy || 'none';
+    viewState.collapsedGroups = [...(scenario.state.viewState?.collapsedGroups || [])];
     
     // Update current scenario tracking
     viewState.currentScenarioId = scenarioId;
@@ -6768,20 +7030,43 @@ function loadScenario(scenarioId) {
         tab.classList.toggle('active', tab.dataset.location === currentLocation);
     });
     
-    // Switch to planner view to show the loaded data
-    switchView('planner');
+    // Get current view before switching
+    const currentView = document.querySelector('.nav-link.active')?.getAttribute('onclick')?.match(/switchView\('(.+?)'\)/)?.[1] || 'planner';
     
     // Refresh all views
     updateAllTables();
     renderGanttChart();
     populatePathwaySelect();
     
+    // Update dashboard if it exists
+    if (typeof updateDashboard === 'function') {
+        updateDashboard();
+    }
+    
     // Re-establish synchronized scrolling after a delay to ensure all tables are rendered
     setTimeout(() => {
         setupSynchronizedScrolling();
+        
+        // Ensure cross-location cohorts are properly displayed
+        if (currentLocation === 'AU') {
+            const nzCohorts = locationData.NZ?.activeCohorts || [];
+            const crossLocCount = nzCohorts.filter(c => 
+                c.crossLocationTraining && 
+                c.crossLocationTraining.AU && 
+                Object.keys(c.crossLocationTraining.AU.phases || {}).length > 0
+            ).length;
+            console.log(`Cross-location cohorts from NZ using AU trainers: ${crossLocCount}`);
+        }
     }, 150);
     
     updateCurrentScenarioDisplay();
+    
+    // Stay on current view or switch to planner if needed
+    if (currentView && currentView !== 'planner') {
+        switchView(currentView);
+    } else {
+        switchView('planner');
+    }
     
     // Show success message
     showNotification(`Loaded scenario: ${scenario.name}`, 'success');
@@ -7042,6 +7327,43 @@ function importScenarios(event) {
                     }
                 }
                 
+                // Convert legacy cross-location format if needed
+                if (scenario.state && scenario.state.cohorts) {
+                    scenario.state.cohorts = scenario.state.cohorts.map(cohort => {
+                        if (cohort.crossLocationTraining && cohort.location === 'NZ') {
+                            // Check if it's the old format (fortnight numbers as keys)
+                            const keys = Object.keys(cohort.crossLocationTraining);
+                            if (keys.length > 0 && !isNaN(keys[0])) {
+                                console.log('Converting legacy cross-location format for cohort:', cohort);
+                                cohort.crossLocationTraining = convertLegacyCrossLocation(cohort, scenario.state.pathways);
+                            }
+                        }
+                        return cohort;
+                    });
+                }
+                
+                // Also check locationData if present
+                if (scenario.state && scenario.state.locationData) {
+                    Object.keys(scenario.state.locationData).forEach(location => {
+                        if (scenario.state.locationData[location].activeCohorts) {
+                            scenario.state.locationData[location].activeCohorts = 
+                                scenario.state.locationData[location].activeCohorts.map(cohort => {
+                                    if (cohort.crossLocationTraining && cohort.location === 'NZ') {
+                                        const keys = Object.keys(cohort.crossLocationTraining);
+                                        if (keys.length > 0 && !isNaN(keys[0])) {
+                                            console.log('Converting legacy cross-location format in locationData for cohort:', cohort);
+                                            cohort.crossLocationTraining = convertLegacyCrossLocation(
+                                                cohort, 
+                                                scenario.state.locationData[location].pathways
+                                            );
+                                        }
+                                    }
+                                    return cohort;
+                                });
+                        }
+                    });
+                }
+                
                 // Generate new ID and update date
                 scenario.id = Date.now() + imported;
                 scenario.date = new Date().toISOString();
@@ -7070,6 +7392,63 @@ function importScenarios(event) {
     
     // Clear the file input for next use
     event.target.value = '';
+}
+
+// Convert legacy cross-location training format to new format
+function convertLegacyCrossLocation(cohort, pathways) {
+    // Convert { "1": "AU", "2": "AU", ... } to new format
+    const oldFormat = cohort.crossLocationTraining;
+    const newFormat = {};
+    
+    // Get the pathway for this cohort
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    if (!pathway) {
+        console.warn('Could not find pathway for cohort:', cohort);
+        return {};
+    }
+    
+    // Group old format by location
+    const locationFortnights = {};
+    Object.entries(oldFormat).forEach(([localFortnight, location]) => {
+        if (!locationFortnights[location]) {
+            locationFortnights[location] = [];
+        }
+        locationFortnights[location].push(parseInt(localFortnight));
+    });
+    
+    // Build new format
+    Object.entries(locationFortnights).forEach(([location, fortnights]) => {
+        newFormat[location] = { phases: {} };
+        
+        // Map local fortnights to phases and convert to global fortnights
+        let currentLocalFortnight = 1;
+        pathway.phases.forEach(phase => {
+            if (phase.trainerDemandType) {
+                const phaseFortnights = fortnights.filter(fn => 
+                    fn >= currentLocalFortnight && fn < currentLocalFortnight + phase.duration
+                );
+                
+                if (phaseFortnights.length > 0) {
+                    // Convert to global fortnights
+                    const globalFortnights = phaseFortnights.map(localFn => {
+                        // Calculate the actual year and fortnight for this local fortnight
+                        const totalFortnights = cohort.startFortnight + localFn - 2;
+                        const yearOffset = Math.floor(totalFortnights / 24);
+                        const yearFortnight = (totalFortnights % 24) + 1;
+                        
+                        // Calculate global fortnight (from start of 2024)
+                        return ((cohort.startYear - 2024 + yearOffset) * 24) + yearFortnight;
+                    });
+                    
+                    newFormat[location].phases[phase.trainerDemandType] = globalFortnights;
+                }
+            }
+            currentLocalFortnight += phase.duration;
+        });
+    });
+    
+    console.log('Converted cross-location format:', oldFormat, '->', newFormat);
+    return newFormat;
 }
 
 // Scenario Comparison Functions
@@ -7857,6 +8236,1121 @@ function updateAlerts() {
     `).join('');
 }
 
+// Dashboard V2 Functions
+function updateDashboardV2() {
+    console.log('Updating Dashboard V2', {
+        activeCohorts: activeCohorts.length,
+        currentLocation: currentLocation,
+        pathways: pathways.length,
+        trainerFTE: Object.keys(trainerFTE).length
+    });
+    
+    updateMetricsV2();
+    updateChartsV2();
+    updatePipelineV2();
+    updateAlertsV2();
+    // New visualizations - TODO: implement these functions
+    // updateTrainerHeatmap();
+    // updateSupplyDemandChart();
+    // updatePhaseBreakdown();
+    // updateWorkloadChart();
+    // updateDetailCards();
+}
+
+function updateMetricsV2() {
+    const trends = calculateMetricTrends();
+    
+    // Update values
+    document.getElementById('total-trainees-v2').textContent = trends.totalTrainees.current;
+    document.getElementById('trainer-utilization-v2').textContent = trends.utilization.current + '%';
+    document.getElementById('upcoming-completions-v2').textContent = trends.upcomingCompletions.current;
+    document.getElementById('capacity-warnings-v2').textContent = trends.capacityWarnings.current;
+    
+    // Update trends
+    updateTrendDisplay('total-trainees', trends.totalTrainees);
+    updateTrendDisplay('trainer-utilization', trends.utilization);
+    updateTrendDisplay('upcoming-completions', trends.upcomingCompletions);
+    updateTrendDisplay('capacity-warnings', trends.capacityWarnings);
+    
+    // Update details
+    document.getElementById('total-trainees-detail').textContent = 
+        `${trends.totalTrainees.change >= 0 ? '+' : ''}${trends.totalTrainees.change} from last month`;
+    document.getElementById('trainer-utilization-detail').textContent = 
+        `${trends.utilization.change >= 0 ? '+' : ''}${trends.utilization.change}% from last month`;
+    document.getElementById('upcoming-completions-detail').textContent = 
+        `${trends.upcomingCompletions.change >= 0 ? '+' : ''}${trends.upcomingCompletions.change} from last month`;
+    document.getElementById('capacity-warnings-detail').textContent = 
+        `${trends.capacityWarnings.change >= 0 ? '+' : ''}${trends.capacityWarnings.change} from last month`;
+}
+
+function updateTrendDisplay(metricName, trend) {
+    const trendElement = document.getElementById(`${metricName}-trend`);
+    if (!trendElement) return;
+    
+    const isPositiveGood = metricName !== 'capacity-warnings';
+    let trendClass = 'stable';
+    let arrow = '→';
+    
+    if (trend.change > 0) {
+        trendClass = isPositiveGood ? 'up' : 'down';
+        arrow = '↑';
+    } else if (trend.change < 0) {
+        trendClass = isPositiveGood ? 'down' : 'up';
+        arrow = '↓';
+    }
+    
+    trendElement.className = `metric-trend ${trendClass}`;
+    trendElement.innerHTML = `<span class="trend-arrow">${arrow}</span> ${Math.abs(trend.percentage)}%`;
+}
+
+function updateChartsV2() {
+    updateDemandChartV2();
+    updateDistributionChartV2();
+}
+
+function updateDemandChartV2() {
+    const ctx = document.getElementById('demand-chart-v2').getContext('2d');
+    const { demand } = calculateDemand();
+    
+    // Prepare data for the next 12 months
+    const labels = [];
+    const demandData = [];
+    const supplyData = [];
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
+        }
+        
+        labels.push(`${MONTHS[month]} ${year}`);
+        
+        // Calculate average demand for the month (2 fortnights)
+        const fn1 = (month * 2) + 1;
+        const fn2 = (month * 2) + 2;
+        const monthDemand = ((demand[year]?.[fn1]?.total || 0) + 
+                            (demand[year]?.[fn2]?.total || 0)) / 2;
+        demandData.push(monthDemand);
+        
+        // Calculate supply
+        const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        supplyData.push(totalSupply);
+    }
+    
+    if (demandChartV2) {
+        demandChartV2.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    const gridColor = isDarkMode ? '#444' : '#e0e0e0';
+    
+    demandChartV2 = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Trainer Demand',
+                data: demandData,
+                borderColor: '#e74c3c',
+                backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                tension: 0.1,
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }, {
+                label: 'Trainer Supply',
+                data: supplyData,
+                borderColor: '#2ecc71',
+                backgroundColor: 'rgba(46, 204, 113, 0.1)',
+                borderDash: [5, 5],
+                pointRadius: 4,
+                pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: textColor
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        afterLabel: function(context) {
+                            if (context.datasetIndex === 0) { // Demand line
+                                const supply = supplyData[context.dataIndex];
+                                const demand = context.parsed.y;
+                                const utilization = supply > 0 ? (demand / supply * 100).toFixed(1) : 0;
+                                return `Utilization: ${utilization}%`;
+                            }
+                            return '';
+                        }
+                    }
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'FTE',
+                        color: textColor
+                    },
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: textColor
+                    },
+                    grid: {
+                        color: gridColor
+                    }
+                }
+            },
+            onClick: function(event, elements) {
+                if (elements.length > 0) {
+                    const index = elements[0].index;
+                    const label = labels[index];
+                    showNotification(`Clicked on ${label}`, 'info');
+                }
+            }
+        }
+    });
+}
+
+function updateDistributionChartV2() {
+    const ctx = document.getElementById('distribution-chart-v2').getContext('2d');
+    
+    // Count trainees by pathway type
+    const distribution = {};
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        let endFortnight = cohort.startFortnight + duration - 1;
+        let endYear = cohort.startYear;
+        
+        while (endFortnight > FORTNIGHTS_PER_YEAR) {
+            endFortnight -= FORTNIGHTS_PER_YEAR;
+            endYear++;
+        }
+        
+        // Check if cohort is currently in training
+        const startPassed = cohort.startYear < currentYear || 
+            (cohort.startYear === currentYear && cohort.startFortnight <= currentFortnight);
+        const endNotReached = endYear > currentYear || 
+            (endYear === currentYear && endFortnight >= currentFortnight);
+            
+        if (startPassed && endNotReached) {
+            const type = pathway.type || 'Other';
+            distribution[type] = (distribution[type] || 0) + cohort.numTrainees;
+        }
+    });
+    
+    if (distributionChartV2) {
+        distributionChartV2.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    
+    distributionChartV2 = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(distribution),
+            datasets: [{
+                data: Object.values(distribution),
+                backgroundColor: [
+                    '#3498db',
+                    '#e74c3c',
+                    '#f39c12',
+                    '#2ecc71',
+                    '#9b59b6'
+                ],
+                borderColor: isDarkMode ? '#2a2a2a' : '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: textColor
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.parsed;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = ((value / total) * 100).toFixed(1);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updatePipelineV2() {
+    const container = document.getElementById('pipeline-timeline-v2');
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    // Get filter value
+    const filter = document.getElementById('pipeline-filter')?.value || 'all';
+    
+    // Process cohorts with progress information
+    const pipelineData = [];
+    
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        const startDate = new Date(cohort.startYear, Math.floor((cohort.startFortnight - 1) / 2), 
+            cohort.startFortnight % 2 === 1 ? 1 : 15);
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + (duration * 14)); // 14 days per fortnight
+        
+        const now = new Date();
+        const totalDays = (endDate - startDate) / (1000 * 60 * 60 * 24);
+        const elapsedDays = (now - startDate) / (1000 * 60 * 60 * 24);
+        const remainingDays = Math.max(0, (endDate - now) / (1000 * 60 * 60 * 24));
+        const progress = Math.min(100, Math.max(0, (elapsedDays / totalDays) * 100));
+        
+        // Determine status
+        let status = 'in-progress';
+        if (progress === 0) status = 'starting-soon';
+        if (progress === 100) status = 'completed';
+        if (remainingDays <= 30 && progress < 100) status = 'completing-soon';
+        
+        // Apply filter
+        if (filter !== 'all' && status !== filter) return;
+        
+        pipelineData.push({
+            cohort,
+            pathway,
+            progress,
+            remainingDays: Math.ceil(remainingDays),
+            status,
+            startDate,
+            endDate
+        });
+    });
+    
+    // Sort by status and remaining days
+    pipelineData.sort((a, b) => {
+        if (a.status === 'completing-soon' && b.status !== 'completing-soon') return -1;
+        if (b.status === 'completing-soon' && a.status !== 'completing-soon') return 1;
+        return a.remainingDays - b.remainingDays;
+    });
+    
+    // Generate HTML
+    let html = '';
+    pipelineData.forEach(item => {
+        const urgentClass = item.remainingDays <= 7 ? 'urgent' : '';
+        const progressClass = item.status;
+        
+        html += `
+            <div class="pipeline-cohort-enhanced">
+                <div class="pipeline-cohort-progress">
+                    <div class="cohort-info">
+                        <strong>${item.pathway.type} Training</strong> - ${item.cohort.numTrainees} trainees
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar ${progressClass}" style="width: ${item.progress}%"></div>
+                    </div>
+                    <div class="progress-percentage">${Math.round(item.progress)}%</div>
+                </div>
+                <div class="pipeline-cohort-details">
+                    <span>${item.pathway.name}</span>
+                    <span class="separator">•</span>
+                    <span>Started ${MONTHS[item.startDate.getMonth()]} ${item.startDate.getFullYear()}</span>
+                    <span class="separator">•</span>
+                    <span class="days-remaining ${urgentClass}">
+                        ${item.status === 'completed' ? 'Completed' : 
+                          item.status === 'starting-soon' ? 'Starting soon' :
+                          `${item.remainingDays} days remaining`}
+                    </span>
+                </div>
+            </div>
+        `;
+    });
+    
+    if (pipelineData.length === 0) {
+        html = '<div style="text-align: center; color: #999; padding: 20px;">No cohorts match the selected filter</div>';
+    }
+    
+    container.innerHTML = html;
+}
+
+function updateAlertsV2() {
+    const container = document.getElementById('alerts-container-v2');
+    const alertBadge = document.getElementById('alert-count');
+    const filter = document.getElementById('alert-filter')?.value || 'all';
+    
+    const alerts = [];
+    
+    // Check for capacity issues
+    const { demand } = calculateDemand();
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentMonth = currentDate.getMonth();
+    const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    // Check next 6 months for capacity issues
+    for (let i = 0; i < 12; i++) {
+        let checkFn = currentFortnight + i;
+        let checkYear = currentYear;
+        while (checkFn > FORTNIGHTS_PER_YEAR) {
+            checkFn -= FORTNIGHTS_PER_YEAR;
+            checkYear++;
+        }
+        
+        const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (trainerFTE[checkYear]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        const demandValue = demand[checkYear]?.[checkFn]?.total || 0;
+        
+        if (demandValue > totalSupply) {
+            const deficit = demandValue - totalSupply;
+            alerts.push({
+                id: `deficit-${checkYear}-${checkFn}`,
+                type: 'danger',
+                icon: '🚨',
+                message: `Trainer deficit of ${deficit.toFixed(1)} FTE in ${MONTHS[Math.floor((checkFn - 1) / 2)]} ${checkYear}`,
+                details: `Demand: ${demandValue.toFixed(1)} FTE, Supply: ${totalSupply.toFixed(1)} FTE`
+            });
+        }
+    }
+    
+    // Check for upcoming large cohorts
+    activeCohorts.forEach(cohort => {
+        if (cohort.numTrainees >= 10) {
+            const startsSoon = cohort.startYear === currentYear && 
+                cohort.startFortnight >= currentFortnight && 
+                cohort.startFortnight <= currentFortnight + 2;
+            
+            if (startsSoon) {
+                alerts.push({
+                    id: `large-cohort-${cohort.id}`,
+                    type: 'warning',
+                    icon: '⚠️',
+                    message: `Large cohort of ${cohort.numTrainees} trainees starting in ${MONTHS[Math.floor((cohort.startFortnight - 1) / 2)]}`,
+                    details: `Consider splitting into smaller groups for better trainer allocation`
+                });
+            }
+        }
+    });
+    
+    if (alerts.length === 0) {
+        alerts.push({
+            id: 'no-issues',
+            type: 'info',
+            icon: 'ℹ️',
+            message: 'No immediate capacity concerns detected',
+            details: 'All trainer allocations are within capacity'
+        });
+    }
+    
+    // Filter alerts
+    const filteredAlerts = filter === 'all' ? alerts : alerts.filter(a => a.type === filter);
+    
+    // Update badge count (excluding acknowledged)
+    const unacknowledgedCount = alerts.filter(a => !acknowledgedAlerts.has(a.id) && a.type !== 'info').length;
+    alertBadge.textContent = unacknowledgedCount;
+    alertBadge.style.display = unacknowledgedCount > 0 ? 'inline-block' : 'none';
+    
+    // Generate HTML
+    container.innerHTML = filteredAlerts.map(alert => {
+        const isAcknowledged = acknowledgedAlerts.has(alert.id);
+        return `
+            <div class="alert-item-enhanced alert-${alert.type} ${isAcknowledged ? 'acknowledged' : ''}" data-alert-id="${alert.id}">
+                <div class="alert-content">
+                    <div style="font-size: 1.2em; margin-bottom: 5px;">
+                        ${alert.icon} ${alert.message}
+                    </div>
+                    <div style="font-size: 0.9em; color: #666;">
+                        ${alert.details}
+                    </div>
+                </div>
+                ${alert.type !== 'info' ? `
+                    <div class="alert-actions">
+                        ${!isAcknowledged ? `<button class="btn-acknowledge" onclick="acknowledgeAlert('${alert.id}')">Acknowledge</button>` : ''}
+                        <button class="btn-dismiss" onclick="dismissAlert('${alert.id}')">Dismiss</button>
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }).join('');
+}
+
+// Alert management functions
+function acknowledgeAlert(alertId) {
+    acknowledgedAlerts.add(alertId);
+    localStorage.setItem('acknowledgedAlerts', JSON.stringify(Array.from(acknowledgedAlerts)));
+    updateAlertsV2();
+}
+
+function dismissAlert(alertId) {
+    const element = document.querySelector(`[data-alert-id="${alertId}"]`);
+    if (element) {
+        element.style.transition = 'opacity 0.3s, transform 0.3s';
+        element.style.opacity = '0';
+        element.style.transform = 'translateX(100%)';
+        setTimeout(() => {
+            element.remove();
+        }, 300);
+    }
+}
+
+// Export functions
+function exportChart(chartId) {
+    const chart = chartId === 'demand-v2' ? demandChartV2 : distributionChartV2;
+    if (!chart) return;
+    
+    const canvas = chart.canvas;
+    canvas.toBlob(blob => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${chartId}-${new Date().toISOString().split('T')[0]}.png`;
+        a.click();
+        URL.revokeObjectURL(url);
+    });
+}
+
+function exportDashboard() {
+    // Create CSV data
+    const trends = calculateMetricTrends();
+    const currentDate = new Date().toISOString().split('T')[0];
+    
+    let csvContent = "Pilot Trainer Dashboard Export\n";
+    csvContent += `Date: ${currentDate}\n`;
+    csvContent += `Location: ${currentLocation}\n\n`;
+    
+    csvContent += "Key Metrics\n";
+    csvContent += "Metric,Current Value,Change,Percentage\n";
+    csvContent += `Total Trainees,${trends.totalTrainees.current},${trends.totalTrainees.change},${trends.totalTrainees.percentage}%\n`;
+    csvContent += `Trainer Utilization,${trends.utilization.current}%,${trends.utilization.change}%,${trends.utilization.percentage}%\n`;
+    csvContent += `Upcoming Completions,${trends.upcomingCompletions.current},${trends.upcomingCompletions.change},${trends.upcomingCompletions.percentage}%\n`;
+    csvContent += `Capacity Warnings,${trends.capacityWarnings.current},${trends.capacityWarnings.change},${trends.capacityWarnings.percentage}%\n\n`;
+    
+    // Add demand data
+    const { demand } = calculateDemand();
+    const currentYear = new Date().getFullYear();
+    csvContent += "Monthly Trainer Demand\n";
+    csvContent += "Month,Demand (FTE),Supply (FTE),Utilization %\n";
+    
+    for (let i = 0; i < 12; i++) {
+        let month = new Date().getMonth() + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
+        }
+        
+        const fn1 = (month * 2) + 1;
+        const fn2 = (month * 2) + 2;
+        const monthDemand = ((demand[year]?.[fn1]?.total || 0) + (demand[year]?.[fn2]?.total || 0)) / 2;
+        const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+            sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        const utilization = totalSupply > 0 ? (monthDemand / totalSupply * 100).toFixed(1) : 0;
+        
+        csvContent += `${MONTHS[month]} ${year},${monthDemand.toFixed(1)},${totalSupply.toFixed(1)},${utilization}\n`;
+    }
+    
+    // Download CSV
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dashboard-export-${currentDate}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    
+    showNotification('Dashboard exported successfully', 'success');
+}
+
+// New Dashboard Visualization Functions
+function updateTrainerHeatmap() {
+    const container = document.getElementById('trainer-heatmap');
+    if (!container) return;
+    
+    const { demand } = calculateDemand();
+    const currentYear = new Date().getFullYear();
+    
+    console.log('Heat map data:', {
+        demand: demand,
+        currentYear: currentYear,
+        trainerFTE: trainerFTE[currentYear],
+        hasData: demand && demand[currentYear]
+    });
+    
+    // Check if we have any data to display
+    if (!demand || !demand[currentYear] || Object.keys(demand[currentYear]).length === 0) {
+        container.innerHTML = `
+            <div style="text-align: center; color: #999; padding: 40px;">
+                No training demand data available<br>
+                <small>Load a scenario or add cohorts to see utilization heat map</small>
+            </div>
+        `;
+        return;
+    }
+    
+    // Create heat map grid
+    let html = '<div class="heatmap-label"></div>'; // Empty corner cell
+    
+    // Month headers
+    MONTHS.forEach(month => {
+        html += `<div class="heatmap-month">${month.substr(0, 3)}</div>`;
+    });
+    
+    // For each trainer category
+    TRAINER_CATEGORIES.forEach(category => {
+        html += `<div class="heatmap-label">${category}</div>`;
+        
+        // For each month
+        for (let month = 0; month < 12; month++) {
+            const fn1 = (month * 2) + 1;
+            const fn2 = (month * 2) + 2;
+            
+            // Get demand for this category and month
+            const categoryDemand = getCategoryDemand(demand, currentYear, [fn1, fn2], category);
+            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+            const utilization = categorySupply > 0 ? (categoryDemand / categorySupply) * 100 : 0;
+            
+            // Determine color based on utilization
+            let bgColor = '#f5f5f5'; // Gray for no data
+            let textColor = '#999';
+            let displayText = '-';
+            
+            if (categorySupply > 0 && (categoryDemand > 0 || utilization === 0)) {
+                displayText = `${utilization.toFixed(0)}%`;
+                if (utilization > 100) {
+                    bgColor = '#ffebee'; // Light red
+                    textColor = '#c62828';
+                } else if (utilization > 80) {
+                    bgColor = '#fff8e1'; // Light amber
+                    textColor = '#f57f17';
+                } else if (utilization > 60) {
+                    bgColor = '#e3f2fd'; // Light blue
+                    textColor = '#1565c0';
+                } else {
+                    bgColor = '#e8f5e9'; // Light green
+                    textColor = '#2e7d32';
+                }
+            }
+            
+            html += `<div class="heatmap-cell" style="background: ${bgColor}; color: ${textColor};" 
+                     title="${category} - ${MONTHS[month]}: ${categorySupply > 0 ? utilization.toFixed(1) + '% utilized' : 'No supply data'}">
+                     ${displayText}
+                     </div>`;
+        }
+    });
+    
+    container.innerHTML = html;
+}
+
+function getCategoryDemand(demand, year, fortnights, category) {
+    let totalDemand = 0;
+    
+    fortnights.forEach(fn => {
+        const fnDemand = demand[year]?.[fn];
+        if (!fnDemand) return;
+        
+        // Calculate demand based on priority allocation
+        let categoryAllocation = 0;
+        
+        // Check each priority level
+        priorityConfig.forEach(priority => {
+            const trainingDemand = fnDemand.byTrainingType[priority.trainingType] || 0;
+            
+            // Handle both old and new priority config formats
+            let canServe = false;
+            let isPrimary = false;
+            
+            if (priority.primaryTrainers && priority.cascadingFrom) {
+                // New format
+                canServe = priority.primaryTrainers.includes(category) || 
+                          priority.cascadingFrom.includes(category);
+                isPrimary = priority.primaryTrainers.includes(category);
+            } else if (priority.servedBy && priority.preferredCategories) {
+                // Old format
+                canServe = priority.servedBy.includes(category);
+                isPrimary = priority.preferredCategories.includes(category);
+            }
+            
+            if (canServe) {
+                if (isPrimary) {
+                    // This is a primary trainer, gets full allocation
+                    categoryAllocation += trainingDemand;
+                } else {
+                    // This is cascading support, gets partial allocation
+                    categoryAllocation += trainingDemand * 0.3; // Assume 30% overflow
+                }
+            }
+        });
+        
+        totalDemand += categoryAllocation;
+    });
+    
+    return totalDemand / fortnights.length; // Average
+}
+
+function updateTrainerGauges() {
+    const container = document.getElementById('trainer-gauges');
+    if (!container) return;
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentFortnight = (currentDate.getMonth() * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    const { demand } = calculateDemand();
+    
+    // Check if we have FTE data
+    const hasSupplyData = TRAINER_CATEGORIES.some(cat => (trainerFTE[currentYear]?.[cat] || 0) > 0);
+    
+    if (!hasSupplyData) {
+        container.innerHTML = `
+            <div style="text-align: center; color: #999; padding: 40px; grid-column: 1 / -1;">
+                No trainer supply data available<br>
+                <small>Configure FTE in Settings to see utilization</small>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = '';
+    
+    TRAINER_CATEGORIES.forEach(category => {
+        const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+        const categoryDemand = getCategoryDemand(demand, currentYear, [currentFortnight], category);
+        const utilization = categorySupply > 0 ? (categoryDemand / categorySupply) * 100 : 0;
+        
+        html += `
+            <div class="gauge-container">
+                <div class="gauge-chart">
+                    <canvas id="gauge-${category}" width="120" height="120"></canvas>
+                    <div class="gauge-value">${categorySupply > 0 ? Math.round(utilization) + '%' : '-'}</div>
+                </div>
+                <div class="gauge-label">${category}</div>
+            </div>
+        `;
+    });
+    
+    container.innerHTML = html;
+    
+    // Draw gauges
+    setTimeout(() => {
+        TRAINER_CATEGORIES.forEach(category => {
+            drawGauge(`gauge-${category}`, 
+                getCategoryDemand(demand, currentYear, [currentFortnight], category),
+                (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR);
+        });
+    }, 100);
+}
+
+function drawGauge(canvasId, demand, supply) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    
+    const ctx = canvas.getContext('2d');
+    const centerX = 60;
+    const centerY = 60;
+    const radius = 50;
+    
+    // Clear canvas
+    ctx.clearRect(0, 0, 120, 120);
+    
+    // Draw background arc
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, Math.PI * 0.75, Math.PI * 2.25);
+    ctx.strokeStyle = '#e0e0e0';
+    ctx.lineWidth = 15;
+    ctx.stroke();
+    
+    // Calculate utilization
+    const utilization = supply > 0 ? Math.min(demand / supply, 1.5) : 0;
+    
+    // Determine color
+    let color = '#2ecc71'; // Green
+    if (utilization > 1) {
+        color = '#e74c3c'; // Red
+    } else if (utilization > 0.8) {
+        color = '#f39c12'; // Orange
+    }
+    
+    // Draw utilization arc
+    const endAngle = Math.PI * 0.75 + (utilization * Math.PI * 1.5);
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, radius, Math.PI * 0.75, endAngle);
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 15;
+    ctx.stroke();
+}
+
+let phaseBreakdownChart = null;
+let phaseBreakdownUpdating = false;
+
+function updatePhaseBreakdown() {
+    // Prevent multiple simultaneous updates
+    if (phaseBreakdownUpdating) return;
+    phaseBreakdownUpdating = true;
+    
+    const ctx = document.getElementById('phase-breakdown-chart')?.getContext('2d');
+    if (!ctx) {
+        phaseBreakdownUpdating = false;
+        return;
+    }
+    
+    console.log('Phase breakdown data:', {
+        activeCohorts: activeCohorts.length,
+        currentLocation: currentLocation,
+        locationCohorts: locationData[currentLocation]?.activeCohorts?.length
+    });
+    
+    // Count trainees in each phase
+    const phaseData = {
+        'Ground School': 0,
+        'Simulator': 0,
+        'Line Training - CAD': 0,
+        'Line Training - CP': 0,
+        'Line Training - FO': 0
+    };
+    
+    // Use cohorts from current location
+    const cohorts = locationData[currentLocation]?.activeCohorts || activeCohorts;
+    
+    // Check if we have any cohorts
+    if (!cohorts || cohorts.length === 0) {
+        // Show empty state
+        if (phaseBreakdownChart) {
+            phaseBreakdownChart.destroy();
+            phaseBreakdownChart = null;
+        }
+        
+        const canvas = document.getElementById('phase-breakdown-chart');
+        const wrapper = canvas.closest('.chart-wrapper');
+        
+        // Remove any existing empty message first
+        const existingMsg = wrapper.querySelector('#phase-empty-msg');
+        if (existingMsg) existingMsg.remove();
+        
+        canvas.style.display = 'none';
+        
+        const emptyMsg = document.createElement('div');
+        emptyMsg.id = 'phase-empty-msg';
+        emptyMsg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #999; width: 80%;';
+        emptyMsg.innerHTML = 'No active training cohorts<br><small>Add cohorts to see phase distribution</small>';
+        wrapper.appendChild(emptyMsg);
+        
+        phaseBreakdownUpdating = false;
+        return;
+    } else {
+        // Remove empty message if exists
+        const emptyMsg = document.getElementById('phase-empty-msg');
+        if (emptyMsg) emptyMsg.remove();
+        document.getElementById('phase-breakdown-chart').style.display = 'block';
+    }
+    
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    const currentFortnight = (currentDate.getMonth() * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
+    
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Determine which phase the cohort is in
+        let elapsedFortnights = 0;
+        if (cohort.startYear < currentYear) {
+            elapsedFortnights = (currentYear - cohort.startYear) * FORTNIGHTS_PER_YEAR;
+        }
+        elapsedFortnights += currentFortnight - cohort.startFortnight;
+        
+        if (elapsedFortnights < 0) return; // Not started yet
+        
+        let currentPhaseIndex = 0;
+        let phaseProgress = elapsedFortnights;
+        
+        for (let i = 0; i < pathway.phases.length; i++) {
+            if (phaseProgress < pathway.phases[i].duration) {
+                currentPhaseIndex = i;
+                break;
+            }
+            phaseProgress -= pathway.phases[i].duration;
+        }
+        
+        if (currentPhaseIndex < pathway.phases.length) {
+            const phase = pathway.phases[currentPhaseIndex];
+            const phaseName = phase.name.includes('GS') ? 'Ground School' :
+                            phase.name.includes('SIM') ? 'Simulator' :
+                            phase.trainerDemandType || 'Other';
+            
+            if (phaseData.hasOwnProperty(phaseName)) {
+                phaseData[phaseName] += cohort.numTrainees;
+            }
+        }
+    });
+    
+    if (phaseBreakdownChart) {
+        phaseBreakdownChart.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    
+    phaseBreakdownChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(phaseData),
+            datasets: [{
+                label: 'Trainees',
+                data: Object.values(phaseData),
+                backgroundColor: [
+                    '#3498db',
+                    '#9b59b6',
+                    '#e74c3c',
+                    '#f39c12',
+                    '#2ecc71'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        color: textColor
+                    }
+                },
+                x: {
+                    ticks: {
+                        color: textColor,
+                        maxRotation: 45,
+                        minRotation: 45
+                    }
+                }
+            }
+        }
+    });
+    
+    phaseBreakdownUpdating = false;
+}
+
+let workloadChart = null;
+function updateWorkloadChart() {
+    const ctx = document.getElementById('workload-chart')?.getContext('2d');
+    if (!ctx) return;
+    
+    // Calculate workload distribution across trainer categories
+    const { demand } = calculateDemand();
+    const currentYear = new Date().getFullYear();
+    const workloadData = {};
+    
+    TRAINER_CATEGORIES.forEach(category => {
+        workloadData[category] = 0;
+    });
+    
+    // Check if we have any demand
+    const hasDemand = Object.values(demand).some(yearData => 
+        Object.values(yearData).some(fnData => fnData.total > 0)
+    );
+    
+    if (!hasDemand) {
+        // Show empty state
+        if (workloadChart) {
+            workloadChart.destroy();
+            workloadChart = null;
+        }
+        
+        const canvas = document.getElementById('workload-chart');
+        const wrapper = canvas.closest('.chart-wrapper');
+        
+        // Remove any existing empty message first
+        const existingMsg = wrapper.querySelector('#workload-empty-msg');
+        if (existingMsg) existingMsg.remove();
+        
+        canvas.style.display = 'none';
+        
+        const emptyMsg = document.createElement('div');
+        emptyMsg.id = 'workload-empty-msg';
+        emptyMsg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; color: #999; width: 80%;';
+        emptyMsg.innerHTML = 'No workload data available<br><small>Add training cohorts to see distribution</small>';
+        wrapper.appendChild(emptyMsg);
+        
+        return;
+    } else {
+        // Remove empty message if exists
+        const emptyMsg = document.getElementById('workload-empty-msg');
+        if (emptyMsg) emptyMsg.remove();
+        document.getElementById('workload-chart').style.display = 'block';
+    }
+    
+    // Sum up demand for next 6 months
+    for (let i = 0; i < 12; i++) {
+        const month = new Date().getMonth() + i;
+        const year = month >= 12 ? currentYear + 1 : currentYear;
+        const actualMonth = month % 12;
+        const fn1 = (actualMonth * 2) + 1;
+        const fn2 = (actualMonth * 2) + 2;
+        
+        TRAINER_CATEGORIES.forEach(category => {
+            workloadData[category] += getCategoryDemand(demand, year, [fn1, fn2], category);
+        });
+    }
+    
+    if (workloadChart) {
+        workloadChart.destroy();
+    }
+    
+    const isDarkMode = document.body.classList.contains('dark-mode');
+    const textColor = isDarkMode ? '#e0e0e0' : '#666';
+    
+    workloadChart = new Chart(ctx, {
+        type: 'polarArea',
+        data: {
+            labels: Object.keys(workloadData),
+            datasets: [{
+                data: Object.values(workloadData),
+                backgroundColor: [
+                    'rgba(255, 99, 132, 0.8)',
+                    'rgba(54, 162, 235, 0.8)',
+                    'rgba(255, 206, 86, 0.8)',
+                    'rgba(75, 192, 192, 0.8)',
+                    'rgba(153, 102, 255, 0.8)'
+                ]
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        color: textColor
+                    }
+                }
+            },
+            scales: {
+                r: {
+                    ticks: {
+                        color: textColor
+                    }
+                }
+            }
+        }
+    });
+}
+
+function updateDetailCards() {
+    const { demand } = calculateDemand();
+    const currentYear = new Date().getFullYear();
+    
+    // Find peak demand period
+    let peakDemand = 0;
+    let peakMonth = '';
+    let peakYear = currentYear;
+    
+    for (let year = currentYear; year <= currentYear + 1; year++) {
+        for (let month = 0; month < 12; month++) {
+            const fn1 = (month * 2) + 1;
+            const fn2 = (month * 2) + 2;
+            const monthlyDemand = (demand[year]?.[fn1]?.total || 0) + (demand[year]?.[fn2]?.total || 0);
+            
+            if (monthlyDemand > peakDemand) {
+                peakDemand = monthlyDemand;
+                peakMonth = MONTHS[month];
+                peakYear = year;
+            }
+        }
+    }
+    
+    document.getElementById('peak-demand-period').textContent = `${peakMonth} ${peakYear}`;
+    document.getElementById('peak-demand-detail').textContent = `${(peakDemand / 2).toFixed(1)} FTE average`;
+    
+    // Calculate supply/demand balance
+    const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+        sum + (trainerFTE[currentYear]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+    const avgDemand = calculateAverageDemand(demand, currentYear);
+    const balance = totalSupply - avgDemand;
+    
+    document.getElementById('supply-balance').textContent = balance >= 0 ? 'Balanced' : 'Deficit';
+    document.getElementById('balance-detail').textContent = `${Math.abs(balance).toFixed(1)} FTE ${balance >= 0 ? 'surplus' : 'shortage'}`;
+    
+    // Calculate training efficiency
+    const completionRate = calculateCompletionRate();
+    document.getElementById('training-efficiency').textContent = `${completionRate}%`;
+    document.getElementById('efficiency-detail').textContent = 'On-time completion rate';
+    
+    // Calculate forecast confidence
+    const dataPoints = activeCohorts.length;
+    const confidence = Math.min(95, 50 + (dataPoints * 2.5));
+    document.getElementById('forecast-confidence').textContent = `${Math.round(confidence)}%`;
+    document.getElementById('confidence-detail').textContent = `Based on ${dataPoints} active cohorts`;
+}
+
+function calculateAverageDemand(demand, year) {
+    let total = 0;
+    let count = 0;
+    
+    for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        if (demand[year]?.[fn]?.total) {
+            total += demand[year][fn].total;
+            count++;
+        }
+    }
+    
+    return count > 0 ? total / count : 0;
+}
+
+function calculateCompletionRate() {
+    // Simple calculation - in real app would track actual vs planned completion
+    const avgUtilization = 75; // Placeholder
+    return Math.min(100, Math.round(100 - (Math.abs(avgUtilization - 80) * 2)));
+}
+
 // Make functions available globally for inline onclick
 window.removeCohort = removeCohort;
 window.editCohort = editCohort;
@@ -7867,6 +9361,9 @@ window.toggleGroup = toggleGroup;
 window.loadScenario = loadScenario;
 window.deleteScenario = deleteScenario;
 window.updateCurrentScenario = updateCurrentScenario;
+window.acknowledgeAlert = acknowledgeAlert;
+window.dismissAlert = dismissAlert;
+window.exportChart = exportChart;
 
 // Test function for debugging sync
 window.testSync = function() {
@@ -8372,4 +9869,86 @@ window.addTestCohorts = function() {
     renderGanttChart();
     console.log('Added 2 test A320 cohorts (A320-02 has cross-location training configured)');
     console.log('Current cohorts:', activeCohorts);
+};
+
+// Function to add demo data for dashboard
+window.addDemoDashboardData = function() {
+    // Clear and add varied cohorts for better visualization
+    const demoYear = new Date().getFullYear();
+    const demoMonth = new Date().getMonth();
+    const demoFortnight = (demoMonth * 2) + 1;
+    
+    const demoCohorts = [
+        // CAD cohorts
+        { id: 100, numTrainees: 12, pathwayId: "A209", startYear: demoYear, startFortnight: demoFortnight - 8, location: currentLocation, crossLocationTraining: {} },
+        { id: 101, numTrainees: 8, pathwayId: "A211", startYear: demoYear, startFortnight: demoFortnight - 6, location: currentLocation, crossLocationTraining: {} },
+        { id: 102, numTrainees: 10, pathwayId: "A212", startYear: demoYear, startFortnight: demoFortnight - 4, location: currentLocation, crossLocationTraining: {} },
+        
+        // FO cohorts
+        { id: 103, numTrainees: 15, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight - 7, location: currentLocation, crossLocationTraining: {} },
+        { id: 104, numTrainees: 12, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight - 3, location: currentLocation, crossLocationTraining: {} },
+        { id: 105, numTrainees: 10, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight + 1, location: currentLocation, crossLocationTraining: {} },
+        
+        // CP cohorts
+        { id: 106, numTrainees: 6, pathwayId: "A202", startYear: demoYear, startFortnight: demoFortnight - 5, location: currentLocation, crossLocationTraining: {} },
+        { id: 107, numTrainees: 8, pathwayId: "A203", startYear: demoYear, startFortnight: demoFortnight - 2, location: currentLocation, crossLocationTraining: {} },
+        { id: 108, numTrainees: 4, pathwayId: "A202", startYear: demoYear, startFortnight: demoFortnight, location: currentLocation, crossLocationTraining: {} },
+        
+        // Future cohorts
+        { id: 109, numTrainees: 14, pathwayId: "A209", startYear: demoYear, startFortnight: demoFortnight + 3, location: currentLocation, crossLocationTraining: {} },
+        { id: 110, numTrainees: 16, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight + 5, location: currentLocation, crossLocationTraining: {} },
+        { id: 111, numTrainees: 6, pathwayId: "A203", startYear: demoYear, startFortnight: demoFortnight + 7, location: currentLocation, crossLocationTraining: {} }
+    ];
+    
+    // Update the location data
+    locationData[currentLocation].activeCohorts = demoCohorts;
+    activeCohorts = demoCohorts;
+    nextCohortId = 112;
+    
+    // Update all views
+    updateAllTables();
+    renderGanttChart();
+    
+    // Update dashboard if on dashboard view
+    if (dashboardView.classList.contains('active')) {
+        const dashboardVersion = localStorage.getItem('dashboardVersion') || 'classic';
+        if (dashboardVersion === 'enhanced') {
+            updateDashboardV2();
+        } else {
+            updateDashboard();
+        }
+    }
+    
+    showNotification('Demo data loaded successfully', 'success');
+    return 'Demo data added';
+};
+
+// Global function for toggling dashboard view
+window.toggleDashboardView = function(version) {
+    const toggleButtons = document.querySelectorAll('.toggle-option');
+    const classicDashboard = document.getElementById('dashboard-classic');
+    const enhancedDashboard = document.getElementById('dashboard-enhanced');
+    
+    // Update active state
+    toggleButtons.forEach(btn => {
+        if (btn.dataset.version === version) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // Show/hide dashboards
+    if (version === 'classic') {
+        classicDashboard.style.display = 'block';
+        enhancedDashboard.style.display = 'none';
+        updateDashboard();
+    } else {
+        classicDashboard.style.display = 'none';
+        enhancedDashboard.style.display = 'block';
+        updateDashboardV2();
+    }
+    
+    // Save preference
+    localStorage.setItem('dashboardVersion', version);
 };

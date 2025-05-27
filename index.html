@@ -73,36 +73,33 @@
 
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
-            <div class="dashboard-container">
+            <!-- Dashboard Toggle -->
+            <div class="dashboard-toggle-container">
+                <div class="dashboard-toggle">
+                    <button class="toggle-option active" data-version="classic">Classic Dashboard</button>
+                    <button class="toggle-option" data-version="enhanced">Enhanced Dashboard</button>
+                </div>
+            </div>
+            
+            <!-- Classic Dashboard -->
+            <div class="dashboard-container" id="dashboard-classic">
                 <!-- Key Metrics Cards -->
                 <div class="metrics-row">
-                    <div class="metric-card">
-                        <div class="metric-icon">👥</div>
-                        <div class="metric-content">
-                            <div class="metric-value" id="total-trainees">0</div>
-                            <div class="metric-label">Total Trainees in Training</div>
-                        </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Trainees in Training</div>
+                        <div class="metric-value" id="total-trainees">0</div>
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-icon">📊</div>
-                        <div class="metric-content">
-                            <div class="metric-value" id="trainer-utilization">0%</div>
-                            <div class="metric-label">Trainer Utilization</div>
-                        </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Trainer Utilization</div>
+                        <div class="metric-value" id="trainer-utilization">0%</div>
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-icon">🎓</div>
-                        <div class="metric-content">
-                            <div class="metric-value" id="upcoming-completions">0</div>
-                            <div class="metric-label">Completions Next 3 Months</div>
-                        </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Completions (3 months)</div>
+                        <div class="metric-value" id="upcoming-completions">0</div>
                     </div>
-                    <div class="metric-card">
-                        <div class="metric-icon">⚠️</div>
-                        <div class="metric-content">
-                            <div class="metric-value" id="capacity-warnings">0</div>
-                            <div class="metric-label">Capacity Warnings</div>
-                        </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Capacity Warnings</div>
+                        <div class="metric-value" id="capacity-warnings">0</div>
                     </div>
                 </div>
 
@@ -128,6 +125,178 @@
                 <div class="alerts-section">
                     <h3>Alerts & Warnings</h3>
                     <div id="alerts-container"></div>
+                </div>
+            </div>
+            
+            <!-- Enhanced Dashboard -->
+            <div class="dashboard-container" id="dashboard-enhanced" style="display: none;">
+                <!-- Enhanced Metrics Cards with Trends -->
+                <div class="metrics-row">
+                    <div class="metric-card clean enhanced">
+                        <div class="metric-label">Trainees in Training</div>
+                        <div class="metric-value" id="total-trainees-v2">0</div>
+                        <div class="metric-trend" id="total-trainees-trend"></div>
+                        <div class="metric-detail" id="total-trainees-detail"></div>
+                    </div>
+                    <div class="metric-card clean enhanced">
+                        <div class="metric-label">Trainer Utilization</div>
+                        <div class="metric-value" id="trainer-utilization-v2">0%</div>
+                        <div class="metric-trend" id="trainer-utilization-trend"></div>
+                        <div class="metric-detail" id="trainer-utilization-detail"></div>
+                    </div>
+                    <div class="metric-card clean enhanced">
+                        <div class="metric-label">Completions (3 months)</div>
+                        <div class="metric-value" id="upcoming-completions-v2">0</div>
+                        <div class="metric-trend" id="upcoming-completions-trend"></div>
+                        <div class="metric-detail" id="upcoming-completions-detail"></div>
+                    </div>
+                    <div class="metric-card clean enhanced">
+                        <div class="metric-label">Capacity Warnings</div>
+                        <div class="metric-value" id="capacity-warnings-v2">0</div>
+                        <div class="metric-trend" id="capacity-warnings-trend"></div>
+                        <div class="metric-detail" id="capacity-warnings-detail"></div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Charts Section -->
+                <div class="charts-row">
+                    <div class="chart-container enhanced">
+                        <div class="chart-header">
+                            <h3>Trainer Demand Over Time</h3>
+                            <button class="btn-export-chart" data-chart="demand-v2" title="Export Chart">
+                                <span>📊</span>
+                            </button>
+                        </div>
+                        <canvas id="demand-chart-v2"></canvas>
+                    </div>
+                    <div class="chart-container enhanced">
+                        <div class="chart-header">
+                            <h3>Current Training Distribution</h3>
+                            <button class="btn-export-chart" data-chart="distribution-v2" title="Export Chart">
+                                <span>📊</span>
+                            </button>
+                        </div>
+                        <canvas id="distribution-chart-v2"></canvas>
+                    </div>
+                </div>
+                
+                <!-- New Dashboard Visualizations -->
+                <div class="visualization-row">
+                    <!-- Trainer Utilization Heat Map -->
+                    <div class="viz-container">
+                        <h3>Trainer Utilization Heat Map</h3>
+                        <p class="viz-subtitle">Monthly utilization percentage by trainer category for the current year. Colors indicate: Green (0-60%), Blue (60-80%), Amber (80-100%), Red (>100%)</p>
+                        <div id="trainer-heatmap"></div>
+                    </div>
+                    
+                    <!-- Supply vs Demand Area Chart -->
+                    <div class="viz-container">
+                        <h3>Trainer Supply vs Demand</h3>
+                        <p class="viz-subtitle">12-month forecast showing trainer supply capacity against projected demand by category</p>
+                        <div class="chart-wrapper" style="position: relative; height: 300px;">
+                            <canvas id="supply-demand-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Additional Visualizations -->
+                <div class="visualization-row">
+                    <!-- Training Phase Breakdown -->
+                    <div class="viz-container">
+                        <h3>Active Training Phases</h3>
+                        <p class="viz-subtitle">Number of trainees currently in each training phase (Ground School, Simulator, Line Training)</p>
+                        <div class="chart-wrapper" style="position: relative; height: 250px;">
+                            <canvas id="phase-breakdown-chart"></canvas>
+                        </div>
+                    </div>
+                    
+                    <!-- Workload Distribution -->
+                    <div class="viz-container">
+                        <h3>Trainer Workload Distribution</h3>
+                        <p class="viz-subtitle">Projected workload distribution across trainer categories for the next 12 months</p>
+                        <div class="chart-wrapper" style="position: relative; height: 250px;">
+                            <canvas id="workload-chart"></canvas>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Forecast & Metrics Cards -->
+                <div class="metrics-detail-row">
+                    <div class="detail-card">
+                        <div class="detail-icon">📈</div>
+                        <div class="detail-content">
+                            <h4>Peak Demand Period</h4>
+                            <div class="detail-value" id="peak-demand-period">-</div>
+                            <div class="detail-subtext" id="peak-demand-detail">-</div>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">⚖️</div>
+                        <div class="detail-content">
+                            <h4>Supply/Demand Balance</h4>
+                            <div class="detail-value" id="supply-balance">-</div>
+                            <div class="detail-subtext" id="balance-detail">-</div>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">🎯</div>
+                        <div class="detail-content">
+                            <h4>Training Efficiency</h4>
+                            <div class="detail-value" id="training-efficiency">-</div>
+                            <div class="detail-subtext" id="efficiency-detail">-</div>
+                        </div>
+                    </div>
+                    <div class="detail-card">
+                        <div class="detail-icon">🔮</div>
+                        <div class="detail-content">
+                            <h4>Forecast Confidence</h4>
+                            <div class="detail-value" id="forecast-confidence">-</div>
+                            <div class="detail-subtext" id="confidence-detail">-</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Training Pipeline -->
+                <div class="pipeline-section enhanced">
+                    <div class="pipeline-header">
+                        <h3>Training Pipeline</h3>
+                        <div class="pipeline-filters">
+                            <select id="pipeline-filter" class="filter-select">
+                                <option value="all">All Cohorts</option>
+                                <option value="completing-soon">Completing Soon</option>
+                                <option value="in-progress">In Progress</option>
+                                <option value="starting-soon">Starting Soon</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="pipeline-timeline-v2"></div>
+                </div>
+
+                <!-- Enhanced Alerts Section -->
+                <div class="alerts-section enhanced">
+                    <div class="alerts-header">
+                        <h3>Alerts & Warnings <span class="alert-badge" id="alert-count">0</span></h3>
+                        <div class="alert-controls">
+                            <select id="alert-filter" class="filter-select">
+                                <option value="all">All Alerts</option>
+                                <option value="danger">Critical Only</option>
+                                <option value="warning">Warnings Only</option>
+                                <option value="info">Info Only</option>
+                            </select>
+                            <button class="btn-clear-alerts" id="clear-acknowledged">Clear Acknowledged</button>
+                        </div>
+                    </div>
+                    <div id="alerts-container-v2"></div>
+                </div>
+                
+                <!-- Export Dashboard Button -->
+                <div class="dashboard-export-section">
+                    <button class="btn btn-secondary" id="export-dashboard">
+                        Export Dashboard
+                    </button>
+                    <button class="btn btn-secondary" id="load-demo-data" style="margin-left: 10px;">
+                        Load Demo Data
+                    </button>
                 </div>
             </div>
         </div>

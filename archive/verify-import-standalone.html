@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cohort Import Verification</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; position: sticky; top: 0; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .nz { background-color: #e8f5e9; }
+        .summary { margin: 20px 0; padding: 10px; background-color: #f0f0f0; }
+        .filters { margin: 20px 0; }
+        select, input { margin: 0 10px; padding: 5px; }
+        .highlight { background-color: #ffeb3b !important; }
+    </style>
+</head>
+<body>
+    <h1>Cohort Import Verification - 93 Cohorts (CORRECTED)</h1>
+    <p style="color: red; font-weight: bold;">Fixed: All fortnights shifted by +1 to match actual data alignment</p>
+    
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Cohorts: <span id="total">0</span></p>
+        <p>By Pathway: <span id="pathways"></span></p>
+        <p>By Location: <span id="locations"></span></p>
+        <p>By Year: <span id="years"></span></p>
+    </div>
+
+    <div class="filters">
+        <label>Filter by Pathway: 
+            <select id="pathwayFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="A211">A211 (CAD Short)</option>
+                <option value="A210">A210 (FO)</option>
+                <option value="A209">A209 (CAD Long)</option>
+                <option value="A202">A202 (CP)</option>
+            </select>
+        </label>
+        <label>Filter by Location:
+            <select id="locationFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="AU">AU</option>
+                <option value="NZ">NZ</option>
+            </select>
+        </label>
+        <label>Filter by Year:
+            <select id="yearFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+        </label>
+        <label>Search Row #:
+            <input type="number" id="rowSearch" placeholder="Row #" onkeyup="searchRow()">
+        </label>
+    </div>
+
+    <table id="cohortTable">
+        <thead>
+            <tr>
+                <th>Row #</th>
+                <th>Pathway</th>
+                <th>Type</th>
+                <th>Crew Size</th>
+                <th>Start Year</th>
+                <th>Start FN</th>
+                <th>Start Month</th>
+                <th>Location</th>
+                <th>Cross-Location</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+
+    <script>
+        // Embedded cohort data
+        const cohortData = [];
+        
+        // Helper to add cohort
+        function addCohort(id, pathway, crewSize, startYear, startFortnight, location, isNZ = false) {
+            const cohort = {
+                id: id,
+                name: `${pathway} - ${location} - ${startYear} FN${startFortnight}`,
+                pathway: pathway,
+                startYear: startYear,
+                startFortnight: startFortnight,
+                crewSize: crewSize,
+                location: location,
+                crossLocationTraining: isNZ && pathway === "A209" ? { 1: "AU", 2: "AU" } : {}
+            };
+            cohortData.push(cohort);
+        }
+
+        // Add all 93 cohorts with CORRECTED fortnight alignment
+        addCohort(1, "A211", 2, 2025, 4, "AU");   // Feb FN2
+        addCohort(2, "A211", 2, 2025, 5, "AU");   // Mar FN1
+        addCohort(3, "A211", 2, 2025, 6, "AU");   // Mar FN2
+        addCohort(4, "A211", 2, 2025, 7, "AU");   // Apr FN1
+        addCohort(5, "A211", 2, 2025, 8, "AU");   // Apr FN2
+        addCohort(6, "A211", 2, 2025, 9, "AU");   // May FN1
+        addCohort(7, "A211", 2, 2025, 10, "AU");  // May FN2
+        addCohort(8, "A211", 2, 2025, 11, "AU");  // Jun FN1
+        addCohort(9, "A211", 2, 2025, 12, "AU");  // Jun FN2
+        addCohort(10, "A211", 2, 2025, 13, "AU"); // Jul FN1
+        addCohort(11, "A211", 2, 2025, 14, "AU"); // Jul FN2
+        addCohort(12, "A211", 2, 2025, 15, "AU"); // Aug FN1
+        addCohort(13, "A211", 2, 2025, 16, "AU"); // Aug FN2
+        addCohort(14, "A211", 2, 2025, 17, "AU"); // Sep FN1
+        addCohort(15, "A211", 2, 2025, 18, "AU"); // Sep FN2
+        addCohort(16, "A210", 2, 2025, 18, "AU");
+        addCohort(17, "A210", 2, 2025, 19, "AU");
+        addCohort(18, "A210", 2, 2025, 20, "AU");
+        addCohort(19, "A210", 2, 2025, 21, "AU");
+        addCohort(20, "A210", 2, 2025, 22, "AU");
+        addCohort(21, "A210", 2, 2025, 23, "AU");
+        addCohort(22, "A210", 2, 2025, 24, "AU");
+        addCohort(23, "A210", 2, 2026, 1, "AU");
+        addCohort(24, "A210", 2, 2026, 2, "AU");
+        addCohort(25, "A210", 2, 2026, 3, "AU");
+        addCohort(26, "A210", 2, 2026, 4, "AU");
+        addCohort(27, "A211", 2, 2025, 19, "AU");
+        addCohort(28, "A211", 2, 2025, 20, "AU");
+        addCohort(29, "A209", 2, 2025, 19, "AU");
+        addCohort(30, "A202", 2, 2025, 19, "AU");
+        addCohort(31, "A202", 2, 2025, 20, "AU");
+        addCohort(32, "A202", 2, 2025, 21, "AU");
+        addCohort(33, "A202", 2, 2025, 22, "AU");
+        addCohort(34, "A209", 2, 2025, 15, "NZ", true);
+        addCohort(35, "A209", 2, 2025, 17, "NZ", true);
+        addCohort(36, "A209", 2, 2025, 18, "NZ", true);
+        addCohort(37, "A209", 2, 2025, 19, "NZ", true);
+        addCohort(38, "A211", 2, 2025, 20, "AU");
+        addCohort(39, "A210", 2, 2025, 21, "AU");
+        addCohort(40, "A210", 2, 2025, 22, "AU");
+        addCohort(41, "A210", 2, 2025, 23, "AU");
+        addCohort(42, "A202", 2, 2025, 18, "AU");
+        addCohort(43, "A202", 2, 2025, 19, "AU");
+        addCohort(44, "A202", 2, 2025, 20, "AU");
+        addCohort(45, "A209", 2, 2025, 22, "AU");
+        addCohort(46, "A210", 2, 2025, 23, "AU");
+        addCohort(47, "A210", 2, 2025, 24, "AU");
+        addCohort(48, "A210", 2, 2026, 1, "AU");
+        addCohort(49, "A210", 2, 2026, 2, "AU");
+        addCohort(50, "A202", 2, 2025, 23, "AU");
+        addCohort(51, "A202", 2, 2025, 24, "AU");
+        addCohort(52, "A202", 2, 2026, 1, "AU");
+        addCohort(53, "A209", 2, 2025, 21, "NZ", true);
+        addCohort(54, "A209", 2, 2025, 22, "NZ", true);
+        addCohort(55, "A209", 2, 2026, 2, "AU");
+        addCohort(56, "A209", 2, 2026, 3, "AU");
+        addCohort(57, "A210", 2, 2026, 4, "AU");
+        addCohort(58, "A210", 2, 2026, 5, "AU");
+        addCohort(59, "A210", 2, 2026, 6, "AU");
+        addCohort(60, "A202", 2, 2026, 5, "AU");
+        addCohort(61, "A202", 2, 2026, 6, "AU");
+        addCohort(62, "A202", 2, 2026, 7, "AU");
+        addCohort(63, "A209", 2, 2026, 8, "AU");
+        addCohort(64, "A209", 2, 2026, 9, "AU");
+        addCohort(65, "A209", 2, 2026, 4, "NZ", true);
+        addCohort(66, "A209", 2, 2026, 5, "NZ", true);
+        addCohort(67, "A210", 2, 2026, 8, "AU");
+        addCohort(68, "A210", 2, 2026, 9, "AU");
+        addCohort(69, "A210", 2, 2026, 10, "AU");
+        addCohort(70, "A209", 2, 2026, 8, "NZ", true);
+        addCohort(71, "A202", 2, 2026, 9, "AU");
+        addCohort(72, "A202", 2, 2026, 10, "AU");
+        addCohort(73, "A202", 2, 2026, 11, "AU");
+        addCohort(74, "A202", 2, 2026, 12, "AU");
+        addCohort(75, "A202", 2, 2026, 13, "AU");
+        addCohort(76, "A209", 2, 2026, 12, "AU");
+        addCohort(77, "A210", 2, 2026, 13, "AU");
+        addCohort(78, "A210", 2, 2026, 14, "AU");
+        addCohort(79, "A209", 2, 2026, 11, "NZ", true);
+        addCohort(80, "A209", 2, 2026, 12, "NZ", true);
+        addCohort(81, "A209", 2, 2026, 15, "AU");
+        addCohort(82, "A210", 2, 2026, 16, "AU");
+        addCohort(83, "A202", 2, 2026, 14, "AU");
+        addCohort(84, "A202", 2, 2026, 15, "AU");
+        addCohort(85, "A202", 2, 2026, 16, "AU");
+        addCohort(86, "A202", 2, 2026, 17, "AU");
+        addCohort(87, "A209", 2, 2026, 18, "AU");
+        addCohort(88, "A209", 2, 2026, 19, "AU");
+        addCohort(89, "A210", 2, 2026, 20, "AU");
+        addCohort(90, "A210", 2, 2026, 21, "AU");
+        addCohort(91, "A210", 2, 2026, 22, "AU");
+        addCohort(92, "A202", 2, 2026, 18, "AU");
+        addCohort(93, "A202", 2, 2026, 19, "AU");
+
+        // Pathway type mapping
+        const pathwayTypes = {
+            A211: "CAD (Short)",
+            A210: "FO",
+            A209: "CAD (Long)",
+            A202: "CP"
+        };
+
+        // Function to convert fortnight to month
+        function fortnightToMonth(year, fortnight) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthIndex = Math.floor((fortnight - 1) / 2);
+            const fnPart = ((fortnight - 1) % 2) + 1;
+            return `${months[monthIndex]} FN${fnPart}`;
+        }
+
+        // Load and display cohorts
+        function displayCohorts() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            cohortData.forEach((cohort, index) => {
+                const row = tbody.insertRow();
+                row.className = cohort.location === 'NZ' ? 'nz' : '';
+                row.id = `row-${cohort.id}`;
+                
+                row.insertCell(0).textContent = cohort.id;
+                row.insertCell(1).textContent = cohort.pathway;
+                row.insertCell(2).textContent = pathwayTypes[cohort.pathway];
+                row.insertCell(3).textContent = cohort.crewSize;
+                row.insertCell(4).textContent = cohort.startYear;
+                row.insertCell(5).textContent = cohort.startFortnight;
+                row.insertCell(6).textContent = fortnightToMonth(cohort.startYear, cohort.startFortnight);
+                row.insertCell(7).textContent = cohort.location;
+                row.insertCell(8).textContent = Object.keys(cohort.crossLocationTraining).length > 0 ? 'Yes (AU)' : '-';
+            });
+            
+            updateSummary();
+        }
+
+        // Update summary statistics
+        function updateSummary() {
+            document.getElementById('total').textContent = cohortData.length;
+            
+            // Calculate stats
+            const pathwayStats = {};
+            const locationStats = {};
+            const yearStats = {};
+            
+            cohortData.forEach(cohort => {
+                pathwayStats[cohort.pathway] = (pathwayStats[cohort.pathway] || 0) + 1;
+                locationStats[cohort.location] = (locationStats[cohort.location] || 0) + 1;
+                yearStats[cohort.startYear] = (yearStats[cohort.startYear] || 0) + 1;
+            });
+            
+            document.getElementById('pathways').textContent = Object.entries(pathwayStats)
+                .map(([k, v]) => `${k}: ${v}`).join(', ');
+            document.getElementById('locations').textContent = Object.entries(locationStats)
+                .map(([k, v]) => `${k}: ${v}`).join(', ');
+            document.getElementById('years').textContent = Object.entries(yearStats)
+                .map(([k, v]) => `${k}: ${v}`).join(', ');
+        }
+
+        // Filter table
+        function filterTable() {
+            const pathwayFilter = document.getElementById('pathwayFilter').value;
+            const locationFilter = document.getElementById('locationFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+            const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                const pathway = row.cells[1].textContent;
+                const location = row.cells[7].textContent;
+                const year = row.cells[4].textContent;
+                
+                const showPathway = !pathwayFilter || pathway === pathwayFilter;
+                const showLocation = !locationFilter || location === locationFilter;
+                const showYear = !yearFilter || year === yearFilter;
+                
+                row.style.display = showPathway && showLocation && showYear ? '' : 'none';
+            }
+        }
+
+        // Search for specific row
+        function searchRow() {
+            const searchValue = document.getElementById('rowSearch').value;
+            const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+            
+            // Remove previous highlights
+            for (let row of rows) {
+                row.classList.remove('highlight');
+            }
+            
+            // Highlight matching row
+            if (searchValue) {
+                const targetRow = document.getElementById(`row-${searchValue}`);
+                if (targetRow) {
+                    targetRow.classList.add('highlight');
+                    targetRow.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+            }
+        }
+
+        // Load on page load
+        displayCohorts();
+    </script>
+</body>
+</html>

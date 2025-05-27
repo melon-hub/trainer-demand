@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test Import Format</title>
+</head>
+<body>
+    <h1>Testing Import Format</h1>
+    <p>This tests if the generated scenario format matches the working example.</p>
+    
+    <button onclick="testFormat()">Generate Test Scenario</button>
+    <pre id="output" style="background: #f5f5f5; padding: 20px; margin: 20px 0;"></pre>
+    
+    <script>
+        function testFormat() {
+            // Test data - one cohort
+            const cohortData = [{
+                id: 1,
+                numTrainees: 4,
+                pathwayId: 'A202',
+                startYear: 2025,
+                startFortnight: 2,
+                location: 'AU',
+                crossLocationTraining: {}
+            }];
+            
+            const totalTrainees = cohortData.reduce((sum, c) => sum + c.numTrainees, 0);
+            
+            const scenario = {
+                name: 'Test Import - ' + new Date().toLocaleDateString(),
+                description: 'Test scenario format',
+                date: new Date().toISOString(),
+                dateCreated: new Date().toISOString(),
+                id: Date.now(),
+                stats: {
+                    totalCohorts: cohortData.length,
+                    totalTrainees: totalTrainees
+                },
+                state: {
+                    cohorts: cohortData,
+                    trainerFTE: {
+                        2024: { CATB: 10, CATA: 5, STP: 8, RHS: 15, LHS: 20 },
+                        2025: { CATB: 12, CATA: 6, STP: 10, RHS: 18, LHS: 25 },
+                        2026: { CATB: 14, CATA: 7, STP: 12, RHS: 20, LHS: 28 },
+                        2027: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2028: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2029: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2030: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2031: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2032: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2033: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 },
+                        2034: { CATB: 15, CATA: 8, STP: 12, RHS: 22, LHS: 30 }
+                    },
+                    pathways: [
+                        { 
+                            id: 'A202', 
+                            name: 'A202 - CP', 
+                            type: 'CP',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 2, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-CP', duration: 6, trainerDemandType: 'LT-CP', ratio: 2 }
+                            ] 
+                        }
+                    ],
+                    priorityConfig: [
+                        { 
+                            priority: 'P1', 
+                            trainingType: 'LT-CAD',
+                            primaryTrainers: ['CATB', 'CATA', 'STP'],
+                            cascadingFrom: []
+                        },
+                        { 
+                            priority: 'P2', 
+                            trainingType: 'LT-CP',
+                            primaryTrainers: ['RHS'],
+                            cascadingFrom: ['CATB', 'CATA', 'STP']
+                        },
+                        { 
+                            priority: 'P3', 
+                            trainingType: 'LT-FO',
+                            primaryTrainers: ['LHS'],
+                            cascadingFrom: ['CATB', 'CATA', 'STP', 'RHS']
+                        }
+                    ],
+                    viewState: {
+                        groupBy: 'none',
+                        collapsedGroups: [],
+                        currentLocation: 'AU'
+                    }
+                }
+            };
+            
+            const exportData = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                scenario: scenario
+            };
+            
+            document.getElementById('output').textContent = JSON.stringify(exportData, null, 2);
+            
+            // Also create download link
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', 'test-scenario-' + new Date().getTime() + '.json');
+            linkElement.innerHTML = '<br><br>Click here to download test scenario';
+            document.getElementById('output').appendChild(linkElement);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,14 @@
+Let me count the actual positions more carefully:
+
+Headers: Dec FN2 | Jan FN1 | Jan FN2 | Feb FN1 | Feb FN2 | Mar FN1 | Mar FN2 | Apr FN1 | Apr FN2 | May FN1 | May FN2 | Jun FN1 | Jun FN2 | Jul FN1 | Jul FN2 | Aug FN1 | Aug FN2
+
+Row 1: [spaces] A211 2 X CAD [GS + SIM under Feb FN2] [GS + SIM under Mar FN1] [GS + SIM under Mar FN2] [GS + SIM under Apr FN1]
+- First GS+SIM is under Feb FN2 = fortnight 4
+
+Row 2: [more spaces] A211 2 X CAD [GS + SIM under Mar FN1] [GS + SIM under Mar FN2] [GS + SIM under Apr FN1] [GS + SIM under Apr FN2]
+- First GS+SIM is under Mar FN1 = fortnight 5
+
+Row 3: [more spaces] A211 2 X CAD [GS + SIM under Mar FN2] [GS + SIM under Apr FN1] [GS + SIM under Apr FN2] [GS + SIM under May FN1]
+- First GS+SIM is under Mar FN2 = fortnight 6
+
+Actually, I think I need to see the actual alignment better. The issue might be that I'm misreading where the columns align due to the text formatting.

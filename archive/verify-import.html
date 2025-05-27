@@ -1,0 +1,150 @@
+<\!DOCTYPE html>
+<html>
+<head>
+    <title>Cohort Import Verification</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; position: sticky; top: 0; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        .nz { background-color: #e8f5e9; }
+        .summary { margin: 20px 0; padding: 10px; background-color: #f0f0f0; }
+        .filters { margin: 20px 0; }
+        select, input { margin: 0 10px; padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Cohort Import Verification</h1>
+    
+    <div class="summary">
+        <h2>Summary</h2>
+        <p>Total Cohorts: <span id="total">0</span></p>
+        <p>By Pathway: <span id="pathways"></span></p>
+        <p>By Location: <span id="locations"></span></p>
+        <p>By Year: <span id="years"></span></p>
+    </div>
+
+    <div class="filters">
+        <label>Filter by Pathway: 
+            <select id="pathwayFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="A211">A211</option>
+                <option value="A210">A210</option>
+                <option value="A209">A209</option>
+                <option value="A202">A202</option>
+            </select>
+        </label>
+        <label>Filter by Location:
+            <select id="locationFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="AU">AU</option>
+                <option value="NZ">NZ</option>
+            </select>
+        </label>
+        <label>Filter by Year:
+            <select id="yearFilter" onchange="filterTable()">
+                <option value="">All</option>
+                <option value="2025">2025</option>
+                <option value="2026">2026</option>
+            </select>
+        </label>
+    </div>
+
+    <table id="cohortTable">
+        <thead>
+            <tr>
+                <th>Row #</th>
+                <th>Pathway</th>
+                <th>Crew Size</th>
+                <th>Start Year</th>
+                <th>Start Fortnight</th>
+                <th>Start Month</th>
+                <th>Location</th>
+                <th>Cross-Location</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+        </tbody>
+    </table>
+
+    <script src="cohort-import-complete.js"></script>
+    <script>
+        // Function to convert fortnight to month
+        function fortnightToMonth(year, fortnight) {
+            const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            const monthIndex = Math.floor((fortnight - 1) / 2);
+            const fnPart = ((fortnight - 1) % 2) + 1;
+            return `${months[monthIndex]} FN${fnPart}`;
+        }
+
+        // Load and display cohorts
+        function displayCohorts() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = '';
+            
+            cohortData.forEach((cohort, index) => {
+                const row = tbody.insertRow();
+                row.className = cohort.location === 'NZ' ? 'nz' : '';
+                
+                row.insertCell(0).textContent = cohort.id;
+                row.insertCell(1).textContent = cohort.pathway;
+                row.insertCell(2).textContent = cohort.crewSize;
+                row.insertCell(3).textContent = cohort.startYear;
+                row.insertCell(4).textContent = cohort.startFortnight;
+                row.insertCell(5).textContent = fortnightToMonth(cohort.startYear, cohort.startFortnight);
+                row.insertCell(6).textContent = cohort.location;
+                row.insertCell(7).textContent = Object.keys(cohort.crossLocationTraining).length > 0 ? 'Yes (AU)' : '-';
+            });
+            
+            updateSummary();
+        }
+
+        // Update summary statistics
+        function updateSummary() {
+            document.getElementById('total').textContent = cohortData.length;
+            
+            // Calculate stats
+            const pathwayStats = {};
+            const locationStats = {};
+            const yearStats = {};
+            
+            cohortData.forEach(cohort => {
+                pathwayStats[cohort.pathway] = (pathwayStats[cohort.pathway] || 0) + 1;
+                locationStats[cohort.location] = (locationStats[cohort.location] || 0) + 1;
+                yearStats[cohort.startYear] = (yearStats[cohort.startYear] || 0) + 1;
+            });
+            
+            document.getElementById('pathways').textContent = Object.entries(pathwayStats)
+                .map(([k, v]) => `${k}: ${v}`).join(', ');
+            document.getElementById('locations').textContent = Object.entries(locationStats)
+                .map(([k, v]) => `${k}: ${v}`).join(', ');
+            document.getElementById('years').textContent = Object.entries(yearStats)
+                .map(([k, v]) => `${k}: ${v}`).join(', ');
+        }
+
+        // Filter table
+        function filterTable() {
+            const pathwayFilter = document.getElementById('pathwayFilter').value;
+            const locationFilter = document.getElementById('locationFilter').value;
+            const yearFilter = document.getElementById('yearFilter').value;
+            const rows = document.getElementById('tableBody').getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                const pathway = row.cells[1].textContent;
+                const location = row.cells[6].textContent;
+                const year = row.cells[3].textContent;
+                
+                const showPathway = \!pathwayFilter || pathway === pathwayFilter;
+                const showLocation = \!locationFilter || location === locationFilter;
+                const showYear = \!yearFilter || year === yearFilter;
+                
+                row.style.display = showPathway && showLocation && showYear ? '' : 'none';
+            }
+        }
+
+        // Load on page load
+        displayCohorts();
+    </script>
+</body>
+</html>

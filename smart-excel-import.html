@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Smart Excel Import with Auto-Detection</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1400px; margin: 0 auto; }
+        textarea { 
+            width: 100%; 
+            height: 300px; 
+            font-family: monospace; 
+            font-size: 12px;
+            border: 2px solid #2196F3;
+            padding: 10px;
+        }
+        button { 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background-color: #45a049; }
+        .clear-btn { background-color: #f44336; }
+        .clear-btn:hover { background-color: #da190b; }
+        .results { 
+            margin-top: 20px; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+            border-radius: 5px;
+            display: none;
+        }
+        .detection-table { 
+            border-collapse: collapse; 
+            font-size: 12px; 
+            margin-top: 20px;
+            width: 100%;
+        }
+        .detection-table td, .detection-table th { 
+            border: 1px solid #ddd; 
+            padding: 6px; 
+            text-align: left;
+        }
+        .detection-table th { 
+            background-color: #2196F3; 
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        .detection-table tr:nth-child(even) { background-color: #f9f9f9; }
+        .nz-row { background-color: #e8f5e9; }
+        .error-row { background-color: #ffcdd2; }
+        .fortnight-col { text-align: center; font-weight: bold; }
+        .location-col { text-align: center; }
+        pre { 
+            background-color: #263238; 
+            color: #aed581;
+            padding: 15px; 
+            border-radius: 5px;
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .summary { 
+            background-color: #e3f2fd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+        }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+        .pathway-rules {
+            background-color: #fff3e0;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+        }
+        .detection-info {
+            background-color: #f3e5f5;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 3px;
+            font-size: 14px;
+        }
+        #visual-table {
+            margin-top: 20px;
+            overflow-x: auto;
+            max-height: 600px;
+            overflow-y: auto;
+            border: 2px solid #2196F3;
+        }
+        #visual-table table {
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+        #visual-table td, #visual-table th {
+            border: 1px solid #ddd;
+            padding: 3px;
+            text-align: center;
+            min-width: 40px;
+            max-width: 60px;
+        }
+        #visual-table th {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #f2f2f2;
+        }
+        #visual-table td:first-child, #visual-table th:first-child {
+            position: sticky;
+            left: 0;
+            background-color: #fff3e0;
+            z-index: 5;
+            min-width: 50px;
+        }
+        #visual-table td:nth-child(2), #visual-table th:nth-child(2) {
+            position: sticky;
+            left: 50px;
+            background-color: #e8f5e9;
+            z-index: 5;
+            min-width: 60px;
+        }
+        .gs-sim { background-color: #ffeb3b; }
+        .lt-cad { background-color: #81c784; }
+        .lt-fo { background-color: #64b5f6; }
+        .lt-cp { background-color: #ff8a65; }
+        .first-gs { border: 3px solid red !important; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Smart Excel Import with Auto-Detection</h1>
+        
+        <div class="pathway-rules">
+            <h3>🔍 Auto-Detection Rules:</h3>
+            <ul>
+                <li><strong>Pathway Detection:</strong> Looks for patterns like A202, A210, A209, A211, A212, A203</li>
+                <li><strong>Location Detection:</strong> 
+                    <ul>
+                        <li>If row contains "NZ" → Location = NZ (with cross-location training)</li>
+                        <li>Otherwise → Location = AU</li>
+                    </ul>
+                </li>
+                <li><strong>Crew Size:</strong> Extracts from "2 X CAD", "4 X CP", etc.</li>
+                <li><strong>First GS+SIM:</strong> Finds the first cell containing "GS" and "SIM"</li>
+            </ul>
+        </div>
+        
+        <h3>Instructions:</h3>
+        <ol>
+            <li>In Excel, select your entire table including headers (starting from Dec FN2)</li>
+            <li>Copy (Ctrl+C)</li>
+            <li>Paste below and click "Process Excel Data"</li>
+        </ol>
+        
+        <textarea id="excelInput" placeholder="Paste your Excel data here..."></textarea>
+        <br>
+        <button onclick="processExcelData()">🚀 Process Excel Data</button>
+        <button class="clear-btn" onclick="clearAll()">🗑️ Clear All</button>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // Pathway patterns to detect (updated to match working scenario)
+        const pathwayPatterns = {
+            'A202': { phases: ['GS+SIM', 'GS+SIM', 'LT-CP', 'LT-CP', 'LT-CP', 'LT-CP', 'LT-CP', 'LT-CP'] },
+            'A210': { phases: ['GS+SIM', 'GS+SIM', 'GS+SIM', 'GS+SIM', 'LT-FO', 'LT-FO', 'LT-FO', 'LT-FO', 'LT-FO', 'LT-FO', 'LT-FO'] },
+            'A209': { phases: ['GS+SIM', 'GS+SIM', 'GS+SIM', 'GS+SIM', 'LT-CAD', 'LT-CAD', 'LT-CAD', 'LT-CAD', 'LT-FO', 'LT-FO', 'LT-FO'] },
+            'A211': { phases: ['GS+SIM', 'GS+SIM', 'GS+SIM', 'GS+SIM', 'LT-CAD', 'LT-CAD', 'LT-FO', 'LT-FO'] },
+            'A212': { phases: ['GS+SIM', 'GS+SIM', 'GS+SIM', 'GS+SIM', 'LT-CAD', 'LT-CAD', 'LT-CAD', 'LT-FO', 'LT-FO', 'LT-FO', 'LT-FO', 'LT-FO'] },
+            'A203': { phases: ['GS+SIM', 'GS+SIM', 'LT-CP'] }
+        };
+
+        // Fortnight mapping for 2024-2026
+        function getFortnightInfo(columnIndex, headers) {
+            const header = headers[columnIndex];
+            if (!header) return null;
+            
+            // Parse month and fortnight from header
+            const monthMap = {
+                'Jan': 1, 'Feb': 2, 'Mar': 3, 'Apr': 4, 'May': 5, 'Jun': 6,
+                'Jul': 7, 'Aug': 8, 'Sep': 9, 'Oct': 10, 'Nov': 11, 'Dec': 12
+            };
+            
+            // Look for month and FN pattern
+            for (const [month, monthNum] of Object.entries(monthMap)) {
+                if (header.includes(month)) {
+                    const fnMatch = header.match(/FN(\d)/);
+                    if (fnMatch) {
+                        const fnNum = parseInt(fnMatch[1]);
+                        const fortnight = (monthNum - 1) * 2 + fnNum;
+                        
+                        // Determine year based on position and month
+                        let year = 2025; // default
+                        if (columnIndex < 3 && month === 'Dec') {
+                            year = 2024;
+                        } else if (columnIndex > 24) {
+                            year = 2026;
+                        }
+                        
+                        return {
+                            year: year,
+                            fortnight: fortnight,
+                            monthName: `${month} FN${fnNum}`
+                        };
+                    }
+                }
+            }
+            return null;
+        }
+
+        function detectPathway(phases) {
+            // Clean phase names
+            const cleanedPhases = phases.map(p => {
+                if (!p) return '';
+                const upper = p.toUpperCase().replace(/[^A-Z]/g, '');
+                if (upper.includes('GSSIM') || upper.includes('GSIM')) return 'GS+SIM';
+                if (upper.includes('LTCAD')) return 'LT-CAD';
+                if (upper.includes('LTFO')) return 'LT-FO';
+                if (upper.includes('LTCP')) return 'LT-CP';
+                return '';
+            }).filter(p => p !== '');
+
+            // Try to match against known patterns
+            for (const [pathway, pattern] of Object.entries(pathwayPatterns)) {
+                if (arraysMatch(cleanedPhases, pattern.phases)) {
+                    return pathway;
+                }
+            }
+            
+            // If no exact match, try to infer from phase types
+            const hasCAD = cleanedPhases.some(p => p === 'LT-CAD');
+            const hasFO = cleanedPhases.some(p => p === 'LT-FO');
+            const hasCP = cleanedPhases.some(p => p === 'LT-CP');
+            const gsCount = cleanedPhases.filter(p => p === 'GS+SIM').length;
+            
+            if (hasCP && !hasCAD && !hasFO) return 'A202';
+            if (hasFO && !hasCAD && !hasCP && gsCount === 4) return 'A210';
+            if (hasCAD && hasFO && gsCount === 4) {
+                const cadCount = cleanedPhases.filter(p => p === 'LT-CAD').length;
+                if (cadCount === 2) return 'A211';
+                if (cadCount >= 3) return 'A209';
+            }
+            
+            return 'Unknown';
+        }
+
+        function arraysMatch(arr1, arr2) {
+            if (arr1.length !== arr2.length) return false;
+            for (let i = 0; i < arr1.length; i++) {
+                if (arr1[i] !== arr2[i]) return false;
+            }
+            return true;
+        }
+        
+        // Get cross-location training fortnights for NZ cohorts
+        function getCrossLocationTraining(pathwayId, startYear, startFortnight) {
+            if (!startYear || !startFortnight) return {};
+            
+            const crossLocation = {};
+            
+            // Map pathway to its phases (updated to match working scenario)
+            const pathwayPhases = {
+                'A202': [
+                    { phase: 'GS+SIM', duration: 2, trainerType: null },
+                    { phase: 'LT-CP', duration: 6, trainerType: 'LT-CP' }
+                ],
+                'A210': [
+                    { phase: 'GS+SIM', duration: 4, trainerType: null },
+                    { phase: 'LT-FO', duration: 4, trainerType: 'LT-FO' },
+                    { phase: 'LT-FO', duration: 3, trainerType: 'LT-FO' }
+                ],
+                'A209': [
+                    { phase: 'GS+SIM', duration: 4, trainerType: null },
+                    { phase: 'LT-CAD', duration: 4, trainerType: 'LT-CAD' },
+                    { phase: 'LT-FO', duration: 3, trainerType: 'LT-FO' }
+                ],
+                'A211': [
+                    { phase: 'GS+SIM', duration: 4, trainerType: null },
+                    { phase: 'LT-CAD', duration: 2, trainerType: 'LT-CAD' },
+                    { phase: 'LT-FO', duration: 2, trainerType: 'LT-FO' }
+                ],
+                'A212': [
+                    { phase: 'GS+SIM', duration: 4, trainerType: null },
+                    { phase: 'LT-CAD', duration: 3, trainerType: 'LT-CAD' },
+                    { phase: 'LT-FO', duration: 5, trainerType: 'LT-FO' }
+                ],
+                'A203': [
+                    { phase: 'GS+SIM', duration: 2, trainerType: null },
+                    { phase: 'LT-CP', duration: 1, trainerType: 'LT-CP' }
+                ]
+            };
+            
+            const phases = pathwayPhases[pathwayId];
+            if (!phases) return crossLocation;
+            
+            // Initialize AU training structure
+            crossLocation.AU = { phases: {} };
+            
+            // Calculate global fortnights for each LT phase
+            let localFortnight = 1;
+            phases.forEach(phase => {
+                if (phase.trainerType) {
+                    const globalFortnights = [];
+                    
+                    for (let i = 0; i < phase.duration; i++) {
+                        // Calculate year and fortnight for this phase fortnight
+                        const totalFortnights = startFortnight + localFortnight + i - 2;
+                        const yearOffset = Math.floor(totalFortnights / 24);
+                        const yearFortnight = (totalFortnights % 24) + 1;
+                        
+                        // Calculate global fortnight (from start of 2024)
+                        const globalFortnight = ((startYear - 2024 + yearOffset) * 24) + yearFortnight;
+                        globalFortnights.push(globalFortnight);
+                    }
+                    
+                    if (!crossLocation.AU.phases[phase.trainerType]) {
+                        crossLocation.AU.phases[phase.trainerType] = [];
+                    }
+                    crossLocation.AU.phases[phase.trainerType].push(...globalFortnights);
+                }
+                localFortnight += phase.duration;
+            });
+            
+            return crossLocation;
+        }
+
+        function processExcelData() {
+            const input = document.getElementById('excelInput').value;
+            const results = document.getElementById('results');
+            
+            if (!input.trim()) {
+                results.innerHTML = '<p class="error">Please paste your Excel data first!</p>';
+                results.style.display = 'block';
+                return;
+            }
+
+            try {
+                // Split into rows and cells
+                const rows = input.trim().split('\n').map(row => row.split('\t'));
+                
+                // Find header row
+                let headerRowIndex = -1;
+                let headers = [];
+                
+                for (let i = 0; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (row.some(cell => cell.includes('FN1') || cell.includes('FN2'))) {
+                        headerRowIndex = i;
+                        headers = row;
+                        break;
+                    }
+                }
+                
+                if (headerRowIndex === -1) {
+                    throw new Error('Could not find header row with fortnight data');
+                }
+
+                // Process each data row
+                const cohorts = [];
+                let cohortId = 1;
+                
+                for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length < 5) continue;
+                    
+                    // Extract basic info
+                    let crewSize = 2;
+                    let location = 'AU';
+                    let pathwayFromRow = '';
+                    let rowInfo = '';
+                    
+                    // Scan entire row for metadata (not just first 5 cells)
+                    for (let j = 0; j < row.length; j++) {
+                        const cell = (row[j] || '').trim();
+                        
+                        // Check for NZ anywhere in the row
+                        if (cell.toUpperCase().includes('NZ')) {
+                            location = 'NZ';
+                        }
+                        
+                        // Only check first few cells for other metadata
+                        if (j < 5) {
+                            // Extract crew size (e.g., "2 X CAD", "4 X CP")
+                            const crewMatch = cell.match(/(\d+)\s*X/i);
+                            if (crewMatch) {
+                                crewSize = parseInt(crewMatch[1]);
+                            }
+                            
+                            // Extract pathway if explicitly stated
+                            const pathwayMatch = cell.match(/A\d{3}/);
+                            if (pathwayMatch) {
+                                pathwayFromRow = pathwayMatch[0];
+                            }
+                            
+                            // Store row info
+                            if (cell && !rowInfo) {
+                                rowInfo = cell;
+                            }
+                        }
+                    }
+                    
+                    // Find first GS+SIM
+                    let firstGSIndex = -1;
+                    let phases = [];
+                    
+                    for (let j = 0; j < row.length; j++) {
+                        const cell = (row[j] || '').trim().toUpperCase();
+                        if (cell.includes('GS') && (cell.includes('SIM') || cell.includes('+SIM'))) {
+                            if (firstGSIndex === -1) {
+                                firstGSIndex = j;
+                            }
+                            phases.push(row[j]);
+                        } else if (cell.includes('LT-') || cell.includes('LT ')) {
+                            phases.push(row[j]);
+                        }
+                    }
+                    
+                    if (firstGSIndex === -1) continue; // Skip if no GS+SIM found
+                    
+                    // Get fortnight info
+                    const fortnightInfo = getFortnightInfo(firstGSIndex, headers);
+                    if (!fortnightInfo) continue;
+                    
+                    // Detect pathway from phases if not found in row
+                    const detectedPathway = pathwayFromRow || detectPathway(phases);
+                    
+                    cohorts.push({
+                        id: cohortId++,
+                        originalRow: i - headerRowIndex,
+                        pathway: detectedPathway,
+                        crewSize: crewSize,
+                        startYear: fortnightInfo.year,
+                        startFortnight: fortnightInfo.fortnight,
+                        startMonth: fortnightInfo.monthName,
+                        location: location,
+                        crossLocationTraining: location === 'NZ' ? getCrossLocationTraining(detectedPathway, fortnightInfo.year, fortnightInfo.fortnight) : {},
+                        rowInfo: rowInfo,
+                        phases: phases,
+                        firstGSColumn: firstGSIndex
+                    });
+                }
+                
+                // Display results
+                displayResults(cohorts, headers, rows.slice(headerRowIndex));
+                
+            } catch (error) {
+                results.innerHTML = `<p class="error">Error: ${error.message}</p>`;
+                results.style.display = 'block';
+            }
+        }
+
+        function displayResults(cohorts, headers, allRows) {
+            const results = document.getElementById('results');
+            
+            let html = '<h2 class="success">✅ Successfully Processed ' + cohorts.length + ' Cohorts!</h2>';
+            
+            // Summary
+            html += '<div class="summary">';
+            html += '<h3>📊 Summary</h3>';
+            
+            const byPathway = {};
+            const byLocation = { AU: 0, NZ: 0 };
+            const byYear = {};
+            const byTrainingType = { Captain: 0, FO: 0, CAD: 0 };
+            
+            cohorts.forEach(c => {
+                byPathway[c.pathway] = (byPathway[c.pathway] || 0) + 1;
+                byLocation[c.location]++;
+                byYear[c.startYear] = (byYear[c.startYear] || 0) + 1;
+                
+                // Count by training type based on pathway
+                const trainingCount = c.crewSize || 2;
+                if (c.pathway === 'A202' || c.pathway === 'A203') {
+                    byTrainingType.Captain += trainingCount;
+                } else if (c.pathway === 'A210') {
+                    byTrainingType.FO += trainingCount;
+                } else if (c.pathway === 'A209' || c.pathway === 'A211' || c.pathway === 'A212') {
+                    byTrainingType.CAD += trainingCount;
+                }
+            });
+            
+            html += '<p><strong>By Pathway:</strong> ' + Object.entries(byPathway).map(([k, v]) => `${k}: ${v} cohorts`).join(', ') + '</p>';
+            html += '<p><strong>By Location:</strong> ' + Object.entries(byLocation).map(([k, v]) => `${k}: ${v} cohorts`).join(', ') + '</p>';
+            html += '<p><strong>By Year:</strong> ' + Object.entries(byYear).map(([k, v]) => `${k}: ${v} cohorts`).join(', ') + '</p>';
+            html += '</div>';
+            
+            // Training type totals
+            html += '<div class="summary" style="background-color: #ffecb3;">';
+            html += '<h3>🎯 Total Trainees by Type</h3>';
+            html += '<p style="font-size: 18px;">';
+            html += `<strong>Captain (CP):</strong> ${byTrainingType.Captain} trainees<br/>`;
+            html += `<strong>First Officer (FO):</strong> ${byTrainingType.FO} trainees<br/>`;
+            html += `<strong>Cadet (CAD):</strong> ${byTrainingType.CAD} trainees<br/>`;
+            html += `<strong>TOTAL:</strong> ${byTrainingType.Captain + byTrainingType.FO + byTrainingType.CAD} trainees`;
+            html += '</p>';
+            html += '</div>';
+            
+            // Detection results table
+            html += '<h3>🔍 Detection Results</h3>';
+            html += '<div style="overflow-x: auto;">';
+            html += '<table class="detection-table">';
+            html += '<thead><tr>';
+            html += '<th>Row</th>';
+            html += '<th>Detected Pathway</th>';
+            html += '<th>Crew</th>';
+            html += '<th>Location</th>';
+            html += '<th>Start Year</th>';
+            html += '<th>Start FN</th>';
+            html += '<th>Start Month</th>';
+            html += '<th>Row Info</th>';
+            html += '</tr></thead><tbody>';
+            
+            cohorts.forEach(c => {
+                const rowClass = c.location === 'NZ' ? 'nz-row' : '';
+                const errorClass = c.pathway === 'Unknown' ? 'error-row' : '';
+                html += `<tr class="${rowClass} ${errorClass}">`;
+                html += `<td>${c.originalRow}</td>`;
+                html += `<td><strong>${c.pathway}</strong></td>`;
+                html += `<td>${c.crewSize}</td>`;
+                html += `<td class="location-col"><strong>${c.location}</strong></td>`;
+                html += `<td>${c.startYear}</td>`;
+                html += `<td class="fortnight-col">${c.startFortnight}</td>`;
+                html += `<td>${c.startMonth}</td>`;
+                html += `<td>${c.rowInfo}</td>`;
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            html += '</div>';
+            
+            // Visual representation
+            html += '<h3>📅 Visual Timeline (All ' + cohorts.length + ' Cohorts)</h3>';
+            html += '<p style="color: #666; font-size: 14px;">💡 Tip: The table scrolls horizontally and vertically. Row numbers and pathways are frozen for easy reference.</p>';
+            html += '<div id="visual-table">';
+            html += createVisualTable(cohorts, headers);
+            html += '</div>';
+            
+            // Import code
+            html += '<h3>💻 Import Code</h3>';
+            html += '<p>Copy this code and run it in your app console:</p>';
+            html += '<pre>' + generateImportCode(cohorts) + '</pre>';
+            
+            // JSON download
+            html += '<br><button onclick=\'downloadJSON(' + JSON.stringify(cohorts) + ')\'>📥 Download as JSON (App Format)</button>';
+            html += '<button onclick=\'downloadScenario(' + JSON.stringify(cohorts) + ')\'>💾 Download as Scenario</button>';
+            html += '<button onclick=\'downloadCSV(' + JSON.stringify(cohorts) + ')\'>📊 Download as CSV</button>';
+            html += '<p style="font-size: 12px; color: #666; margin-top: 10px;">💡 <strong>JSON Format:</strong> Direct import into activeCohorts | <strong>Scenario Format:</strong> Complete scenario file with cohorts</p>';
+            
+            results.innerHTML = html;
+            results.style.display = 'block';
+        }
+
+        function createVisualTable(cohorts, headers) {
+            let html = '<table>';
+            
+            // New fortnight numbering row
+            html += '<tr><th colspan="2" style="background-color: #ff9800; color: white;">New System →</th>';
+            let year = 2024;
+            let fnCount = 0;
+            for (let i = 0; i < headers.length; i++) {
+                if (headers[i] && headers[i].includes('FN')) {
+                    fnCount++;
+                    if (headers[i].includes('Jan FN1') && fnCount > 2) year = 2025;
+                    if (headers[i].includes('Jan FN1') && fnCount > 26) year = 2026;
+                    const monthNum = Math.floor((fnCount - 1) / 2) + 1;
+                    const fnNum = ((fnCount - 1) % 2) + 1;
+                    if (year === 2024 && monthNum < 12) continue; // Skip pre-December 2024
+                    const actualFN = year === 2024 ? 24 : (monthNum - 1) * 2 + fnNum;
+                    html += `<th style="background-color: #ff9800; color: white; font-size: 10px;">${year}<br/>FN${actualFN}</th>`;
+                }
+            }
+            html += '</tr>';
+            
+            // Original header row
+            html += '<tr><th>Row</th><th>Pathway</th>';
+            for (let i = 0; i < headers.length; i++) {
+                if (headers[i] && headers[i].includes('FN')) {
+                    html += `<th style="font-size: 10px;">${headers[i]}</th>`;
+                }
+            }
+            html += '</tr>';
+            
+            // Cohort rows
+            cohorts.forEach(c => {
+                html += '<tr>';
+                html += `<td>${c.originalRow}</td>`;
+                html += `<td>${c.pathway}</td>`;
+                
+                for (let i = 0; i < headers.length; i++) {
+                    if (headers[i] && headers[i].includes('FN')) {
+                        if (i === c.firstGSColumn) {
+                            html += '<td class="gs-sim first-gs">GS+SIM</td>';
+                        } else if (i > c.firstGSColumn && i < c.firstGSColumn + c.phases.length) {
+                            const phaseIndex = i - c.firstGSColumn;
+                            const phase = c.phases[phaseIndex];
+                            if (phase) {
+                                const classMap = {
+                                    'GS': 'gs-sim',
+                                    'CAD': 'lt-cad',
+                                    'FO': 'lt-fo',
+                                    'CP': 'lt-cp'
+                                };
+                                let className = '';
+                                for (const [key, cls] of Object.entries(classMap)) {
+                                    if (phase.toUpperCase().includes(key)) {
+                                        className = cls;
+                                        break;
+                                    }
+                                }
+                                html += `<td class="${className}">${phase}</td>`;
+                            } else {
+                                html += '<td></td>';
+                            }
+                        } else {
+                            html += '<td></td>';
+                        }
+                    }
+                }
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            return html;
+        }
+
+        function generateImportCode(cohorts) {
+            const validCohorts = cohorts.filter(c => c.pathway !== 'Unknown');
+            
+            // Generate sequential IDs starting from highest existing ID + 1
+            let nextId = 1;
+            if (typeof activeCohorts !== 'undefined' && Array.isArray(activeCohorts) && activeCohorts.length > 0) {
+                const maxId = Math.max(...activeCohorts.map(c => c.id || 0));
+                nextId = maxId + 1;
+            }
+            
+            const cohortData = validCohorts.map((c, index) => ({
+                id: nextId + index,
+                numTrainees: c.crewSize,  // Changed from crewSize to numTrainees
+                pathwayId: c.pathway,     // Changed from pathway to pathwayId
+                startYear: c.startYear,
+                startFortnight: c.startFortnight,
+                location: c.location,
+                crossLocationTraining: c.location === 'NZ' ? getCrossLocationTraining(c.pathway, c.startYear, c.startFortnight) : {}
+            }));
+            
+            let code = '// Auto-generated import from Excel data\n';
+            code += '// ' + new Date().toLocaleString() + '\n';
+            code += '// Format: Compatible with app.js activeCohorts structure\n\n';
+            code += '// Clear existing cohorts\n';
+            code += 'activeCohorts = [];\n\n';
+            code += '// Set next cohort ID\n';
+            code += 'nextCohortId = ' + (nextId + validCohorts.length) + ';\n\n';
+            code += '// Import ' + validCohorts.length + ' cohorts\n';
+            code += 'const importedCohorts = ' + JSON.stringify(cohortData, null, 2) + ';\n\n';
+            code += '// Add to active cohorts\n';
+            code += 'activeCohorts.push(...importedCohorts);\n';
+            code += 'updateAllCalculations();\n';
+            code += 'renderGanttChart();\n';
+            code += `showNotification('success', 'Imported ${validCohorts.length} cohorts successfully');\n`;
+            
+            if (cohorts.length > validCohorts.length) {
+                code += `\n// Note: ${cohorts.length - validCohorts.length} cohorts had unknown pathways and were skipped`;
+            }
+            
+            return code;
+        }
+
+        function downloadJSON(cohorts) {
+            const validCohorts = cohorts.filter(c => c.pathway !== 'Unknown');
+            
+            // Generate app-compatible format
+            let nextId = 1;
+            const cohortData = validCohorts.map((c, index) => ({
+                id: nextId + index,
+                numTrainees: c.crewSize,
+                pathwayId: c.pathway,
+                startYear: c.startYear,
+                startFortnight: c.startFortnight,
+                location: c.location,
+                crossLocationTraining: c.location === 'NZ' ? getCrossLocationTraining(c.pathway, c.startYear, c.startFortnight) : {}
+            }));
+            
+            const dataStr = JSON.stringify(cohortData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', 'cohorts-import-' + new Date().getTime() + '.json');
+            linkElement.click();
+        }
+
+        function downloadCSV(cohorts) {
+            let csv = 'Row,Pathway,Crew Size,Location,Start Year,Start Fortnight,Start Month\n';
+            
+            cohorts.forEach(c => {
+                csv += `${c.originalRow},${c.pathway},${c.crewSize},${c.location},${c.startYear},${c.startFortnight},"${c.startMonth}"\n`;
+            });
+            
+            const dataUri = 'data:text/csv;charset=utf-8,'+ encodeURIComponent(csv);
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', 'cohorts-import-' + new Date().getTime() + '.csv');
+            linkElement.click();
+        }
+
+        function downloadScenario(cohorts) {
+            const validCohorts = cohorts.filter(c => c.pathway !== 'Unknown');
+            
+            // Generate app-compatible cohort format
+            let nextId = 1;
+            const cohortData = validCohorts.map((c, index) => ({
+                id: nextId + index,
+                numTrainees: c.crewSize,
+                pathwayId: c.pathway,
+                startYear: c.startYear,
+                startFortnight: c.startFortnight,
+                location: c.location,
+                crossLocationTraining: c.location === 'NZ' ? getCrossLocationTraining(c.pathway, c.startYear, c.startFortnight) : {}
+            }));
+            
+            // Calculate stats
+            const totalTrainees = cohortData.reduce((sum, c) => sum + c.numTrainees, 0);
+            
+            // Create scenario object with default settings
+            const scenario = {
+                name: 'Imported from Excel - ' + new Date().toLocaleDateString(),
+                description: `Imported ${validCohorts.length} cohorts from Excel spreadsheet`,
+                date: new Date().toISOString(),
+                dateCreated: new Date().toISOString(),
+                id: Date.now(),
+                stats: {
+                    totalCohorts: cohortData.length,
+                    totalTrainees: totalTrainees
+                },
+                state: {
+                    cohorts: cohortData,
+                    trainerFTE: {
+                        // Default FTE values matching working scenario
+                        2024: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2025: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2026: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2027: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2028: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2029: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2030: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2031: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2032: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2033: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 },
+                        2034: { CATB: 240, CATA: 240, STP: 240, RHS: 240, LHS: 240 }
+                    },
+                    pathways: [
+                        { 
+                            id: 'A202', 
+                            name: 'A202 - CP', 
+                            type: 'CP',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 2, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-CP', duration: 6, trainerDemandType: 'LT-CP', ratio: 2 }
+                            ] 
+                        },
+                        { 
+                            id: 'A210', 
+                            name: 'A210 - FO', 
+                            type: 'FO',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 4, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-FO', duration: 4, trainerDemandType: 'LT-FO', ratio: 2 },
+                                { name: 'LT-FO', duration: 3, trainerDemandType: 'LT-FO', ratio: 2 }
+                            ] 
+                        },
+                        { 
+                            id: 'A209', 
+                            name: 'A209 - CAD', 
+                            type: 'CAD',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 4, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-CAD', duration: 4, trainerDemandType: 'LT-CAD', ratio: 2 }, 
+                                { name: 'LT-FO', duration: 3, trainerDemandType: 'LT-FO', ratio: 2 }
+                            ] 
+                        },
+                        { 
+                            id: 'A212', 
+                            name: 'A212 - CAD', 
+                            type: 'CAD',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 4, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-CAD', duration: 3, trainerDemandType: 'LT-CAD', ratio: 2 }, 
+                                { name: 'LT-FO', duration: 5, trainerDemandType: 'LT-FO', ratio: 2 }
+                            ] 
+                        },
+                        { 
+                            id: 'A211', 
+                            name: 'A211 - CAD', 
+                            type: 'CAD',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 4, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-CAD', duration: 2, trainerDemandType: 'LT-CAD', ratio: 2 }, 
+                                { name: 'LT-FO', duration: 2, trainerDemandType: 'LT-FO', ratio: 2 }
+                            ] 
+                        },
+                        { 
+                            id: 'A203', 
+                            name: 'A203 - CP', 
+                            type: 'CP',
+                            comments: '',
+                            phases: [
+                                { name: 'GS+SIM', duration: 2, trainerDemandType: null, ratio: 8 }, 
+                                { name: 'LT-CP', duration: 1, trainerDemandType: 'LT-CP', ratio: 2 }
+                            ] 
+                        }
+                    ],
+                    priorityConfig: [
+                        { 
+                            priority: 'P1', 
+                            trainingType: 'LT-CAD',
+                            primaryTrainers: ['CATB', 'CATA', 'STP'],
+                            cascadingFrom: []
+                        },
+                        { 
+                            priority: 'P2', 
+                            trainingType: 'LT-CP',
+                            primaryTrainers: ['RHS'],
+                            cascadingFrom: ['CATB', 'CATA', 'STP']
+                        },
+                        { 
+                            priority: 'P3', 
+                            trainingType: 'LT-FO',
+                            primaryTrainers: ['LHS'],
+                            cascadingFrom: ['CATB', 'CATA', 'STP', 'RHS']
+                        }
+                    ],
+                    viewState: {
+                        groupBy: 'none',
+                        collapsedGroups: [],
+                        currentLocation: 'AU'
+                    }
+                }
+            };
+            
+            // Wrap in the expected format for import
+            const exportData = {
+                version: '1.0',
+                exportDate: new Date().toISOString(),
+                scenario: scenario
+            };
+            
+            const dataStr = JSON.stringify(exportData, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', 'scenario-import-' + new Date().getTime() + '.json');
+            linkElement.click();
+        }
+        
+        function clearAll() {
+            document.getElementById('excelInput').value = '';
+            document.getElementById('results').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

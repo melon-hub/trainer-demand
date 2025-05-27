@@ -95,16 +95,19 @@ Training demands are served in priority order with cascading allocation:
 - Charts update dynamically with dark mode support
 
 ### Training Planner
-- Add individual cohorts with pathway selection
+- Add individual cohorts with pathway selection and location
+- **Cross-Location Training**: Assign specific fortnights to use trainers from other locations
 - **Training Planner Modal** with three tabs:
   - **Grid Entry**: Excel-like grid for quick cohort entry with paste support
   - **Target Optimizer**: Set pilot targets by type and optimize schedule
   - **Bulk Input**: Parse natural language entries (e.g., "Jan 2025: 12 FO, 8 CP")
 - Visual Gantt chart with grouping options
 - **Drag and Drop**: Move cohorts on Gantt chart timeline
+- **Cross-Location Display**: Shows cohorts from other locations using current location's trainers
 - Supply/deficit analysis tables with two view modes:
   - Classic view (positive/negative numbers)
   - Intuitive view (surplus in green, deficit in red)
+- **Split View Toggle**: Separate local vs cross-location demand in tables
 - Copy table data functionality
 
 ### Settings Management
@@ -202,6 +205,21 @@ Simply serve the files via any web server or open index.html directly in a brows
 - When committing anything at users request, it must always have a tag
 
 ## Version History
+- **v1.5**: Enhanced cross-location visibility
+  - Split view toggle for demand tables (local vs cross-location breakdown)
+  - Cross-location cohorts section in Gantt showing only relevant fortnights
+  - Removed decimal points throughout for cleaner display
+  - Dynamic table height adjustment for split view
+  - Simplified demand display with highlighting
+- **v1.4**: Cross-location training implementation
+  - Multi-location support (AU/NZ)
+  - Fortnight-level cross-location trainer assignments
+  - Visual indicators (flags, striped patterns, footnotes)
+  - Cross-location demand calculation with two-pass algorithm
+- **v1.3**: Major UI/UX improvements
+  - Executive dashboard with real-time metrics and charts
+  - Dark mode support throughout
+  - Enhanced scenario management
 - **v0.9**: Major improvements to optimizer and UI
   - Enhanced Training Planner with grid entry, bulk input, and target optimizer
   - Added drag-and-drop functionality to Gantt chart
@@ -209,11 +227,6 @@ Simply serve the files via any web server or open index.html directly in a brows
   - Added intuitive surplus/deficit view toggle
   - Improved scenario management with import/export
   - Added standalone single-file version
-- **v0.8**: Major optimizer improvements with priority-based trainer allocation
-  - Added executive dashboard with real-time metrics
-  - Implemented dark mode support
-  - Fixed optimizer capacity constraints
-  - Improved Training Planner UI and validation
 
 ---
-*Last updated: January 2025*
+*Last updated: May 2025*

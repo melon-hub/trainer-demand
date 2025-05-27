@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Excel Paste Import Tool</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        textarea { 
+            width: 100%; 
+            height: 300px; 
+            font-family: monospace; 
+            font-size: 12px;
+            border: 2px solid #2196F3;
+            padding: 10px;
+        }
+        button { 
+            background-color: #4CAF50; 
+            color: white; 
+            padding: 10px 20px; 
+            border: none; 
+            cursor: pointer; 
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover { background-color: #45a049; }
+        .clear-btn { background-color: #f44336; }
+        .clear-btn:hover { background-color: #da190b; }
+        .results { 
+            margin-top: 20px; 
+            padding: 20px; 
+            background-color: #f5f5f5; 
+            border-radius: 5px;
+            display: none;
+        }
+        .preview-table { 
+            border-collapse: collapse; 
+            font-size: 11px; 
+            margin-top: 20px;
+            width: 100%;
+            overflow-x: auto;
+            display: block;
+        }
+        .preview-table td, .preview-table th { 
+            border: 1px solid #ddd; 
+            padding: 4px; 
+            text-align: center;
+            min-width: 50px;
+        }
+        .preview-table th { background-color: #f2f2f2; }
+        .gs-sim { background-color: #ffeb3b; }
+        .lt-cad { background-color: #81c784; }
+        .lt-fo { background-color: #64b5f6; }
+        .lt-cp { background-color: #ff8a65; }
+        .first-gs { border: 3px solid red !important; font-weight: bold; }
+        .cohort-row { background-color: #e3f2fd; }
+        .nz-row { background-color: #c8e6c9; }
+        pre { 
+            background-color: #f5f5f5; 
+            padding: 10px; 
+            border: 1px solid #ddd; 
+            overflow-x: auto;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .summary { 
+            background-color: #e3f2fd; 
+            padding: 15px; 
+            margin: 10px 0; 
+            border-radius: 5px;
+        }
+        .error { color: red; font-weight: bold; }
+        .success { color: green; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Excel Paste Import Tool</h1>
+        <p>Copy your entire Excel table (including headers) and paste it below. Make sure to select from the top-left cell (Dec FN2) to include all headers and data.</p>
+        
+        <h3>Instructions:</h3>
+        <ol>
+            <li>In Excel, select your entire training schedule table including:
+                <ul>
+                    <li>The fortnight headers row (Dec FN2, Jan FN1, etc.)</li>
+                    <li>All cohort rows with their pathway info and phase data</li>
+                </ul>
+            </li>
+            <li>Copy (Ctrl+C or Cmd+C)</li>
+            <li>Paste into the box below</li>
+            <li>Click "Process Excel Data"</li>
+        </ol>
+        
+        <textarea id="excelInput" placeholder="Paste your Excel data here..."></textarea>
+        <br>
+        <button onclick="processExcelData()">Process Excel Data</button>
+        <button class="clear-btn" onclick="clearAll()">Clear All</button>
+        
+        <div id="results" class="results"></div>
+    </div>
+
+    <script>
+        // Fortnight mapping
+        const fortnightMap = {
+            'Dec FN2': { year: 2024, fortnight: 24 },
+            'Jan FN1': { year: 2025, fortnight: 1 },
+            'Jan FN2': { year: 2025, fortnight: 2 },
+            'Feb FN1': { year: 2025, fortnight: 3 },
+            'Feb FN2': { year: 2025, fortnight: 4 },
+            'Mar FN1': { year: 2025, fortnight: 5 },
+            'Mar FN2': { year: 2025, fortnight: 6 },
+            'Apr FN1': { year: 2025, fortnight: 7 },
+            'Apr FN2': { year: 2025, fortnight: 8 },
+            'May FN1': { year: 2025, fortnight: 9 },
+            'May FN2': { year: 2025, fortnight: 10 },
+            'Jun FN1': { year: 2025, fortnight: 11 },
+            'Jun FN2': { year: 2025, fortnight: 12 },
+            'Jul FN1': { year: 2025, fortnight: 13 },
+            'Jul FN2': { year: 2025, fortnight: 14 },
+            'Aug FN1': { year: 2025, fortnight: 15 },
+            'Aug FN2': { year: 2025, fortnight: 16 },
+            'Sep FN1': { year: 2025, fortnight: 17 },
+            'Sep FN2': { year: 2025, fortnight: 18 },
+            'Oct FN1': { year: 2025, fortnight: 19 },
+            'Oct FN2': { year: 2025, fortnight: 20 },
+            'Nov FN1': { year: 2025, fortnight: 21 },
+            'Nov FN2': { year: 2025, fortnight: 22 },
+            'Dec FN1': { year: 2025, fortnight: 23 },
+            'Dec FN2': { year: 2025, fortnight: 24 }
+        };
+
+        // Add 2026 fortnights
+        const months2026 = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+        months2026.forEach((month, idx) => {
+            fortnightMap[`${month} FN1`] = { year: 2026, fortnight: (idx * 2) + 1 };
+            fortnightMap[`${month} FN2`] = { year: 2026, fortnight: (idx * 2) + 2 };
+        });
+
+        function processExcelData() {
+            const input = document.getElementById('excelInput').value;
+            const results = document.getElementById('results');
+            
+            if (!input.trim()) {
+                results.innerHTML = '<p class="error">Please paste your Excel data first!</p>';
+                results.style.display = 'block';
+                return;
+            }
+
+            try {
+                // Split into rows
+                const rows = input.trim().split('\n').map(row => row.split('\t'));
+                
+                // Find header row (contains fortnight data)
+                let headerRowIndex = -1;
+                let headers = [];
+                
+                for (let i = 0; i < rows.length; i++) {
+                    if (rows[i].some(cell => cell.includes('FN1') || cell.includes('FN2'))) {
+                        headerRowIndex = i;
+                        headers = rows[i];
+                        break;
+                    }
+                }
+                
+                if (headerRowIndex === -1) {
+                    throw new Error('Could not find header row with fortnight data (FN1/FN2)');
+                }
+
+                // Process cohort rows
+                const cohorts = [];
+                let cohortId = 1;
+                
+                for (let i = headerRowIndex + 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    if (!row || row.length < 3) continue;
+                    
+                    // Look for pathway information
+                    let pathwayInfo = '';
+                    let crewSize = 2; // default
+                    let location = 'AU'; // default
+                    let pathwayType = '';
+                    
+                    // Find pathway data in the row
+                    for (let j = 0; j < Math.min(row.length, 10); j++) {
+                        const cell = row[j].trim();
+                        if (cell.match(/A\d{3}/)) {
+                            pathwayType = cell.match(/A\d{3}/)[0];
+                            pathwayInfo = cell;
+                        }
+                        if (cell.includes('NZ')) {
+                            location = 'NZ';
+                        }
+                        if (cell.match(/(\d+)\s*X/)) {
+                            crewSize = parseInt(cell.match(/(\d+)\s*X/)[1]);
+                        }
+                    }
+                    
+                    if (!pathwayType) continue; // Skip rows without pathway
+                    
+                    // Find first GS+SIM
+                    let firstGSIndex = -1;
+                    for (let j = 0; j < row.length; j++) {
+                        if (row[j].includes('GS') && row[j].includes('SIM')) {
+                            firstGSIndex = j;
+                            break;
+                        }
+                    }
+                    
+                    if (firstGSIndex === -1) continue; // Skip if no GS+SIM found
+                    
+                    // Map to fortnight
+                    const fortnightHeader = headers[firstGSIndex];
+                    const mapping = findFortnightMapping(fortnightHeader);
+                    
+                    if (mapping) {
+                        cohorts.push({
+                            id: cohortId++,
+                            row: i - headerRowIndex,
+                            pathway: pathwayType,
+                            pathwayInfo: pathwayInfo,
+                            crewSize: crewSize,
+                            startYear: mapping.year,
+                            startFortnight: mapping.fortnight,
+                            startMonth: fortnightHeader,
+                            location: location,
+                            crossLocationTraining: location === 'NZ' ? { 1: 'AU', 2: 'AU' } : {},
+                            rawData: row
+                        });
+                    }
+                }
+                
+                // Display results
+                displayResults(cohorts, headers, rows.slice(headerRowIndex + 1));
+                
+            } catch (error) {
+                results.innerHTML = `<p class="error">Error processing data: ${error.message}</p>`;
+                results.style.display = 'block';
+            }
+        }
+
+        function findFortnightMapping(header) {
+            // Try exact match first
+            const cleaned = header.trim();
+            if (fortnightMap[cleaned]) {
+                return fortnightMap[cleaned];
+            }
+            
+            // Try to find partial match
+            for (const [key, value] of Object.entries(fortnightMap)) {
+                if (cleaned.includes(key.split(' ')[0]) && cleaned.includes(key.split(' ')[1])) {
+                    return value;
+                }
+            }
+            
+            return null;
+        }
+
+        function displayResults(cohorts, headers, dataRows) {
+            const results = document.getElementById('results');
+            
+            let html = '<h2 class="success">Successfully Processed!</h2>';
+            
+            // Summary
+            html += '<div class="summary">';
+            html += `<h3>Summary</h3>`;
+            html += `<p>Total cohorts found: <strong>${cohorts.length}</strong></p>`;
+            
+            // By pathway
+            const byPathway = {};
+            const byLocation = { AU: 0, NZ: 0 };
+            const byYear = {};
+            
+            cohorts.forEach(c => {
+                byPathway[c.pathway] = (byPathway[c.pathway] || 0) + 1;
+                byLocation[c.location]++;
+                byYear[c.startYear] = (byYear[c.startYear] || 0) + 1;
+            });
+            
+            html += '<p>By Pathway: ' + Object.entries(byPathway).map(([k, v]) => `${k}: ${v}`).join(', ') + '</p>';
+            html += '<p>By Location: ' + Object.entries(byLocation).map(([k, v]) => `${k}: ${v}`).join(', ') + '</p>';
+            html += '<p>By Year: ' + Object.entries(byYear).map(([k, v]) => `${k}: ${v}`).join(', ') + '</p>';
+            html += '</div>';
+            
+            // Preview table
+            html += '<h3>Cohort Preview (First 20)</h3>';
+            html += '<table class="preview-table">';
+            html += '<tr><th>Row</th><th>Pathway</th><th>Crew</th><th>Location</th><th>Start Year</th><th>Start FN</th><th>Start Month</th></tr>';
+            
+            cohorts.slice(0, 20).forEach(c => {
+                html += `<tr class="${c.location === 'NZ' ? 'nz-row' : ''}">`;
+                html += `<td>${c.row}</td>`;
+                html += `<td>${c.pathwayInfo}</td>`;
+                html += `<td>${c.crewSize}</td>`;
+                html += `<td>${c.location}</td>`;
+                html += `<td>${c.startYear}</td>`;
+                html += `<td>${c.startFortnight}</td>`;
+                html += `<td>${c.startMonth}</td>`;
+                html += '</tr>';
+            });
+            html += '</table>';
+            
+            // Export code
+            html += '<h3>Import Code for App</h3>';
+            html += '<p>Copy this code and paste it into your app console:</p>';
+            
+            const importCode = generateImportCode(cohorts);
+            html += `<pre>${importCode}</pre>`;
+            
+            // Download JSON button
+            html += '<br><button onclick="downloadJSON(' + JSON.stringify(cohorts).replace(/"/g, '&quot;') + ')">Download as JSON</button>';
+            
+            results.innerHTML = html;
+            results.style.display = 'block';
+        }
+
+        function generateImportCode(cohorts) {
+            const cohortData = cohorts.map(c => ({
+                name: `${c.pathway} - ${c.location} - ${c.startYear} FN${c.startFortnight}`,
+                pathway: c.pathway,
+                startYear: c.startYear,
+                startFortnight: c.startFortnight,
+                crewSize: c.crewSize,
+                location: c.location,
+                crossLocationTraining: c.crossLocationTraining
+            }));
+            
+            let code = '// Clear existing cohorts\n';
+            code += 'activeCohorts = [];\n\n';
+            code += '// Import cohorts\n';
+            code += 'const importedCohorts = ' + JSON.stringify(cohortData, null, 2) + ';\n\n';
+            code += '// Add to active cohorts\n';
+            code += 'activeCohorts.push(...importedCohorts);\n';
+            code += 'updateAllCalculations();\n';
+            code += `showNotification('success', 'Imported ${cohorts.length} cohorts successfully');`;
+            
+            return code;
+        }
+
+        function downloadJSON(cohorts) {
+            const dataStr = JSON.stringify(cohorts, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'cohorts-import.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function clearAll() {
+            document.getElementById('excelInput').value = '';
+            document.getElementById('results').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

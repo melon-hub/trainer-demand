@@ -1,0 +1,1090 @@
+{
+  "version": "1.0",
+  "exportDate": "2025-05-27T10:06:20.296Z",
+  "scenario": {
+    "id": 1748324564253,
+    "name": "Update",
+    "description": "",
+    "date": "2025-05-27T09:56:54.255Z",
+    "state": {
+      "cohorts": [
+        {
+          "id": 2,
+          "numTrainees": 6,
+          "pathwayId": "A202",
+          "startYear": 2025,
+          "startFortnight": 9,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 4,
+          "numTrainees": 4,
+          "pathwayId": "A209",
+          "startYear": 2025,
+          "startFortnight": 11,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 5,
+          "numTrainees": 4,
+          "pathwayId": "A209",
+          "startYear": 2025,
+          "startFortnight": 12,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 6,
+          "numTrainees": 4,
+          "pathwayId": "A211",
+          "startYear": 2025,
+          "startFortnight": 12,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 7,
+          "numTrainees": 4,
+          "pathwayId": "A211",
+          "startYear": 2025,
+          "startFortnight": 13,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 2,
+          "numTrainees": 4,
+          "pathwayId": "A202",
+          "startYear": 2025,
+          "startFortnight": 1,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 3,
+          "numTrainees": 4,
+          "pathwayId": "A202",
+          "startYear": 2025,
+          "startFortnight": 2,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 4,
+          "numTrainees": 4,
+          "pathwayId": "A202",
+          "startYear": 2025,
+          "startFortnight": 3,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 5,
+          "numTrainees": 4,
+          "pathwayId": "A210",
+          "startYear": 2025,
+          "startFortnight": 1,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 6,
+          "numTrainees": 4,
+          "pathwayId": "A210",
+          "startYear": 2025,
+          "startFortnight": 2,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 7,
+          "numTrainees": 4,
+          "pathwayId": "A210",
+          "startYear": 2025,
+          "startFortnight": 3,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 8,
+          "numTrainees": 4,
+          "pathwayId": "A209",
+          "startYear": 2025,
+          "startFortnight": 4,
+          "location": "AU",
+          "crossLocationTraining": {}
+        },
+        {
+          "id": 9,
+          "numTrainees": 4,
+          "pathwayId": "A209",
+          "startYear": 2025,
+          "startFortnight": 5,
+          "location": "AU",
+          "crossLocationTraining": {}
+        }
+      ],
+      "trainerFTE": {
+        "2024": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2025": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2026": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2027": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2028": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2029": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2030": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2031": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2032": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2033": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        },
+        "2034": {
+          "CATB": 240,
+          "CATA": 240,
+          "STP": 240,
+          "RHS": 240,
+          "LHS": 240
+        }
+      },
+      "pathways": [
+        {
+          "id": "A202",
+          "name": "A202 - CP",
+          "type": "CP",
+          "comments": "",
+          "phases": [
+            {
+              "name": "GS+SIM",
+              "duration": 2,
+              "trainerDemandType": null,
+              "ratio": 8
+            },
+            {
+              "name": "LT-CP",
+              "duration": 6,
+              "trainerDemandType": "LT-CP",
+              "ratio": 2
+            }
+          ]
+        },
+        {
+          "id": "A210",
+          "name": "A210 - FO",
+          "type": "FO",
+          "comments": "",
+          "phases": [
+            {
+              "name": "GS+SIM",
+              "duration": 4,
+              "trainerDemandType": null,
+              "ratio": 8
+            },
+            {
+              "name": "LT-FO",
+              "duration": 4,
+              "trainerDemandType": "LT-FO",
+              "ratio": 2
+            },
+            {
+              "name": "LT-FO",
+              "duration": 3,
+              "trainerDemandType": "LT-FO",
+              "ratio": 2
+            }
+          ]
+        },
+        {
+          "id": "A209",
+          "name": "A209 - CAD",
+          "type": "CAD",
+          "comments": "",
+          "phases": [
+            {
+              "name": "GS+SIM",
+              "duration": 4,
+              "trainerDemandType": null,
+              "ratio": 8
+            },
+            {
+              "name": "LT-CAD",
+              "duration": 4,
+              "trainerDemandType": "LT-CAD",
+              "ratio": 2
+            },
+            {
+              "name": "LT-FO",
+              "duration": 3,
+              "trainerDemandType": "LT-FO",
+              "ratio": 2
+            }
+          ]
+        },
+        {
+          "id": "A212",
+          "name": "A212 - CAD",
+          "type": "CAD",
+          "comments": "",
+          "phases": [
+            {
+              "name": "GS+SIM",
+              "duration": 4,
+              "trainerDemandType": null,
+              "ratio": 8
+            },
+            {
+              "name": "LT-CAD",
+              "duration": 3,
+              "trainerDemandType": "LT-CAD",
+              "ratio": 2
+            },
+            {
+              "name": "LT-FO",
+              "duration": 5,
+              "trainerDemandType": "LT-FO",
+              "ratio": 2
+            }
+          ]
+        },
+        {
+          "id": "A211",
+          "name": "A211 - CAD",
+          "type": "CAD",
+          "comments": "",
+          "phases": [
+            {
+              "name": "GS+SIM",
+              "duration": 4,
+              "trainerDemandType": null,
+              "ratio": 8
+            },
+            {
+              "name": "LT-CAD",
+              "duration": 2,
+              "trainerDemandType": "LT-CAD",
+              "ratio": 2
+            },
+            {
+              "name": "LT-FO",
+              "duration": 2,
+              "trainerDemandType": "LT-FO",
+              "ratio": 2
+            }
+          ]
+        },
+        {
+          "id": "A203",
+          "name": "A203 - CP",
+          "type": "CP",
+          "comments": "",
+          "phases": [
+            {
+              "name": "GS+SIM",
+              "duration": 2,
+              "trainerDemandType": null,
+              "ratio": 8
+            },
+            {
+              "name": "LT-CP",
+              "duration": 1,
+              "trainerDemandType": "LT-CP",
+              "ratio": 2
+            }
+          ]
+        }
+      ],
+      "priorityConfig": [
+        {
+          "priority": "P1",
+          "trainingType": "LT-CAD",
+          "primaryTrainers": [
+            "CATB",
+            "CATA",
+            "STP"
+          ],
+          "cascadingFrom": []
+        },
+        {
+          "priority": "P2",
+          "trainingType": "LT-CP",
+          "primaryTrainers": [
+            "RHS"
+          ],
+          "cascadingFrom": [
+            "CATB",
+            "CATA",
+            "STP"
+          ]
+        },
+        {
+          "priority": "P3",
+          "trainingType": "LT-FO",
+          "primaryTrainers": [
+            "LHS"
+          ],
+          "cascadingFrom": [
+            "CATB",
+            "CATA",
+            "STP",
+            "RHS"
+          ]
+        }
+      ],
+      "viewState": {
+        "groupBy": "none",
+        "collapsedGroups": [],
+        "currentLocation": "AU"
+      },
+      "locationData": {
+        "AU": {
+          "pathways": [
+            {
+              "id": "A202",
+              "name": "A202 - CP",
+              "type": "CP",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 2,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CP",
+                  "duration": 6,
+                  "trainerDemandType": "LT-CP",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A210",
+              "name": "A210 - FO",
+              "type": "FO",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 4,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 3,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A209",
+              "name": "A209 - CAD",
+              "type": "CAD",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CAD",
+                  "duration": 4,
+                  "trainerDemandType": "LT-CAD",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 3,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A212",
+              "name": "A212 - CAD",
+              "type": "CAD",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CAD",
+                  "duration": 3,
+                  "trainerDemandType": "LT-CAD",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 5,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A211",
+              "name": "A211 - CAD",
+              "type": "CAD",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CAD",
+                  "duration": 2,
+                  "trainerDemandType": "LT-CAD",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 2,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A203",
+              "name": "A203 - CP",
+              "type": "CP",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 2,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CP",
+                  "duration": 1,
+                  "trainerDemandType": "LT-CP",
+                  "ratio": 2
+                }
+              ]
+            }
+          ],
+          "trainerFTE": {
+            "2024": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2025": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2026": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2027": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2028": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2029": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2030": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2031": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2032": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2033": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2034": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            }
+          },
+          "priorityConfig": [
+            {
+              "priority": "P1",
+              "trainingType": "LT-CAD",
+              "primaryTrainers": [
+                "CATB",
+                "CATA",
+                "STP"
+              ],
+              "cascadingFrom": []
+            },
+            {
+              "priority": "P2",
+              "trainingType": "LT-CP",
+              "primaryTrainers": [
+                "RHS"
+              ],
+              "cascadingFrom": [
+                "CATB",
+                "CATA",
+                "STP"
+              ]
+            },
+            {
+              "priority": "P3",
+              "trainingType": "LT-FO",
+              "primaryTrainers": [
+                "LHS"
+              ],
+              "cascadingFrom": [
+                "CATB",
+                "CATA",
+                "STP",
+                "RHS"
+              ]
+            }
+          ],
+          "activeCohorts": [
+            {
+              "id": 2,
+              "numTrainees": 6,
+              "pathwayId": "A202",
+              "startYear": 2025,
+              "startFortnight": 9,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 4,
+              "numTrainees": 4,
+              "pathwayId": "A209",
+              "startYear": 2025,
+              "startFortnight": 11,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 5,
+              "numTrainees": 4,
+              "pathwayId": "A209",
+              "startYear": 2025,
+              "startFortnight": 12,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 6,
+              "numTrainees": 4,
+              "pathwayId": "A211",
+              "startYear": 2025,
+              "startFortnight": 12,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 7,
+              "numTrainees": 4,
+              "pathwayId": "A211",
+              "startYear": 2025,
+              "startFortnight": 13,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 2,
+              "numTrainees": 4,
+              "pathwayId": "A202",
+              "startYear": 2025,
+              "startFortnight": 1,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 3,
+              "numTrainees": 4,
+              "pathwayId": "A202",
+              "startYear": 2025,
+              "startFortnight": 2,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 4,
+              "numTrainees": 4,
+              "pathwayId": "A202",
+              "startYear": 2025,
+              "startFortnight": 3,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 5,
+              "numTrainees": 4,
+              "pathwayId": "A210",
+              "startYear": 2025,
+              "startFortnight": 1,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 6,
+              "numTrainees": 4,
+              "pathwayId": "A210",
+              "startYear": 2025,
+              "startFortnight": 2,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 7,
+              "numTrainees": 4,
+              "pathwayId": "A210",
+              "startYear": 2025,
+              "startFortnight": 3,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 8,
+              "numTrainees": 4,
+              "pathwayId": "A209",
+              "startYear": 2025,
+              "startFortnight": 4,
+              "location": "AU",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 9,
+              "numTrainees": 4,
+              "pathwayId": "A209",
+              "startYear": 2025,
+              "startFortnight": 5,
+              "location": "AU",
+              "crossLocationTraining": {}
+            }
+          ]
+        },
+        "NZ": {
+          "pathways": [
+            {
+              "id": "A202",
+              "name": "A202 - CP",
+              "type": "CP",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 2,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CP",
+                  "duration": 6,
+                  "trainerDemandType": "LT-CP",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A210",
+              "name": "A210 - FO",
+              "type": "FO",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 4,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 3,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A209",
+              "name": "A209 - CAD",
+              "type": "CAD",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CAD",
+                  "duration": 4,
+                  "trainerDemandType": "LT-CAD",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 3,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A212",
+              "name": "A212 - CAD",
+              "type": "CAD",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CAD",
+                  "duration": 3,
+                  "trainerDemandType": "LT-CAD",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 5,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A211",
+              "name": "A211 - CAD",
+              "type": "CAD",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 4,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CAD",
+                  "duration": 2,
+                  "trainerDemandType": "LT-CAD",
+                  "ratio": 2
+                },
+                {
+                  "name": "LT-FO",
+                  "duration": 2,
+                  "trainerDemandType": "LT-FO",
+                  "ratio": 2
+                }
+              ]
+            },
+            {
+              "id": "A203",
+              "name": "A203 - CP",
+              "type": "CP",
+              "comments": "",
+              "phases": [
+                {
+                  "name": "GS+SIM",
+                  "duration": 2,
+                  "trainerDemandType": null,
+                  "ratio": 8
+                },
+                {
+                  "name": "LT-CP",
+                  "duration": 1,
+                  "trainerDemandType": "LT-CP",
+                  "ratio": 2
+                }
+              ]
+            }
+          ],
+          "trainerFTE": {
+            "2024": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2025": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2026": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2027": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2028": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2029": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2030": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2031": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2032": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2033": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            },
+            "2034": {
+              "CATB": 240,
+              "CATA": 240,
+              "STP": 240,
+              "RHS": 240,
+              "LHS": 240
+            }
+          },
+          "priorityConfig": [
+            {
+              "priority": "P1",
+              "trainingType": "LT-CAD",
+              "primaryTrainers": [
+                "CATB",
+                "CATA",
+                "STP"
+              ],
+              "cascadingFrom": []
+            },
+            {
+              "priority": "P2",
+              "trainingType": "LT-CP",
+              "primaryTrainers": [
+                "RHS"
+              ],
+              "cascadingFrom": [
+                "CATB",
+                "CATA",
+                "STP"
+              ]
+            },
+            {
+              "priority": "P3",
+              "trainingType": "LT-FO",
+              "primaryTrainers": [
+                "LHS"
+              ],
+              "cascadingFrom": [
+                "CATB",
+                "CATA",
+                "STP",
+                "RHS"
+              ]
+            }
+          ],
+          "activeCohorts": [
+            {
+              "id": 101,
+              "numTrainees": 1,
+              "pathwayId": "H209",
+              "startYear": 2025,
+              "startFortnight": 13,
+              "location": "NZ",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 102,
+              "numTrainees": 1,
+              "pathwayId": "H209",
+              "startYear": 2025,
+              "startFortnight": 13,
+              "location": "NZ",
+              "crossLocationTraining": {}
+            },
+            {
+              "id": 8,
+              "numTrainees": 6,
+              "pathwayId": "A209",
+              "startYear": 2025,
+              "startFortnight": 13,
+              "location": "NZ",
+              "crossLocationTraining": {
+                "AU": {
+                  "phases": {
+                    "LT-CAD": [
+                      19,
+                      20
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "currentLocation": "AU"
+    },
+    "stats": {
+      "totalCohorts": 13,
+      "totalTrainees": 54
+    }
+  }
+}
