@@ -4,16 +4,50 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pilot Trainer Supply/Demand Planner</title>
-    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="styles.css?v=2025012714">
     <script>
         // Apply dark mode immediately to prevent flash
-        if (localStorage.getItem('darkMode') === 'true') {
+        const isDarkMode = localStorage.getItem('darkMode') === 'true';
+        if (isDarkMode) {
             document.documentElement.classList.add('dark-mode-loading');
             // Also store the active tab for proper styling
             const activeTab = localStorage.getItem('activeTab') || 'dashboard';
             document.documentElement.setAttribute('data-active-tab', activeTab);
         }
+        // Store current location for immediate application
+        const savedLocation = localStorage.getItem('currentLocation');
+        if (savedLocation) {
+            document.documentElement.setAttribute('data-location', savedLocation);
+        }
     </script>
+    <style>
+        /* Critical inline styles to prevent FOUC */
+        .table-container { min-height: 100px; }
+        .sticky-first-column { left: 0 !important; }
+        
+        /* Apply active state based on saved location */
+        html[data-location="AU"] .location-toggle[data-location="AU"],
+        html:not([data-location]) .location-toggle[data-location="AU"] {
+            background-color: #2196F3;
+            color: white;
+        }
+        html[data-location="NZ"] .location-toggle[data-location="NZ"] {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        /* Dark mode button styles to prevent flash */
+        html.dark-mode-loading #dark-mode-toggle {
+            background-color: #444;
+            color: #e0e0e0;
+            border-color: #666;
+        }
+        html.dark-mode-loading .btn.btn-secondary {
+            background-color: #444;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+    </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
@@ -28,7 +62,7 @@
                     <button class="nav-tab" data-view="scenarios">Scenarios</button>
                 </nav>
                 <div class="location-selector">
-                    <button class="location-toggle active" data-location="AU">AU</button>
+                    <button class="location-toggle" data-location="AU">AU</button>
                     <button class="location-toggle" data-location="NZ">NZ</button>
                 </div>
                 <button id="dark-mode-toggle" class="btn btn-secondary" title="Toggle Dark Mode">
@@ -138,10 +172,10 @@
                 <div class="view-controls">
                     <button id="nav-left" class="nav-arrow" title="Previous period">◀</button>
                     <button class="view-btn" data-view="6months">6M</button>
-                    <button class="view-btn" data-view="12months">12M</button>
+                    <button class="view-btn active" data-view="12months">12M</button>
                     <button id="nav-right" class="nav-arrow" title="Next period">▶</button>
                     <div class="separator"></div>
-                    <button class="view-btn active" data-view="all">All</button>
+                    <button class="view-btn" data-view="all">All</button>
                     <div class="separator"></div>
                     <button id="today-btn" class="today-btn">📍 Today</button>
                 </div>
@@ -348,6 +382,15 @@
                                 <option value="AU">AU</option>
                                 <option value="NZ">NZ</option>
                             </select>
+                        </div>
+                        <div class="form-group">
+                            <label>
+                                <input type="checkbox" id="enable-cross-location" name="enableCrossLocation">
+                                Enable cross-location trainer usage
+                            </label>
+                        </div>
+                        <div id="cross-location-config" class="cross-location-section" style="display: none;">
+                            <!-- Cross-location configuration will be dynamically generated here -->
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Changes</button>

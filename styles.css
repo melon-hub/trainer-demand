@@ -5,6 +5,25 @@
     box-sizing: border-box;
 }
 
+/* Prevent flicker on page load */
+.view-controls {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.view-controls.initialized {
+    opacity: 1 !important;
+}
+
+/* Dark mode toggle - initially hidden to prevent flicker */
+#dark-mode-toggle {
+    visibility: hidden;
+}
+
+#dark-mode-toggle.show {
+    visibility: visible;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     background-color: #f5f5f5;
@@ -359,18 +378,24 @@ section {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
-    padding-top: 5px;
-    padding-bottom: 5px;
 }
 
-h2 {
+.section-header h2 {
     color: #2c3e50;
     font-size: 1.5rem;
     display: flex;
     align-items: center;
     gap: 0;
     margin: 0;
-    line-height: 24px;
+    line-height: 1;
+    vertical-align: middle;
+}
+
+/* Keep general h2 styles separate */
+h2 {
+    color: #2c3e50;
+    font-size: 1.5rem;
+    margin: 0 0 20px 0;
 }
 
 /* Toggle Button Styles */
@@ -381,13 +406,15 @@ h2 {
     height: 24px;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
+    font-size: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
     transition: all 0.3s ease;
     flex-shrink: 0;
     margin-right: 8px;
+    padding: 0;
+    vertical-align: middle;
 }
 
 .toggle-btn:hover {
@@ -395,8 +422,10 @@ h2 {
 }
 
 .toggle-icon {
-    line-height: 1;
+    display: inline-block;
     font-weight: bold;
+    line-height: 1;
+    vertical-align: middle;
 }
 
 /* Collapsible container */
@@ -671,6 +700,7 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
     overflow-y: auto;
     position: relative;
     background-color: white;
+    scrollbar-gutter: stable; /* Reserve space for scrollbar */
 }
 
 /* Table wrapper for better structure */
@@ -681,12 +711,10 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
     position: relative;
 }
 
-/* Table wrapper for better structure */
-.table-wrapper {
-    display: inline-block;
-    min-width: 100%;
-    overflow: visible;
-    position: relative;
+/* Prevent table flicker on updates */
+.table-container {
+    min-height: 100px; /* Maintain minimum height during updates */
+    contain: layout; /* Prevent layout shifts */
 }
 
 /* Consistent table layout for all data tables */
@@ -715,7 +743,7 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
 /* Sticky first column with consistent width */
 .sticky-first-column {
     position: sticky;
-    left: -1px !important;
+    left: 0 !important;
     background-color: white;
     z-index: 20;
     min-width: 200px;
@@ -983,7 +1011,7 @@ th[colspan] {
     max-height: 400px;
     margin-top: 20px;
     position: relative;
-    border: 1px solid #e0e0e0;
+    border: none;
     border-radius: 4px;
     background-color: white;
     isolation: isolate;
@@ -997,7 +1025,7 @@ th[colspan] {
     max-height: 700px; /* Further increased height */
     margin-top: 20px;
     position: relative;
-    border: 1px solid #e0e0e0;
+    border: none;
     border-radius: 4px;
     background-color: white;
     isolation: isolate;
@@ -1597,6 +1625,8 @@ body.dark-mode .gantt-phase-cell {
     position: relative;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
 }
+
+/* Cohort modal width is set dynamically via JavaScript based on pathway duration */
 
 .modal-header {
     display: flex;
@@ -3366,7 +3396,7 @@ body.dark-mode #demand-table-container,
 body.dark-mode #surplus-deficit-container,
 body.dark-mode #pathways-table-container {
     background-color: #2a2a2a;
-    border-color: #444;
+    border: none;
 }
 
 /* Ensure all table cells use the column width variable */
@@ -4293,6 +4323,25 @@ body.dark-mode .preview-value {
     }
 }
 
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+    25% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    75% {
+        opacity: 1;
+        transform: scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.9);
+    }
+}
+
 .toast.removing {
     animation: slideOut 0.3s ease-in;
 }
@@ -4611,4 +4660,213 @@ body.dark-mode .location-tab:hover {
 body.dark-mode .location-tab.active {
     background: #3a3a3a;
     color: #3498db;
+}
+
+/* Cross-location training styles */
+.cross-location-section {
+    margin-top: 15px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.cross-location-phase {
+    margin-bottom: 15px;
+    padding: 10px;
+    background: white;
+    border-radius: 5px;
+    border: 1px solid #e9ecef;
+}
+
+.cross-location-phase h4 {
+    margin: 0 0 10px 0;
+    font-size: 14px;
+    color: #495057;
+}
+
+/* Timeline table styles */
+.cross-location-timeline {
+    overflow-x: auto;
+    margin-bottom: 10px;
+}
+
+.cross-location-table {
+    width: auto;
+    border-collapse: collapse;
+    font-size: 13px;
+    margin: 0 auto;
+}
+
+.cross-location-table th,
+.cross-location-table td {
+    padding: 6px 8px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+    min-width: 45px;
+}
+
+.cross-location-table .sticky-col {
+    position: sticky;
+    left: 0;
+    background: #f8f9fa;
+    z-index: 1;
+    width: 80px;
+    min-width: 80px;
+    font-weight: 500;
+}
+
+.cross-location-table .month-header {
+    background: #e9ecef;
+    font-weight: 600;
+    color: #495057;
+}
+
+/* Style for phase cells - same as fortnight headers */
+.cross-location-table .phase-cell {
+    background: #f8f9fa;
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 12px;
+    padding: 6px 8px;
+    text-align: center;
+    border: 1px solid #dee2e6;
+}
+
+/* Add visible border between different phases */
+.cross-location-table .phase-cell + .phase-cell {
+    border-left: 3px solid #999;
+}
+
+
+
+.cross-location-table .fortnight-header {
+    background: #f8f9fa;
+    font-weight: 500;
+    color: #6c757d;
+    font-size: 12px;
+    border: 1px solid #dee2e6;
+    padding: 6px 8px;
+}
+
+.cross-location-table .location-label {
+    text-align: left;
+    padding-left: 8px;
+    padding-right: 8px;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.cross-location-table .radio-cell {
+    padding: 4px;
+}
+
+.cross-location-table input[type="radio"] {
+    cursor: pointer;
+    margin: 0;
+}
+
+/* Legacy styles for backward compatibility */
+.fortnight-location-options {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.fortnight-location-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 5px 0;
+}
+
+.fortnight-label {
+    min-width: 50px;
+    font-weight: 500;
+    color: #6c757d;
+}
+
+.location-radio-group {
+    display: flex;
+    gap: 15px;
+}
+
+.location-radio-group label {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+}
+
+.location-radio-group input[type="radio"] {
+    cursor: pointer;
+}
+
+.cross-location-summary {
+    margin-top: 10px;
+    padding: 10px;
+    background: #e7f3ff;
+    border-radius: 5px;
+    font-size: 13px;
+    color: #0066cc;
+}
+
+/* Dark mode for cross-location */
+body.dark-mode .cross-location-section {
+    background: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .cross-location-phase {
+    background: #333;
+    border-color: #444;
+}
+
+body.dark-mode .cross-location-phase h4 {
+    color: #b0b0b0;
+}
+
+body.dark-mode .cross-location-table th,
+body.dark-mode .cross-location-table td {
+    border-color: #444 !important;
+}
+
+body.dark-mode .cross-location-table .sticky-col {
+    background: #2a2a2a;
+}
+
+body.dark-mode .cross-location-table .month-header {
+    background: #3a3a3a;
+    color: #b0b0b0;
+}
+
+body.dark-mode .cross-location-table .phase-cell {
+    background: #2a2a2a;
+    color: #999;
+    border: 1px solid #444;
+}
+
+body.dark-mode .cross-location-table .phase-cell + .phase-cell {
+    border-left: 3px solid #666;
+}
+
+
+
+body.dark-mode .cross-location-table .fortnight-header {
+    background: #2a2a2a;
+    color: #999;
+    border-color: #444;
+}
+
+body.dark-mode .cross-location-table .location-label {
+    color: #b0b0b0;
+}
+
+body.dark-mode .fortnight-label {
+    color: #999;
+}
+
+body.dark-mode .cross-location-summary {
+    background: #1a3a52;
+    color: #6bb6ff;
 }
