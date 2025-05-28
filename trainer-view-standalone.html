@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<\!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -9,42 +9,65 @@
         const isDarkMode = localStorage.getItem('darkMode') === 'true';
         if (isDarkMode) {
             document.documentElement.classList.add('dark-mode-loading');
-            // Also store the active tab for proper styling
+            document.documentElement.style.backgroundColor = '#1a1a1a';
+            document.documentElement.style.color = '#e0e0e0';
             const activeTab = localStorage.getItem('activeTab') || 'dashboard';
             document.documentElement.setAttribute('data-active-tab', activeTab);
         }
-        // Store current location for immediate application
         const savedLocation = localStorage.getItem('currentLocation');
         if (savedLocation) {
             document.documentElement.setAttribute('data-location', savedLocation);
         }
     </script>
     <style>
-        /* Critical inline styles to prevent FOUC */
-        .table-container { min-height: 100px; }
-        .sticky-first-column { left: 0 !important; }
+        /* Prevent flash - apply immediately */
+        html.dark-mode-loading {
+            background-color: #1a1a1a \!important;
+            color: #e0e0e0 \!important;
+        }
+        html.dark-mode-loading body {
+            background-color: #1a1a1a \!important;
+            color: #e0e0e0 \!important;
+        }
+        html.dark-mode-loading .container {
+            background-color: #1a1a1a \!important;
+            color: #e0e0e0 \!important;
+        }
+        html.dark-mode-loading header {
+            background-color: #2a2a2a \!important;
+            color: #e0e0e0 \!important;
+        }
+        html.dark-mode-loading .nav-tab {
+            background-color: #333 \!important;
+            color: #e0e0e0 \!important;
+        }
+        html.dark-mode-loading[data-active-tab="dashboard"] .nav-tab[data-view="dashboard"],
+        html.dark-mode-loading[data-active-tab="planner"] .nav-tab[data-view="planner"],
+        html.dark-mode-loading[data-active-tab="settings"] .nav-tab[data-view="settings"],
+        html.dark-mode-loading[data-active-tab="scenarios"] .nav-tab[data-view="scenarios"] {
+            background-color: #0d6efd \!important;
+            color: white \!important;
+        }
         
-        /* Apply active state based on saved location */
+        /* Regular styles */
+        .table-container { min-height: 100px; }
+        .sticky-first-column { left: 0 \!important; }
         html[data-location="AU"] .location-toggle[data-location="AU"],
         html:not([data-location]) .location-toggle[data-location="AU"] {
-            background-color: #2196F3;
-            color: white;
+            background-color: #2196F3; color: white;
         }
         html[data-location="NZ"] .location-toggle[data-location="NZ"] {
-            background-color: #2196F3;
-            color: white;
+            background-color: #2196F3; color: white;
         }
-        
-        /* Dark mode button styles to prevent flash */
-        html.dark-mode-loading #dark-mode-toggle {
-            background-color: #444;
-            color: #e0e0e0;
-            border-color: #666;
+        html.dark-mode-loading #dark-mode-toggle { 
+            background-color: #444 \!important; 
+            color: #e0e0e0 \!important; 
+            border-color: #666 \!important; 
         }
-        html.dark-mode-loading .btn.btn-secondary {
-            background-color: #444;
-            border-color: #666;
-            color: #e0e0e0;
+        html.dark-mode-loading .btn.btn-secondary { 
+            background-color: #444 \!important; 
+            border-color: #666 \!important; 
+            color: #e0e0e0 \!important; 
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -6261,79 +6284,30 @@ body.dark-mode .cons-list li {
 }
 
 /* Deficit Resolution Assistant Styles */
-.deficit-indicator {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    background: white;
-    border: 2px solid #dc3545;
-    border-radius: 12px;
-    padding: 15px 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    z-index: 1000;
-    animation: pulse 2s ease-in-out infinite;
-    cursor: pointer;
-    transition: all 0.3s;
+/* Deficit Resolution Button Styles */
+#resolve-deficits-btn {
+    position: relative;
+    margin-right: 10px;
 }
 
-body.dark-mode .deficit-indicator {
-    background: #2a2a2a;
-    border-color: #dc3545;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.02);
-    }
-}
-
-.deficit-indicator:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
-}
-
-.deficit-indicator-content {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.deficit-icon {
-    font-size: 24px;
-}
-
-.deficit-count {
-    font-weight: 600;
-    font-size: 16px;
-    color: #dc3545;
-}
-
-.deficit-breakdown {
-    font-size: 12px;
-    color: #666;
-    margin-top: 2px;
-}
-
-body.dark-mode .deficit-breakdown {
-    color: #aaa;
-}
-
-.deficit-resolve-btn {
+#resolve-deficits-btn[data-deficit-count]::after {
+    content: attr(data-deficit-count);
+    position: absolute;
+    top: -5px;
+    right: -5px;
     background: #dc3545;
     color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
+    border-radius: 12px;
+    padding: 2px 6px;
+    font-size: 11px;
+    font-weight: 600;
+    min-width: 18px;
+    text-align: center;
+    border: 2px solid white;
 }
 
-.deficit-resolve-btn:hover {
-    background: #c82333;
+body.dark-mode #resolve-deficits-btn[data-deficit-count]::after {
+    border-color: #2a2a2a;
 }
 
 .deficit-analysis-section {
@@ -6399,6 +6373,205 @@ body.dark-mode .solution-card {
     float: right;
     color: #28a745;
     font-weight: 500;
+}
+
+/* Deficit Resolution Modal Styles */
+#deficit-resolution-modal .modal-content {
+    max-width: 600px !important;
+    width: 90vw;
+    max-height: 70vh;
+    margin: 5vh auto;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+#deficit-resolution-modal .modal-header {
+    background: #dc3545;
+    color: white;
+    padding: 15px 20px;
+    border-bottom: none;
+}
+
+#deficit-resolution-modal .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+#deficit-resolution-modal .modal-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 24px;
+    cursor: pointer;
+    padding: 0;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.2s;
+}
+
+#deficit-resolution-modal .modal-close:hover {
+    background: rgba(255,255,255,0.2);
+}
+
+#deficit-resolution-modal .modal-body {
+    padding: 0;
+    max-height: 50vh;
+    overflow-y: auto;
+}
+
+#deficit-resolution-modal .modal-footer {
+    padding: 15px 20px;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+    gap: 10px;
+}
+
+body.dark-mode #deficit-resolution-modal .modal-content {
+    background: #2a2a2a;
+    border: 1px solid #444;
+}
+
+body.dark-mode #deficit-resolution-modal .modal-footer {
+    background: #1a1a1a;
+    border-top-color: #444;
+}
+
+/* Deficit analysis sections - more condensed */
+#deficit-resolution-modal .deficit-analysis-section {
+    background: none;
+    padding: 20px;
+    margin: 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+body.dark-mode #deficit-resolution-modal .deficit-analysis-section {
+    background: none;
+    border-bottom-color: #444;
+}
+
+#deficit-resolution-modal .deficit-analysis-section h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #495057;
+    border-bottom: 2px solid #dc3545;
+    padding-bottom: 8px;
+}
+
+body.dark-mode #deficit-resolution-modal .deficit-analysis-section h3 {
+    color: #e0e0e0;
+}
+
+#deficit-resolution-modal .deficit-period {
+    background: #fff5f5;
+    border: 1px solid #f8d7da;
+    border-left: 4px solid #dc3545;
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin-bottom: 10px;
+}
+
+body.dark-mode #deficit-resolution-modal .deficit-period {
+    background: #2d1a1a;
+    border-color: #5a2a2a;
+}
+
+#deficit-resolution-modal .deficit-period-header {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 5px;
+    color: #721c24;
+}
+
+body.dark-mode #deficit-resolution-modal .deficit-period-header {
+    color: #f8b4b4;
+}
+
+#deficit-resolution-modal .deficit-details {
+    font-size: 13px;
+    color: #856404;
+    margin: 0;
+}
+
+body.dark-mode #deficit-resolution-modal .deficit-details {
+    color: #ffc107;
+}
+
+/* Solutions section */
+#deficit-resolution-modal #deficit-solutions h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    color: #495057;
+    border-bottom: 2px solid #28a745;
+    padding-bottom: 8px;
+}
+
+body.dark-mode #deficit-resolution-modal #deficit-solutions h3 {
+    color: #e0e0e0;
+}
+
+#deficit-resolution-modal .solution-card {
+    background: #f8fff8;
+    border: 1px solid #d4edda;
+    border-radius: 6px;
+    padding: 12px 15px;
+    margin-bottom: 8px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+body.dark-mode #deficit-resolution-modal .solution-card {
+    background: #1a2d1a;
+    border-color: #2a5a2a;
+}
+
+#deficit-resolution-modal .solution-card:hover {
+    border-color: #28a745;
+    background: #f0fff0;
+}
+
+body.dark-mode #deficit-resolution-modal .solution-card:hover {
+    background: #254025;
+}
+
+#deficit-resolution-modal .solution-checkbox {
+    margin: 0;
+}
+
+#deficit-resolution-modal .solution-text {
+    flex: 1;
+    font-size: 14px;
+    margin: 0;
+}
+
+#deficit-resolution-modal .solution-impact {
+    font-weight: 600;
+    color: #28a745;
+    font-size: 13px;
+}
+
+/* Scrollbar styling for modal */
+#deficit-resolution-modal .modal-body::-webkit-scrollbar {
+    width: 8px;
+}
+
+#deficit-resolution-modal .modal-body::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+#deficit-resolution-modal .modal-body::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+#deficit-resolution-modal .modal-body::-webkit-scrollbar-thumb:hover {
+    background: #a8a8a8;
 }
 
 /* Info icon and tooltip styles */
@@ -6902,6 +7075,10 @@ body.dark-mode .category-cell.available {
                         </span>
                     </h2>
                     <div class="surplus-deficit-controls">
+                        <button id="resolve-deficits-btn" class="btn btn-warning" style="display: none;" title="Resolve capacity deficits">
+                            <span class="toggle-view-icon">🔧</span>
+                            <span class="toggle-view-text">Resolve Deficits</span>
+                        </button>
                         <button id="toggle-sd-view" class="btn btn-secondary" title="Toggle between simple and detailed views">
                             <span class="toggle-view-icon">📊</span>
                             <span class="toggle-view-text">Show Detailed View</span>
@@ -7501,16 +7678,6 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
     </div>
 
     <!-- Deficit Resolution Assistant -->
-    <div id="deficit-indicator" class="deficit-indicator" style="display: none;">
-        <div class="deficit-indicator-content">
-            <span class="deficit-icon">⚠️</span>
-            <div class="deficit-summary">
-                <div class="deficit-count">0 Deficits Found</div>
-                <div class="deficit-breakdown"></div>
-            </div>
-            <button class="deficit-resolve-btn">Resolve →</button>
-        </div>
-    </div>
     
     <!-- Deficit Resolution Modal -->
     <div id="deficit-resolution-modal" class="modal">
@@ -8602,16 +8769,24 @@ function setupEventListeners() {
     });
 
     // Add Cohort form
-    addCohortForm.addEventListener('submit', handleAddCohort);
+    if (addCohortForm) {
+        addCohortForm.addEventListener('submit', handleAddCohort);
+    }
 
     // Edit FTE button
-    editFTEBtn.addEventListener('click', openFTEModal);
+    if (editFTEBtn) {
+        editFTEBtn.addEventListener('click', openFTEModal);
+    }
 
     // Add Pathway button
-    addPathwayBtn.addEventListener('click', openAddPathwayModal);
+    if (addPathwayBtn) {
+        addPathwayBtn.addEventListener('click', openAddPathwayModal);
+    }
 
     // Toggle FTE Summary button
-    toggleFTEBtn.addEventListener('click', toggleFTESummary);
+    if (toggleFTEBtn) {
+        toggleFTEBtn.addEventListener('click', toggleFTESummary);
+    }
     
     // Toggle Commencement Summary button
     const toggleCommencementBtn = document.getElementById('toggle-commencement-btn');
@@ -8681,16 +8856,28 @@ function setupEventListeners() {
     });
 
     // FTE Edit form
-    document.getElementById('fte-edit-form').addEventListener('submit', handleFTEUpdate);
+    const fteEditForm = document.getElementById('fte-edit-form');
+    if (fteEditForm) {
+        fteEditForm.addEventListener('submit', handleFTEUpdate);
+    }
 
     // Pathway Edit form
-    document.getElementById('pathway-edit-form').addEventListener('submit', handlePathwaySave);
+    const pathwayEditForm = document.getElementById('pathway-edit-form');
+    if (pathwayEditForm) {
+        pathwayEditForm.addEventListener('submit', handlePathwaySave);
+    }
 
     // Add Phase button
-    document.getElementById('add-phase-btn').addEventListener('click', addPhaseInput);
+    const addPhaseBtn = document.getElementById('add-phase-btn');
+    if (addPhaseBtn) {
+        addPhaseBtn.addEventListener('click', addPhaseInput);
+    }
     
     // Cohort Edit form
-    document.getElementById('cohort-edit-form').addEventListener('submit', handleCohortUpdate);
+    const cohortEditForm = document.getElementById('cohort-edit-form');
+    if (cohortEditForm) {
+        cohortEditForm.addEventListener('submit', handleCohortUpdate);
+    }
     
     // Cross-location training checkbox
     const enableCrossLocation = document.getElementById('enable-cross-location');
@@ -8870,6 +9057,12 @@ function setupEventListeners() {
     const targetForm = document.getElementById('target-form');
     const applyOptimizedBtn = document.getElementById('apply-optimized');
     
+    // Smart Optimizer elements
+    const analyzeFeasibilityBtn = document.getElementById('analyze-feasibility');
+    const smartInputPhase = document.getElementById('smart-input-phase');
+    const smartResultsPhase = document.getElementById('smart-results-phase');
+    const smartOptionsPhase = document.getElementById('smart-options-phase');
+    
     if (trainingPlannerBtn) {
         trainingPlannerBtn.addEventListener('click', () => {
             trainingPlannerModal.classList.add('active');
@@ -9033,6 +9226,11 @@ function setupEventListeners() {
     
     if (applyOptimizedBtn) {
         applyOptimizedBtn.addEventListener('click', applyOptimizedSchedule);
+    }
+    
+    // Smart Optimizer event listener
+    if (analyzeFeasibilityBtn) {
+        analyzeFeasibilityBtn.addEventListener('click', handleSmartOptimization);
     }
     
     // Copy optimization results button
@@ -11981,6 +12179,7 @@ function renderPathwaysTable() {
 let fteYearOffset = 0; // Year offset for FTE editor
 
 function openFTEModal() {
+    console.log('Opening FTE modal...');
     const container = document.getElementById('fte-edit-container');
     
     let html = '<div style="max-height: 500px; overflow-y: auto;">';
@@ -12017,6 +12216,15 @@ function openFTEModal() {
     setupFTESelection();
     
     fteModal.classList.add('active');
+    
+    // Debug: Check if inputs are created and accessible
+    setTimeout(() => {
+        const inputs = container.querySelectorAll('input[type="number"]');
+        console.log('FTE inputs created:', inputs.length);
+        if (inputs.length > 0) {
+            console.log('First input:', inputs[0], 'disabled:', inputs[0].disabled, 'readonly:', inputs[0].readOnly);
+        }
+    }, 100);
 }
 
 function generateFTEInputFields() {
@@ -12034,7 +12242,7 @@ function generateFTEInputFields() {
     }
     
     // Create a simple table for years with FTE per fortnight
-    html += '<table class="fte-edit-table" style="width: 100%; border-collapse: collapse; user-select: none;">';
+    html += '<table class="fte-edit-table" style="width: 100%; border-collapse: collapse;">';
     html += '<thead>';
     html += '<tr>';
     html += '<th style="text-align: left; padding: 10px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);">Year</th>';
@@ -12056,10 +12264,10 @@ function generateFTEInputFields() {
             const fortnightlyFTE = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
             html += `<td class="fte-cell" style="padding: 8px; text-align: center; border: 1px solid var(--border-color); cursor: cell;">`;
             html += `<input type="number" id="fte-${year}-${category}" name="fte-${year}-${category}" `;
-            html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: none; background: transparent;" `;
+            html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: 1px solid #ccc; background: white; color: inherit; user-select: text; pointer-events: auto;" `;
             html += `data-year="${year}" data-category="${category}" `;
             html += `onpaste="handleFTEPaste(event, ${year}, '${category}')" onkeydown="handleFTEKeyDown(event, ${year}, '${category}')" `;
-            html += `onfocus="this.select()" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
+            html += `onfocus="this.select(); console.log('FTE input focused:', this.id)" onclick="console.log('FTE input clicked:', this.id)" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
             html += `></td>`;
         });
         html += '</tr>';
@@ -12117,6 +12325,12 @@ function navigateFTEYears(direction) {
 }
 
 function handleFTEMouseDown(event, year, category) {
+    // Don't prevent default for input elements - they need to focus
+    if (event.target.tagName === 'INPUT') {
+        console.log('Allowing input focus for:', event.target.id);
+        return;
+    }
+    
     event.preventDefault();
     
     // Clear previous selection
@@ -12281,7 +12495,7 @@ function saveFTEAsDefault() {
 function handleFTEPaste(event, year, category) {
     event.preventDefault();
     const pastedData = event.clipboardData.getData('text');
-    const values = pastedData.split(/[\t\n\r,;\s]+/).filter(v => v.trim() !== '');
+    const values = pastedData.split(/[\t\n\r,; ]+/).filter(v => v.trim() !== '');
     
     if (values.length === 0) return;
     
@@ -12488,11 +12702,19 @@ function handleFTEUpdate(e) {
     e.preventDefault();
     
     // Update the FTE values - values are entered as fortnightly
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
+    // Only update years that have inputs in the current view
+    const currentYear = new Date().getFullYear();
+    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
+    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
+    
+    for (let year = startYear; year <= endYear; year++) {
         TRAINER_CATEGORIES.forEach(category => {
-            const fortnightlyValue = parseFloat(document.getElementById(`fte-${year}-${category}`).value) || 0;
-            // Store as yearly total (fortnightly * 24)
-            trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+            const inputElement = document.getElementById(`fte-${year}-${category}`);
+            if (inputElement) {
+                const fortnightlyValue = parseFloat(inputElement.value) || 0;
+                // Store as yearly total (fortnightly * 24)
+                trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+            }
         });
     }
 
@@ -20213,6 +20435,738 @@ window.addEventListener('load', function() {
     if (helpIcon) {
         helpIcon.setAttribute('title', 'Help (F1)');
     }
-});</script>
+});
+
+// ============= SMART OPTIMIZER FUNCTIONS =============
+
+function handleSmartOptimization() {
+    // Get input values
+    const targets = {
+        CP: parseInt(document.getElementById('smart-target-cp').value) || 0,
+        FO: parseInt(document.getElementById('smart-target-fo').value) || 0,
+        CAD: parseInt(document.getElementById('smart-target-cad').value) || 0
+    };
+    
+    const targetDateStr = document.getElementById('smart-target-date').value;
+    if (!targetDateStr) {
+        showNotification('Please select a target date', 'error');
+        return;
+    }
+    
+    const targetDate = new Date(targetDateStr);
+    
+    // Validate inputs
+    if (targets.CP === 0 && targets.FO === 0 && targets.CAD === 0) {
+        showNotification('Please enter at least one target', 'error');
+        return;
+    }
+    
+    // Show loading state
+    const smartInputPhase = document.getElementById('smart-input-phase');
+    const smartResultsPhase = document.getElementById('smart-results-phase');
+    const smartOptionsPhase = document.getElementById('smart-options-phase');
+    
+    smartInputPhase.style.display = 'none';
+    smartResultsPhase.style.display = 'block';
+    smartResultsPhase.innerHTML = '<div class="loading">⏳ Analyzing capacity constraints...</div>';
+    
+    // Perform analysis
+    setTimeout(() => {
+        const analysis = calculatePartialAchievement(targets, targetDate);
+        displaySmartResults(analysis);
+    }, 500);
+}
+
+function calculatePartialAchievement(targets, targetDate) {
+    const results = {
+        achievableByTarget: {},
+        remainingAfterTarget: {},
+        completionDates: {},
+        bottlenecks: [],
+        options: []
+    };
+    
+    // For each pilot type, calculate what's achievable
+    Object.entries(targets).forEach(([type, target]) => {
+        if (target === 0) return;
+        
+        const pathway = pathways.find(p => p.type === type);
+        if (!pathway) return;
+        
+        // Calculate training duration
+        const totalDuration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+        
+        // Calculate latest start date to meet target
+        const latestStart = new Date(targetDate);
+        latestStart.setMonth(latestStart.getMonth() - Math.ceil(totalDuration * 14 / 30));
+        
+        // Use existing optimizer to calculate capacity
+        const tempTargets = { CP: 0, FO: 0, CAD: 0 };
+        tempTargets[type] = target;
+        
+        const schedule = calculateOptimalSchedule(tempTargets, targetDate, true, false);
+        
+        // Analyze results
+        const achievable = schedule.partialSchedule ? 
+            schedule.partialSchedule.filter(c => c.type === type).reduce((sum, c) => sum + c.numTrainees, 0) : 
+            target;
+        
+        results.achievableByTarget[type] = {
+            target: target,
+            achievable: achievable,
+            percentage: Math.round((achievable / target) * 100)
+        };
+        
+        if (achievable < target) {
+            const remaining = target - achievable;
+            results.remainingAfterTarget[type] = {
+                count: remaining,
+                monthsNeeded: Math.ceil(remaining / 4) // Assume 4 trainees per month capacity
+            };
+            
+            // Identify bottlenecks
+            if (type === 'CAD') {
+                results.bottlenecks.push('Limited CATB/CATA/STP trainer capacity');
+            } else if (type === 'FO') {
+                results.bottlenecks.push('LT-FO trainer capacity after higher priorities');
+            }
+        }
+    });
+    
+    // Generate options
+    results.options = generateSmartOptions(results, targets, targetDate);
+    
+    return results;
+}
+
+function generateSmartOptions(analysis, targets, targetDate) {
+    const options = [];
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Option 1: Accept partial achievement
+    options.push({
+        id: 'partial',
+        name: 'Work with Available Capacity',
+        description: generatePartialDescription(analysis),
+        pros: ['No additional costs', 'Minimal disruption', 'Uses existing resources'],
+        cons: ['Extended timeline', 'Partial target achievement'],
+        achievable: analysis.achievableByTarget
+    });
+    
+    // Option 2: Cross-location (NZ only)
+    if (currentLocation === 'NZ') {
+        const crossLocationCapacity = calculateCrossLocationCapacity(analysis, targets);
+        if (crossLocationCapacity.viable) {
+            options.push({
+                id: 'cross-location',
+                name: 'Enable Cross-Location Training',
+                description: `Send ${crossLocationCapacity.traineeCount} trainees to AU for training`,
+                pros: ['100% target achievement possible', 'Leverages AU capacity'],
+                cons: [`Additional cost: ~$${crossLocationCapacity.estimatedCost.toLocaleString()}`, 'Operational complexity'],
+                achievable: crossLocationCapacity.achievable
+            });
+        }
+    }
+    
+    // Option 3: Adjust priorities
+    options.push({
+        id: 'adjust',
+        name: 'Adjust Training Priorities',
+        description: 'Reduce other targets to prioritize specific pilot types',
+        pros: ['Flexible approach', 'No additional costs'],
+        cons: ['Compromises other goals', 'Requires re-planning'],
+        achievable: analysis.achievableByTarget
+    });
+    
+    return options;
+}
+
+function generatePartialDescription(analysis) {
+    let desc = [];
+    Object.entries(analysis.achievableByTarget).forEach(([type, data]) => {
+        if (data.percentage < 100) {
+            desc.push(`${data.percentage}% of ${type} target by deadline`);
+            if (analysis.remainingAfterTarget[type]) {
+                desc.push(`Remaining ${analysis.remainingAfterTarget[type].count} ${type} complete in +${analysis.remainingAfterTarget[type].monthsNeeded} months`);
+            }
+        }
+    });
+    return desc.join(', ');
+}
+
+function calculateCrossLocationCapacity(analysis, targets) {
+    // Simplified calculation - in real implementation would check AU capacity
+    const deficit = Object.entries(analysis.achievableByTarget)
+        .reduce((sum, [type, data]) => sum + (data.target - data.achievable), 0);
+    
+    return {
+        viable: deficit > 0,
+        traineeCount: deficit,
+        estimatedCost: deficit * 20000, // $20k per trainee estimate
+        achievable: targets // Assume full achievement with cross-location
+    };
+}
+
+function displaySmartResults(analysis) {
+    const smartResultsPhase = document.getElementById('smart-results-phase');
+    const smartOptionsPhase = document.getElementById('smart-options-phase');
+    
+    // Determine overall feasibility
+    const totalAchievable = Object.values(analysis.achievableByTarget)
+        .reduce((sum, data) => sum + data.percentage, 0) / Object.keys(analysis.achievableByTarget).length;
+    
+    const feasibilityClass = totalAchievable === 100 ? 'full' : totalAchievable > 0 ? 'partial' : 'not-feasible';
+    const feasibilityText = totalAchievable === 100 ? '✅ Fully Achievable' : totalAchievable > 0 ? '🟡 Partial Achievement Possible' : '❌ Not Feasible';
+    
+    // Build results HTML
+    let html = `
+        <div class="smart-results-summary">
+            <div class="feasibility-badge ${feasibilityClass}">
+                ${feasibilityText}
+            </div>
+            
+            <h4>By your target date:</h4>
+            <ul class="achievement-list">
+    `;
+    
+    Object.entries(analysis.achievableByTarget).forEach(([type, data]) => {
+        const statusClass = data.percentage === 100 ? 'complete' : 'partial';
+        const statusIcon = data.percentage === 100 ? '✓' : '⚠️';
+        html += `
+            <li class="achievement-item">
+                <span class="achievement-label">${type === 'CP' ? 'Captains' : type === 'FO' ? 'First Officers' : 'Cadets'}:</span>
+                <span class="achievement-status ${statusClass}">
+                    ${data.achievable}/${data.target} (${data.percentage}%) ${statusIcon}
+                </span>
+            </li>
+        `;
+    });
+    
+    html += '</ul>';
+    
+    // Add completion timeline for remainder
+    if (Object.keys(analysis.remainingAfterTarget).length > 0) {
+        html += '<h4>Complete picture:</h4><ul class="completion-timeline">';
+        Object.entries(analysis.remainingAfterTarget).forEach(([type, data]) => {
+            html += `<li>• ${data.count} ${type} will complete in +${data.monthsNeeded} months</li>`;
+        });
+        html += '</ul>';
+    }
+    
+    // Add bottlenecks if any
+    if (analysis.bottlenecks.length > 0) {
+        html += '<h4>Key constraints:</h4><ul class="bottleneck-list">';
+        analysis.bottlenecks.forEach(bottleneck => {
+            html += `<li>• ${bottleneck}</li>`;
+        });
+        html += '</ul>';
+    }
+    
+    html += `
+            <div class="action-buttons" style="margin-top: 20px; display: flex; gap: 10px;">
+                <button class="btn btn-secondary" onclick="showSmartDetails()">See Why</button>
+                <button class="btn btn-primary" onclick="showSmartOptions()">View Options</button>
+                <button class="btn btn-secondary" onclick="acceptPartialSchedule()">Accept & Schedule</button>
+            </div>
+        </div>
+    `;
+    
+    smartResultsPhase.innerHTML = html;
+    
+    // Store analysis for later use
+    window.currentSmartAnalysis = analysis;
+}
+
+function showSmartOptions() {
+    const smartOptionsPhase = document.getElementById('smart-options-phase');
+    const analysis = window.currentSmartAnalysis;
+    
+    if (!analysis || !analysis.options) return;
+    
+    let html = '<h3>Your Options</h3><div class="smart-options-container">';
+    
+    analysis.options.forEach((option, index) => {
+        html += `
+            <div class="smart-option-card" data-option-id="${option.id}">
+                <h4>Option ${index + 1}: ${option.name}</h4>
+                <p>${option.description}</p>
+                
+                <div class="option-pros-cons">
+                    <div class="pros">
+                        <h5 style="color: #28a745;">✓ Pros:</h5>
+                        <ul class="pros-list">
+                            ${option.pros.map(pro => `<li>${pro}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div class="cons">
+                        <h5 style="color: #dc3545;">✗ Cons:</h5>
+                        <ul class="cons-list">
+                            ${option.cons.map(con => `<li>${con}</li>`).join('')}
+                        </ul>
+                    </div>
+                </div>
+                
+                <button class="btn btn-primary" style="margin-top: 15px;" onclick="selectSmartOption('${option.id}')">
+                    Select This Option
+                </button>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    smartOptionsPhase.innerHTML = html;
+    smartOptionsPhase.style.display = 'block';
+    
+    // Scroll to options
+    smartOptionsPhase.scrollIntoView({ behavior: 'smooth' });
+}
+
+function selectSmartOption(optionId) {
+    const analysis = window.currentSmartAnalysis;
+    const option = analysis.options.find(o => o.id === optionId);
+    
+    if (!option) return;
+    
+    // Handle different option types
+    switch (optionId) {
+        case 'partial':
+            acceptPartialSchedule();
+            break;
+        case 'cross-location':
+            enableCrossLocationSchedule();
+            break;
+        case 'adjust':
+            showTargetAdjustment();
+            break;
+    }
+}
+
+function acceptPartialSchedule() {
+    // Use the existing optimizer with the achievable targets
+    const analysis = window.currentSmartAnalysis;
+    const achievableTargets = {
+        CP: analysis.achievableByTarget.CP?.achievable || 0,
+        FO: analysis.achievableByTarget.FO?.achievable || 0,
+        CAD: analysis.achievableByTarget.CAD?.achievable || 0
+    };
+    
+    // Switch to regular optimizer tab and populate with achievable values
+    switchPlannerTab('target');
+    document.getElementById('target-cp').value = achievableTargets.CP;
+    document.getElementById('target-fo').value = achievableTargets.FO;
+    document.getElementById('target-cad').value = achievableTargets.CAD;
+    
+    // Trigger optimization
+    document.getElementById('target-form').dispatchEvent(new Event('submit'));
+    
+    showNotification('Partial schedule loaded in optimizer', 'success');
+}
+
+function showSmartDetails() {
+    // Show detailed breakdown of why targets can't be met
+    showNotification('Detailed analysis coming soon', 'info');
+}
+
+function enableCrossLocationSchedule() {
+    showNotification('Cross-location scheduling coming soon', 'info');
+}
+
+function showTargetAdjustment() {
+    showNotification('Target adjustment coming soon', 'info');
+}
+
+
+
+// ============= DEFICIT RESOLUTION ASSISTANT FUNCTIONS =============
+
+function initializeDeficitDetection() {
+    // Check for deficits periodically
+    checkForDeficits();
+    setInterval(checkForDeficits, 30000); // Check every 30 seconds
+}
+
+function checkForDeficits() {
+    const { demand } = calculateDemand();
+    const deficits = analyzeDeficitsWithCascading(demand);
+    
+    const resolveDeficitsBtn = document.getElementById('resolve-deficits-btn');
+    if (!resolveDeficitsBtn) return;
+    
+    if (deficits.length > 0) {
+        // Count deficits by type
+        const deficitCounts = { CAD: 0, CP: 0, FO: 0 };
+        let totalDeficitPeriods = 0;
+        
+        deficits.forEach(deficit => {
+            totalDeficitPeriods++;
+            Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
+                if (type === 'LT-CAD') deficitCounts.CAD++;
+                else if (type === 'LT-CP') deficitCounts.CP++;
+                else if (type === 'LT-FO') deficitCounts.FO++;
+            });
+        });
+        
+        // Update button text and show it
+        const buttonText = resolveDeficitsBtn.querySelector('.toggle-view-text');
+        if (buttonText) {
+            buttonText.textContent = `Resolve ${totalDeficitPeriods} Deficits`;
+        }
+        
+        // Add deficit count badge and show button
+        resolveDeficitsBtn.setAttribute('data-deficit-count', totalDeficitPeriods);
+        resolveDeficitsBtn.style.display = 'inline-flex';
+        
+        // Store deficits for later use
+        window.currentDeficits = deficits;
+    } else {
+        resolveDeficitsBtn.style.display = 'none';
+        window.currentDeficits = [];
+    }
+}
+
+function analyzeDeficitsWithCascading(demand) {
+    const deficits = [];
+    
+    Object.keys(demand).forEach(year => {
+        Object.keys(demand[year]).forEach(fortnight => {
+            const period = demand[year][fortnight];
+            if (!period || !period.unallocated) return;
+            
+            const hasDeficit = Object.values(period.unallocated).some(val => val > 0);
+            if (!hasDeficit) return;
+            
+            const analysis = {
+                year: parseInt(year),
+                fortnight: parseInt(fortnight),
+                deficitsByType: {},
+                bottlenecks: [],
+                cascadeImpact: {}
+            };
+            
+            // Analyze each deficit type
+            Object.entries(period.unallocated).forEach(([type, amount]) => {
+                if (amount > 0) {
+                    analysis.deficitsByType[type] = {
+                        deficit: amount,
+                        reason: getDeficitReason(type, period),
+                        canResolveWith: getResolverTrainers(type)
+                    };
+                }
+            });
+            
+            // Identify bottlenecks
+            if (period.unallocated['LT-CAD'] > 0) {
+                analysis.bottlenecks.push('CAD-qualified trainers (CATB/CATA/STP)');
+            }
+            if (period.unallocated['LT-CP'] > 0 && period.allocated.RHS >= (trainerFTE[year]?.RHS || 0) / FORTNIGHTS_PER_YEAR) {
+                analysis.bottlenecks.push('RHS trainers at capacity');
+            }
+            if (period.unallocated['LT-FO'] > 0) {
+                analysis.bottlenecks.push('Cascading shortage from higher priorities');
+            }
+            
+            deficits.push(analysis);
+        });
+    });
+    
+    return deficits.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.fortnight - b.fortnight;
+    });
+}
+
+function getDeficitReason(type, period) {
+    switch (type) {
+        case 'LT-CAD':
+            return 'Insufficient CATB/CATA/STP trainers';
+        case 'LT-CP':
+            const rhsCapacity = (trainerFTE[period.year]?.RHS || 0) / FORTNIGHTS_PER_YEAR;
+            const rhsUsed = period.allocated?.RHS || 0;
+            return rhsUsed >= rhsCapacity ? 'RHS at capacity and no CAD surplus' : 'Total CP capacity exceeded';
+        case 'LT-FO':
+            return 'Insufficient capacity after higher priorities';
+        default:
+            return 'Unknown deficit type';
+    }
+}
+
+function getResolverTrainers(type) {
+    switch (type) {
+        case 'LT-CAD':
+            return ['CATB', 'CATA', 'STP'];
+        case 'LT-CP':
+            return ['RHS', 'CATB', 'CATA', 'STP'];
+        case 'LT-FO':
+            return 'Any trainer type';
+        default:
+            return [];
+    }
+}
+
+function showDeficitResolution() {
+    const modal = document.getElementById('deficit-resolution-modal');
+    if (!modal || !window.currentDeficits) return;
+    
+    modal.style.display = 'block';
+    
+    const deficitAnalysis = document.getElementById('deficit-analysis');
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    
+    // Display deficit analysis
+    let analysisHTML = '<h3>Priority Deficits:</h3><div class="deficit-analysis-section">';
+    
+    window.currentDeficits.slice(0, 5).forEach(deficit => {
+        const monthYear = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year}`;
+        
+        analysisHTML += `
+            <div class="deficit-period">
+                <div class="deficit-period-header">${monthYear} (Fortnight ${deficit.fortnight}):</div>
+                <div class="deficit-details">
+        `;
+        
+        Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
+            const trainingName = type.replace('LT-', '') + ' Training';
+            analysisHTML += `• ${data.deficit.toFixed(0)} ${trainingName} deficit (${data.reason})<br>`;
+        });
+        
+        analysisHTML += '</div></div>';
+    });
+    
+    analysisHTML += '</div>';
+    deficitAnalysis.innerHTML = analysisHTML;
+    
+    // Generate solutions
+    const solutions = generateDeficitSolutions(window.currentDeficits);
+    displayDeficitSolutions(solutions);
+}
+
+function generateDeficitSolutions(deficits) {
+    const solutions = [];
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Solution 1: Temporal adjustments
+    deficits.forEach(deficit => {
+        const affectedCohorts = findCohortsInPeriod(deficit.year, deficit.fortnight);
+        affectedCohorts.forEach(cohort => {
+            if (cohort.numTrainees <= 6) { // Only suggest moving smaller cohorts
+                solutions.push({
+                    type: 'move',
+                    description: `Move ${cohort.name || 'Cohort ' + cohort.id} by 2 weeks`,
+                    impact: `Resolves ${cohort.numTrainees} trainee deficit`,
+                    cohortId: cohort.id,
+                    newStartFortnight: deficit.fortnight + 2
+                });
+            }
+        });
+    });
+    
+    // Solution 2: Cross-location (NZ only)
+    if (currentLocation === 'NZ') {
+        deficits.forEach(deficit => {
+            Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
+                solutions.push({
+                    type: 'cross-location',
+                    description: `Send ${data.deficit.toFixed(0)} ${type.replace('LT-', '')} trainees to AU`,
+                    impact: 'Leverages AU trainer capacity',
+                    deficitType: type,
+                    traineeCount: data.deficit,
+                    period: { year: deficit.year, fortnight: deficit.fortnight }
+                });
+            });
+        });
+    }
+    
+    // Solution 3: Cohort splitting
+    deficits.forEach(deficit => {
+        const largeCohorts = findCohortsInPeriod(deficit.year, deficit.fortnight)
+            .filter(c => c.numTrainees > 10);
+        
+        largeCohorts.forEach(cohort => {
+            solutions.push({
+                type: 'split',
+                description: `Split ${cohort.name || 'Cohort ' + cohort.id} into 2 smaller groups`,
+                impact: 'Distributes trainer load',
+                cohortId: cohort.id,
+                splitSize: Math.ceil(cohort.numTrainees / 2)
+            });
+        });
+    });
+    
+    return solutions.slice(0, 10); // Limit to top 10 solutions
+}
+
+function findCohortsInPeriod(year, fortnight) {
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    
+    return cohorts.filter(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return false;
+        
+        let currentYear = cohort.startYear;
+        let currentFortnight = cohort.startFortnight;
+        
+        // Check if cohort has line training in this period
+        for (const phase of pathway.phases) {
+            for (let i = 0; i < phase.duration; i++) {
+                if (currentYear === year && currentFortnight === fortnight && phase.trainerDemandType) {
+                    return true;
+                }
+                
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+        }
+        
+        return false;
+    });
+}
+
+function displayDeficitSolutions(solutions) {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    
+    let html = '<h3>Quick Fixes Available:</h3><div class="solutions-container">';
+    
+    solutions.forEach((solution, index) => {
+        html += `
+            <div class="solution-card">
+                <input type="checkbox" class="solution-checkbox" id="solution-${index}" data-solution-index="${index}">
+                <label for="solution-${index}">
+                    <strong>${solution.description}</strong>
+                    <span class="solution-impact">${solution.impact}</span>
+                </label>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    deficitSolutions.innerHTML = html;
+    
+    // Store solutions for later use
+    window.currentDeficitSolutions = solutions;
+    
+    // Enable apply button when solutions are selected
+    const checkboxes = deficitSolutions.querySelectorAll('.solution-checkbox');
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', () => {
+            const anyChecked = Array.from(checkboxes).some(c => c.checked);
+            document.getElementById('apply-deficit-solutions').disabled = !anyChecked;
+        });
+    });
+}
+
+function previewDeficitChanges() {
+    const selectedIndices = Array.from(document.querySelectorAll('.solution-checkbox:checked'))
+        .map(cb => parseInt(cb.dataset.solutionIndex));
+    
+    if (selectedIndices.length === 0) {
+        showNotification('Please select at least one solution', 'warning');
+        return;
+    }
+    
+    // Preview the impact of selected solutions
+    showNotification('Preview functionality coming soon', 'info');
+}
+
+function applyDeficitSolutions() {
+    const selectedIndices = Array.from(document.querySelectorAll('.solution-checkbox:checked'))
+        .map(cb => parseInt(cb.dataset.solutionIndex));
+    
+    if (selectedIndices.length === 0) return;
+    
+    selectedIndices.forEach(index => {
+        const solution = window.currentDeficitSolutions[index];
+        
+        switch (solution.type) {
+            case 'move':
+                // Move cohort to new start time
+                moveCohort(solution.cohortId, solution.newStartFortnight);
+                break;
+            case 'cross-location':
+                // Add cross-location training
+                showNotification('Cross-location implementation coming soon', 'info');
+                break;
+            case 'split':
+                // Split cohort
+                showNotification('Cohort splitting coming soon', 'info');
+                break;
+        }
+    });
+    
+    // Close modal and refresh
+    document.getElementById('deficit-resolution-modal').style.display = 'none';
+    renderAll();
+    checkForDeficits();
+    
+    showNotification('Solutions applied successfully', 'success');
+}
+
+function moveCohort(cohortId, newStartFortnight) {
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const cohort = cohorts.find(c => c.id === cohortId);
+    
+    if (cohort) {
+        cohort.startFortnight = newStartFortnight;
+        if (cohort.startFortnight > FORTNIGHTS_PER_YEAR) {
+            cohort.startFortnight = 1;
+            cohort.startYear++;
+        }
+    }
+}
+
+// Initialize deficit detection when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    // Deficit resolution button click handler
+    const resolveDeficitsBtn = document.getElementById('resolve-deficits-btn');
+    if (resolveDeficitsBtn) {
+        resolveDeficitsBtn.addEventListener('click', showDeficitResolution);
+    }
+    
+    // Deficit resolution modal handlers
+    const previewBtn = document.getElementById('preview-deficit-changes');
+    if (previewBtn) {
+        previewBtn.addEventListener('click', previewDeficitChanges);
+    }
+    
+    const applyBtn = document.getElementById('apply-deficit-solutions');
+    if (applyBtn) {
+        applyBtn.addEventListener('click', applyDeficitSolutions);
+    }
+    
+    // Deficit modal close handlers
+    const deficitModal = document.getElementById('deficit-resolution-modal');
+    if (deficitModal) {
+        const closeBtn = deficitModal.querySelector('.modal-close');
+        const cancelBtn = deficitModal.querySelector('.modal-cancel');
+        
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                deficitModal.style.display = 'none';
+            });
+        }
+        
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => {
+                deficitModal.style.display = 'none';
+            });
+        }
+        
+        // Close on backdrop click
+        deficitModal.addEventListener('click', (e) => {
+            if (e.target === deficitModal) {
+                deficitModal.style.display = 'none';
+            }
+        });
+    }
+    
+    // Initialize deficit detection after a delay
+    setTimeout(initializeDeficitDetection, 2000);
+});
+
+</script>
 </body>
 </html>
