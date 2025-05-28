@@ -80,63 +80,22 @@
 
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
-            <!-- Dashboard Toggle -->
-            <div class="dashboard-toggle-container">
-                <div class="dashboard-toggle">
-                    <button class="toggle-option active" data-version="classic">Classic Dashboard</button>
-                    <button class="toggle-option" data-version="enhanced">Enhanced Dashboard</button>
-                </div>
-            </div>
-            
-            <!-- Classic Dashboard -->
-            <div class="dashboard-container" id="dashboard-classic">
-                <!-- Key Metrics Cards -->
-                <div class="metrics-row">
-                    <div class="metric-card clean">
-                        <div class="metric-label">Trainees in Training</div>
-                        <div class="metric-value" id="total-trainees">0</div>
-                    </div>
-                    <div class="metric-card clean">
-                        <div class="metric-label">Trainer Utilization</div>
-                        <div class="metric-value" id="trainer-utilization">0%</div>
-                    </div>
-                    <div class="metric-card clean">
-                        <div class="metric-label">Completions (3 months)</div>
-                        <div class="metric-value" id="upcoming-completions">0</div>
-                    </div>
-                    <div class="metric-card clean">
-                        <div class="metric-label">Capacity Warnings</div>
-                        <div class="metric-value" id="capacity-warnings">0</div>
-                    </div>
-                </div>
-
-                <!-- Charts Section -->
-                <div class="charts-row">
-                    <div class="chart-container">
-                        <h3>Trainer Demand Over Time</h3>
-                        <canvas id="demand-chart"></canvas>
-                    </div>
-                    <div class="chart-container">
-                        <h3>Trainer Supply & Demand Overview</h3>
-                        <canvas id="supply-demand-overview"></canvas>
-                    </div>
-                </div>
-
-                <!-- Training Pipeline -->
-                <div class="pipeline-section">
-                    <h3>Training Pipeline</h3>
-                    <div id="pipeline-timeline"></div>
-                </div>
-
-                <!-- Alerts Section -->
-                <div class="alerts-section">
-                    <h3>Alerts & Warnings</h3>
-                    <div id="alerts-container"></div>
-                </div>
-            </div>
-            
             <!-- Enhanced Dashboard -->
-            <div class="dashboard-container" id="dashboard-enhanced" style="display: none;">
+            <div class="dashboard-container" id="dashboard-enhanced">
+                <!-- Dashboard Navigation Controls -->
+                <div class="dashboard-navigation" style="margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
+                    <button class="btn btn-secondary" onclick="navigateDashboard(-1)" title="Previous month">
+                        <span style="font-size: 1.2em;">◀</span>
+                    </button>
+                    <span id="dashboard-time-display" style="font-weight: bold; font-size: 1.1em;">Current View</span>
+                    <button class="btn btn-secondary" onclick="navigateDashboard(1)" title="Next month">
+                        <span style="font-size: 1.2em;">▶</span>
+                    </button>
+                    <button class="btn btn-secondary" onclick="navigateDashboard(0)" title="Go to today">
+                        Today
+                    </button>
+                </div>
+                
                 <!-- Enhanced Metrics Cards with Trends -->
                 <div class="metrics-row">
                     <div class="metric-card clean enhanced">
@@ -400,6 +359,9 @@
                         </button>
                         Training Commencement Summary
                     </h2>
+                    <button id="commencement-cross-loc-btn" class="btn btn-secondary btn-sm" onclick="toggleCommencementCrossLocation()" title="Toggle cross-location commencements" style="position: absolute; right: 350px; top: 50%; transform: translateY(-50%);">
+                        <span id="commencement-cross-loc-icon">🌐</span> <span id="commencement-cross-loc-text">Cross-Location OFF</span>
+                    </button>
                     <div id="trainee-summary" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 0.9em; color: var(--text-secondary);">
                         <!-- Trainee summary will be populated here -->
                     </div>
@@ -413,9 +375,15 @@
             <section class="demand-table-section">
                 <div class="section-header">
                     <h2>Trainer Demand</h2>
-                    <button class="btn btn-secondary btn-sm" onclick="toggleDemandSplitView()" title="Split demand by location">
-                        <span id="split-view-icon">📊</span> <span id="split-view-text">Split by Location</span>
-                    </button>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <span style="font-size: 0.85em; color: var(--text-secondary);">
+                            <span style="display: inline-block; width: 6px; height: 6px; background: #3498db; border-radius: 50%; margin-right: 4px;"></span>
+                            = Includes cross-location trainer demand
+                        </span>
+                        <button class="btn btn-secondary btn-sm" onclick="toggleDemandSplitView()" title="Split demand by location">
+                            <span id="split-view-icon">📊</span> <span id="split-view-text">Split by Location</span>
+                        </button>
+                    </div>
                 </div>
                 <div id="demand-table-container" class="table-container">
                     <!-- Demand table will be generated here -->
@@ -425,11 +393,25 @@
             <!-- Surplus/Deficit Table Section -->
             <section class="surplus-deficit-section">
                 <div class="section-header">
-                    <h2>Surplus/Deficit Analysis</h2>
+                    <h2>Surplus/Deficit Analysis 
+                        <span class="info-icon-wrapper">
+                            <span class="info-icon" title="">ℹ</span>
+                            <div class="info-tooltip">
+                                <h4>Cascading Allocation System</h4>
+                                <p>Training capacity is allocated based on priorities:</p>
+                                <ul>
+                                    <li><strong>P1 (CAD):</strong> Served first by CATB/CATA/STP trainers only</li>
+                                    <li><strong>P2 (CP):</strong> Served by RHS trainers, plus any surplus from P1 trainers</li>
+                                    <li><strong>P3 (FO):</strong> Served by LHS trainers, plus any surplus from all other trainers</li>
+                                </ul>
+                                <p>This ensures critical training needs are met first, with remaining capacity cascading to lower priorities.</p>
+                            </div>
+                        </span>
+                    </h2>
                     <div class="surplus-deficit-controls">
-                        <button id="toggle-sd-view" class="btn btn-secondary" title="Toggle between classic and intuitive view">
+                        <button id="toggle-sd-view" class="btn btn-secondary" title="Toggle between simple and detailed views">
                             <span class="toggle-view-icon">📊</span>
-                            <span class="toggle-view-text">Switch to Intuitive View</span>
+                            <span class="toggle-view-text">Show Detailed View</span>
                         </button>
                     </div>
                 </div>
@@ -498,6 +480,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" class="btn btn-secondary" onclick="saveFTEAsDefault()">Save as Default</button>
                             <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                         </div>
                     </form>

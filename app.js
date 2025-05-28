@@ -3,6 +3,9 @@ const START_YEAR = 2024;
 const END_YEAR = 2034;
 const FORTNIGHTS_PER_YEAR = 24;
 
+// Debug mode - set to true to enable console logging
+const DEBUG_MODE = false;
+
 // Month mapping for fortnights
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const FORTNIGHT_TO_MONTH = {
@@ -271,35 +274,91 @@ let viewState = {
     isDirty: false, // Track if current state has unsaved changes
     currentView: '12months',  // 'all', '6months', '12months'
     viewOffset: 0,       // Offset in months from current date
-    surplusDeficitView: 'classic',  // 'classic' or 'intuitive'
+    surplusDeficitView: 'simple',  // 'simple' or 'detailed'
     currentLocation: 'AU',  // Track current location in view state
-    demandSplitByLocation: false  // Toggle for split view in demand table
+    demandSplitByLocation: false,  // Toggle for split view in demand table
+    showCrossLocationCommencements: false
 };
 
-// Scenarios storage
-let scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios')) || [];
+// Dashboard navigation state
+let dashboardViewOffset = 0; // Months offset from current date
+
+// Navigate dashboard view
+function navigateDashboard(months) {
+    if (months === 0) {
+        // Reset to today
+        dashboardViewOffset = 0;
+    } else {
+        dashboardViewOffset += months;
+    }
+    
+    // Update time display
+    const currentDate = new Date();
+    const viewDate = new Date(currentDate);
+    viewDate.setMonth(viewDate.getMonth() + dashboardViewOffset);
+    
+    const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    document.getElementById('dashboard-time-display').textContent = dashboardViewOffset === 0 ? 'Current View' : monthName;
+    
+    // Update dashboard
+    updateDashboardV2();
+}
+
+// Scenarios storage - lazy loaded
+let scenarios = null;
 let selectedForComparison = new Set(); // Track scenarios selected for comparison
 
-// DOM Elements
-const dashboardView = document.getElementById('dashboard-view');
-const plannerView = document.getElementById('planner-view');
-const settingsView = document.getElementById('settings-view');
-const scenariosView = document.getElementById('scenarios-view');
-const navTabs = document.querySelectorAll('.nav-tab');
-const addCohortForm = document.getElementById('add-cohort-form');
-const pathwaySelect = document.getElementById('pathway');
-const editFTEBtn = document.getElementById('edit-fte-btn');
-const addPathwayBtn = document.getElementById('add-pathway-btn');
-const toggleFTEBtn = document.getElementById('toggle-fte-btn');
-const editPriorityBtn = document.getElementById('edit-priority-btn');
+// Lazy load scenarios when needed
+function getScenarios() {
+    if (scenarios === null) {
+        perfMonitor.start('loadScenarios');
+        const stored = localStorage.getItem('pilotTrainerScenarios');
+        scenarios = stored ? JSON.parse(stored) : [];
+        perfMonitor.end('loadScenarios');
+        // console.log(`[PERF] Loaded ${scenarios.length} scenarios from localStorage`);
+    }
+    return scenarios;
+}
 
-// Modal Elements
-const fteModal = document.getElementById('fte-modal');
-const pathwayModal = document.getElementById('pathway-modal');
-const cohortModal = document.getElementById('cohort-modal');
-const priorityModal = document.getElementById('priority-modal');
-const modalCloseButtons = document.querySelectorAll('.modal-close');
-const modalCancelButtons = document.querySelectorAll('.modal-cancel');
+// Helper to check if scenarios are loaded
+function scenariosLoaded() {
+    return scenarios !== null;
+}
+
+// Ensure scenarios are loaded (use this before modifying scenarios)
+function ensureScenarios() {
+    if (scenarios === null) {
+        getScenarios();
+    }
+}
+
+// DOM Elements - will be initialized after DOM loads
+let dashboardView, plannerView, settingsView, scenariosView;
+let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
+let fteModal, pathwayModal, cohortModal, priorityModal, modalCloseButtons, modalCancelButtons;
+
+// Initialize DOM elements after DOMContentLoaded
+function initializeDOMElements() {
+    dashboardView = document.getElementById('dashboard-view');
+    plannerView = document.getElementById('planner-view');
+    settingsView = document.getElementById('settings-view');
+    scenariosView = document.getElementById('scenarios-view');
+    navTabs = document.querySelectorAll('.nav-tab');
+    addCohortForm = document.getElementById('add-cohort-form');
+    pathwaySelect = document.getElementById('pathway');
+    editFTEBtn = document.getElementById('edit-fte-btn');
+    addPathwayBtn = document.getElementById('add-pathway-btn');
+    toggleFTEBtn = document.getElementById('toggle-fte-btn');
+    editPriorityBtn = document.getElementById('edit-priority-btn');
+    
+    // Modal Elements
+    fteModal = document.getElementById('fte-modal');
+    pathwayModal = document.getElementById('pathway-modal');
+    cohortModal = document.getElementById('cohort-modal');
+    priorityModal = document.getElementById('priority-modal');
+    modalCloseButtons = document.querySelectorAll('.modal-close');
+    modalCancelButtons = document.querySelectorAll('.modal-cancel');
+}
 
 // Get time range for current view
 function getTimeRangeForView() {
@@ -368,50 +427,147 @@ function getTimeRangeForView() {
     };
 }
 
+// Performance monitoring
+const perfMonitor = {
+    enabled: false, // Set to true to enable performance logging
+    timings: {},
+    
+    start(operation) {
+        if (!this.enabled) return;
+        this.timings[operation] = { start: performance.now(), children: {} };
+    },
+    
+    end(operation) {
+        if (!this.enabled || !this.timings[operation]) return;
+        const duration = performance.now() - this.timings[operation].start;
+        // console.log(`[PERF] ${operation}: ${duration.toFixed(2)}ms`);
+        return duration;
+    },
+    
+    measure(operation, fn) {
+        this.start(operation);
+        const result = fn();
+        this.end(operation);
+        return result;
+    },
+    
+    async measureAsync(operation, fn) {
+        this.start(operation);
+        const result = await fn();
+        this.end(operation);
+        return result;
+    },
+    
+    report() {
+        // Uncomment for performance debugging
+        // console.group('[PERF] Performance Report');
+        // Object.entries(this.timings).forEach(([op, data]) => {
+        //     const duration = performance.now() - data.start;
+        //     console.log(`${op}: ${duration.toFixed(2)}ms`);
+        // });
+        // console.groupEnd();
+    }
+};
+
 // Switch location
 function switchLocation(newLocation) {
+    // Ensure we have a valid location
+    if (!newLocation || (newLocation !== 'AU' && newLocation !== 'NZ')) {
+        return;
+    }
+    
     if (currentLocation === newLocation) return;
     
-    // Save current location data
-    locationData[currentLocation].pathways = pathways;
-    locationData[currentLocation].trainerFTE = trainerFTE;
-    locationData[currentLocation].priorityConfig = priorityConfig;
-    locationData[currentLocation].activeCohorts = activeCohorts;
+    perfMonitor.start('switchLocation');
+    // console.log(`[PERF] Starting location switch from ${currentLocation} to ${newLocation}`);
     
-    // Switch to new location
-    currentLocation = newLocation;
-    viewState.currentLocation = newLocation;
+    // Show loading indicator
+    const loadingMsg = showNotification(`Switching to ${newLocation}...`, 'info', 0);
     
-    // Save location preference
-    localStorage.setItem('currentLocation', newLocation);
-    
-    // Load new location data
-    pathways = locationData[newLocation].pathways;
-    trainerFTE = locationData[newLocation].trainerFTE;
-    priorityConfig = locationData[newLocation].priorityConfig;
-    activeCohorts = locationData[newLocation].activeCohorts;
-    
-    // Update UI
-    document.querySelectorAll('.location-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.location === newLocation);
+    // Use requestAnimationFrame to ensure UI updates
+    requestAnimationFrame(() => {
+        perfMonitor.start('switchLocation.saveCurrentData');
+        // Save current location data
+        locationData[currentLocation].pathways = pathways;
+        locationData[currentLocation].trainerFTE = trainerFTE;
+        locationData[currentLocation].priorityConfig = priorityConfig;
+        locationData[currentLocation].activeCohorts = activeCohorts;
+        perfMonitor.end('switchLocation.saveCurrentData');
+        
+        perfMonitor.start('switchLocation.loadNewData');
+        // Switch to new location
+        currentLocation = newLocation;
+        viewState.currentLocation = newLocation;
+        
+        // Save location preference
+        localStorage.setItem('currentLocation', newLocation);
+        
+        // Load new location data
+        pathways = locationData[newLocation].pathways;
+        trainerFTE = locationData[newLocation].trainerFTE;
+        priorityConfig = locationData[newLocation].priorityConfig;
+        activeCohorts = locationData[newLocation].activeCohorts;
+        perfMonitor.end('switchLocation.loadNewData');
+        
+        perfMonitor.start('switchLocation.updateUI');
+        // Update UI tabs immediately
+        document.querySelectorAll('.location-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.location === newLocation);
+        });
+        document.querySelectorAll('.location-toggle').forEach(toggle => {
+            toggle.classList.toggle('active', toggle.dataset.location === newLocation);
+        });
+        
+        // Update HTML data attribute for CSS styling
+        document.documentElement.setAttribute('data-location', newLocation);
+        
+        // Update cross-location button visibility
+        const crossLocBtn = document.getElementById('commencement-cross-loc-btn');
+        if (crossLocBtn) {
+            crossLocBtn.style.display = newLocation === 'AU' ? '' : 'none';
+        }
+        perfMonitor.end('switchLocation.updateUI');
+        
+        // Defer heavy rendering operations
+        setTimeout(() => {
+            perfMonitor.start('switchLocation.renderViews');
+            // Only update visible views
+            const activeView = document.querySelector('.view.active');
+            
+            if (activeView) {
+                if (activeView.id === 'dashboard-view') {
+                    perfMonitor.start('switchLocation.updateDashboard');
+                    updateDashboardV2();
+                    perfMonitor.end('switchLocation.updateDashboard');
+                } else if (activeView.id === 'planner-view') {
+                    perfMonitor.start('switchLocation.updateTables');
+                    updateAllTables();
+                    perfMonitor.end('switchLocation.updateTables');
+                    
+                    perfMonitor.start('switchLocation.renderGantt');
+                    renderGanttChart();
+                    perfMonitor.end('switchLocation.renderGantt');
+                } else if (activeView.id === 'settings-view') {
+                    renderPathwaysTable();
+                    renderPrioritySettingsTable();
+                }
+            }
+            perfMonitor.end('switchLocation.renderViews');
+            
+            populatePathwaySelect();
+            
+            // Remove loading message
+            if (loadingMsg && loadingMsg.remove) {
+                loadingMsg.remove();
+            }
+            
+            // Show completion notification
+            showNotification(`Switched to ${newLocation} location`, 'success');
+            
+            perfMonitor.end('switchLocation');
+            perfMonitor.report();
+        }, 10);
     });
-    document.querySelectorAll('.location-toggle').forEach(toggle => {
-        toggle.classList.toggle('active', toggle.dataset.location === newLocation);
-    });
-    
-    // Update HTML data attribute for CSS styling
-    document.documentElement.setAttribute('data-location', newLocation);
-    
-    // Re-render all views
-    populatePathwaySelect();
-    updateAllTables();
-    renderGanttChart();
-    renderPathwaysTable();
-    renderPrioritySettingsTable();
-    updateDashboard();
-    
-    // Show notification
-    showNotification(`Switched to ${newLocation} location`, 'info');
 }
 
 // Migrate existing data to location-aware structure
@@ -487,45 +643,24 @@ let distributionChartV2 = null;
 let acknowledgedAlerts = new Set(JSON.parse(localStorage.getItem('acknowledgedAlerts') || '[]'));
 
 function initDashboardToggle() {
-    const toggleButtons = document.querySelectorAll('.toggle-option');
+    // Always use enhanced dashboard
     const classicDashboard = document.getElementById('dashboard-classic');
     const enhancedDashboard = document.getElementById('dashboard-enhanced');
     
-    // Load saved preference
-    const savedVersion = localStorage.getItem('dashboardVersion') || 'classic';
+    if (classicDashboard) {
+        classicDashboard.style.display = 'none';
+    }
+    if (enhancedDashboard) {
+        enhancedDashboard.style.display = 'block';
+    }
     
-    toggleButtons.forEach(btn => {
-        btn.addEventListener('click', function() {
-            const version = this.dataset.version;
-            
-            // Update active state
-            toggleButtons.forEach(b => b.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Show/hide dashboards
-            if (version === 'classic') {
-                classicDashboard.style.display = 'block';
-                enhancedDashboard.style.display = 'none';
-                updateDashboard();
-            } else {
-                classicDashboard.style.display = 'none';
-                enhancedDashboard.style.display = 'block';
-                updateDashboardV2();
-            }
-            
-            // Save preference
-            localStorage.setItem('dashboardVersion', version);
-        });
-        
-        // Set initial state
-        if (btn.dataset.version === savedVersion) {
-            btn.click();
-        }
-    });
+    // Always update enhanced dashboard
+    updateDashboardV2();
 }
 
 function calculateMetricTrends() {
     const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
@@ -581,8 +716,14 @@ function calculateMetricsForPeriod(year, fortnight) {
     let totalTrainees = 0;
     let upcomingCompletions = 0;
     
-    activeCohorts.forEach(cohort => {
-        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    // Use location-specific data
+    const locationCohorts = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].activeCohorts : activeCohorts;
+    const locationPathways = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].pathways : pathways;
+    
+    locationCohorts.forEach(cohort => {
+        const pathway = locationPathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
         
         const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
@@ -649,46 +790,101 @@ function calculateMetricsForPeriod(year, fortnight) {
     };
 }
 
+// FTE Default Management
+function saveDefaultFTE() {
+    const defaultFTE = {
+        AU: JSON.parse(JSON.stringify(locationData.AU.trainerFTE)),
+        NZ: JSON.parse(JSON.stringify(locationData.NZ.trainerFTE))
+    };
+    localStorage.setItem('defaultFTE', JSON.stringify(defaultFTE));
+}
+
+function loadDefaultFTE() {
+    const defaultFTE = localStorage.getItem('defaultFTE');
+    if (defaultFTE) {
+        try {
+            const parsed = JSON.parse(defaultFTE);
+            if (parsed.AU) {
+                locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
+            }
+            if (parsed.NZ) {
+                locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
+            }
+            return true;
+        } catch (e) {
+            console.error('Error loading default FTE:', e);
+        }
+    }
+    return false;
+}
+
 // Initialize the application
 function init() {
-    migrateDataToLocations(); // Migrate data first
+    perfMonitor.start('init');
+    // console.log('[PERF] Starting application initialization');
     
+    // Initialize DOM elements first
+    initializeDOMElements();
+    
+    perfMonitor.start('init.migrate');
+    migrateDataToLocations(); // Migrate data first
+    perfMonitor.end('init.migrate');
+    
+    perfMonitor.start('init.loadDefaults');
+    // Load default FTE if available
+    if (loadDefaultFTE()) {
+        // console.log('Loaded default FTE from localStorage');
+    }
+    perfMonitor.end('init.loadDefaults');
+    
+    perfMonitor.start('init.loadLocation');
     // Load saved location preference
     const savedLocation = localStorage.getItem('currentLocation');
     if (savedLocation && (savedLocation === 'AU' || savedLocation === 'NZ')) {
         currentLocation = savedLocation;
         viewState.currentLocation = savedLocation;
-        
-        // Load data for saved location
-        if (locationData && locationData[currentLocation]) {
-            pathways = locationData[currentLocation].pathways;
-            trainerFTE = locationData[currentLocation].trainerFTE;
-            priorityConfig = locationData[currentLocation].priorityConfig;
-            activeCohorts = locationData[currentLocation].activeCohorts;
-        }
-        
-        // Update UI to reflect saved location
-        document.querySelectorAll('.location-tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.location === currentLocation);
-        });
-        document.querySelectorAll('.location-toggle').forEach(toggle => {
-            toggle.classList.toggle('active', toggle.dataset.location === currentLocation);
-        });
     }
     
+    // Load the correct location data
+    if (locationData && locationData[currentLocation]) {
+        pathways = locationData[currentLocation].pathways;
+        trainerFTE = locationData[currentLocation].trainerFTE;
+        priorityConfig = locationData[currentLocation].priorityConfig;
+        activeCohorts = locationData[currentLocation].activeCohorts;
+    }
+    
+    // Update UI to reflect saved location
+    document.querySelectorAll('.location-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.location === currentLocation);
+    });
+    document.querySelectorAll('.location-toggle').forEach(toggle => {
+        toggle.classList.toggle('active', toggle.dataset.location === currentLocation);
+    });
+    
+    // Set HTML attribute
+    document.documentElement.setAttribute('data-location', currentLocation);
+    
+    perfMonitor.end('init.loadLocation');
+    
+    perfMonitor.start('init.darkMode');
     // Initialize dark mode FIRST to prevent flash
     initDarkMode();
+    perfMonitor.end('init.darkMode');
     
+    perfMonitor.start('init.dashboardToggle');
     // Initialize dashboard toggle
     initDashboardToggle();
+    perfMonitor.end('init.dashboardToggle');
     
+    perfMonitor.start('init.loadScenario');
     // Auto-load last scenario BEFORE initial render
     const lastScenarioId = localStorage.getItem('lastScenarioId');
     let scenarioLoaded = false;
-    if (lastScenarioId && scenarios.length > 0) {
-        const scenario = scenarios.find(s => s.id === parseInt(lastScenarioId));
+    const loadedScenarios = getScenarios();
+    if (lastScenarioId && loadedScenarios.length > 0) {
+        const scenario = loadedScenarios.find(s => s.id === parseInt(lastScenarioId));
         if (scenario) {
-            console.log(`Auto-loading last scenario: ${scenario.name}`);
+            // console.log(`Auto-loading last scenario: ${scenario.name}`);
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
@@ -698,19 +894,36 @@ function init() {
             }, 500);
         }
     }
+    perfMonitor.end('init.loadScenario');
     
+    perfMonitor.start('init.setupUI');
     setupEventListeners();
     populatePathwaySelect();
     populateYearSelect();
     populateFortnightSelect();
     adjustColumnWidths(); // Set initial column widths
     
+    // Ensure location toggles reflect current state after event listeners are attached
+    // Force update the visual state
+    document.querySelectorAll('.location-toggle').forEach(toggle => {
+        const isActive = toggle.dataset.location === currentLocation;
+        toggle.classList.toggle('active', isActive);
+        
+        // Also ensure the HTML attribute is set correctly
+        if (isActive) {
+            document.documentElement.setAttribute('data-location', currentLocation);
+        }
+    });
+    
     // Mark UI elements as initialized to prevent flicker
     document.querySelector('.view-controls')?.classList.add('initialized');
+    perfMonitor.end('init.setupUI');
     
+    perfMonitor.start('init.renderViews');
     // Now render everything once
     updateAllTables();
     renderGanttChart();
+    perfMonitor.end('init.renderViews');
     
     // Ensure sync is established after initial render
     setTimeout(() => {
@@ -722,18 +935,22 @@ function init() {
     setTimeout(() => {
         if (viewState.currentView === 'all') {
             setupSynchronizedScrolling();
-            console.log('Extra sync setup for ALL view on init');
+            // console.log('Extra sync setup for ALL view on init');
         }
     }, 500);
     
+    perfMonitor.start('init.switchView');
     // Restore last active tab or start with dashboard
     const lastActiveTab = localStorage.getItem('activeTab') || 'dashboard';
     switchView(lastActiveTab);
+    perfMonitor.end('init.switchView');
     
     // Mark initial load complete
     setTimeout(() => {
         isInitialLoad = false;
         document.body.classList.add('initialized');
+        perfMonitor.end('init');
+        perfMonitor.report();
     }, 100);
     
     // Extra sync setup after everything is loaded
@@ -741,7 +958,7 @@ function init() {
         setTimeout(() => {
             if (plannerView.classList.contains('active')) {
                 setupSynchronizedScrolling();
-                console.log('Final sync setup after page load');
+                // console.log('Final sync setup after page load');
             }
         }, 500);
     });
@@ -896,8 +1113,15 @@ function setupEventListeners() {
     const locationToggles = document.querySelectorAll('.location-toggle');
     locationToggles.forEach(toggle => {
         toggle.addEventListener('click', (e) => {
-            const newLocation = e.target.dataset.location;
-            switchLocation(newLocation);
+            e.preventDefault();
+            e.stopPropagation();
+            
+            // Use currentTarget to ensure we get the button, not child elements
+            const newLocation = e.currentTarget.dataset.location;
+            
+            if (newLocation) {
+                switchLocation(newLocation);
+            }
         });
     });
 
@@ -1345,15 +1569,21 @@ function setupEventListeners() {
     const toggleSDViewBtn = document.getElementById('toggle-sd-view');
     if (toggleSDViewBtn) {
         toggleSDViewBtn.addEventListener('click', () => {
-            // Toggle between classic and intuitive view
-            viewState.surplusDeficitView = viewState.surplusDeficitView === 'classic' ? 'intuitive' : 'classic';
+            // Toggle between simple and detailed views
+            if (viewState.surplusDeficitView === 'simple') {
+                viewState.surplusDeficitView = 'detailed';
+            } else {
+                viewState.surplusDeficitView = 'simple';
+            }
             
             // Update button text
             const btnText = toggleSDViewBtn.querySelector('.toggle-view-text');
             if (btnText) {
-                btnText.textContent = viewState.surplusDeficitView === 'classic' 
-                    ? 'Switch to Intuitive View' 
-                    : 'Switch to Classic View';
+                if (viewState.surplusDeficitView === 'simple') {
+                    btnText.textContent = 'Show Detailed View';
+                } else {
+                    btnText.textContent = 'Show Simple View';
+                }
             }
             
             // Re-render the surplus/deficit table
@@ -1806,11 +2036,8 @@ function switchView(viewName) {
             dashboardView.classList.add('active');
             // Check which dashboard version to update
             const dashboardVersion = localStorage.getItem('dashboardVersion') || 'classic';
-            if (dashboardVersion === 'enhanced') {
-                updateDashboardV2();
-            } else {
-                updateDashboard();
-            }
+            // Always use enhanced dashboard
+            updateDashboardV2();
             break;
         case 'planner':
             plannerView.classList.add('active');
@@ -1927,6 +2154,8 @@ function handleAddCohort(e) {
 
 // Update All Tables
 function updateAllTables() {
+    perfMonitor.start('updateAllTables');
+    
     // Store scroll positions before update
     const containers = document.querySelectorAll('.table-container');
     const scrollPositions = Array.from(containers).map(c => ({
@@ -1935,17 +2164,29 @@ function updateAllTables() {
         top: c.scrollTop
     }));
     
+    perfMonitor.start('updateAllTables.renderFTE');
     renderFTESummaryTable();
+    perfMonitor.end('updateAllTables.renderFTE');
+    
+    perfMonitor.start('updateAllTables.renderDemand');
     renderDemandTable();
+    perfMonitor.end('updateAllTables.renderDemand');
+    
+    perfMonitor.start('updateAllTables.renderSupplyDeficit');
     renderSurplusDeficitTable();
+    perfMonitor.end('updateAllTables.renderSupplyDeficit');
     
     // Always update trainee summary
+    perfMonitor.start('updateAllTables.updateTraineeSummary');
     updateGanttTraineeSummary();
+    perfMonitor.end('updateAllTables.updateTraineeSummary');
     
     // Update commencement summary if it's expanded
     const commencementBtn = document.getElementById('toggle-commencement-btn');
     if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
+        perfMonitor.start('updateAllTables.renderCommencement');
         renderCommencementSummary();
+        perfMonitor.end('updateAllTables.renderCommencement');
     }
     
     // Restore scroll positions
@@ -1961,13 +2202,16 @@ function updateAllTables() {
     requestAnimationFrame(() => {
         adjustColumnWidths();
         setupSynchronizedScrolling();
-        console.log('Sync re-established after table update');
+        // console.log('Sync re-established after table update');
     });
     
     // Update dashboard if it's active
     if (dashboardView && dashboardView.classList.contains('active')) {
-        updateDashboard();
+        // Always use enhanced dashboard
+        updateDashboardV2();
     }
+    
+    perfMonitor.end('updateAllTables');
 }
 
 // Adjust column widths based on current view
@@ -2103,13 +2347,38 @@ function renderCommencementSummary() {
     const container = document.getElementById("commencement-summary-container");
     if (!container) return;
     
+    // Hide/show cross-location toggle based on current location
+    const crossLocBtn = document.getElementById('commencement-cross-loc-btn');
+    if (crossLocBtn) {
+        crossLocBtn.style.display = currentLocation === 'AU' ? '' : 'none';
+    }
+    
     // Get time range based on current view
     const range = getTimeRangeForView();
     
     // Calculate commencements by month/fortnight and type
     const commencements = {};
     
-    activeCohorts.forEach(cohort => {
+    // Get cohorts to display based on cross-location toggle
+    let cohortsToShow = activeCohorts;
+    
+    if (viewState.showCrossLocationCommencements && currentLocation) {
+        // Include cohorts from other location if they have cross-location training here
+        const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
+        const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
+        
+        // Add cohorts from other location that train here
+        const crossLocationCohorts = otherLocationCohorts.filter(cohort => {
+            return cohort.crossLocationTraining && 
+                   cohort.crossLocationTraining[currentLocation] && 
+                   cohort.crossLocationTraining[currentLocation].phases &&
+                   Object.keys(cohort.crossLocationTraining[currentLocation].phases).length > 0;
+        });
+        
+        cohortsToShow = [...activeCohorts, ...crossLocationCohorts];
+    }
+    
+    cohortsToShow.forEach(cohort => {
         const pathway = pathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
         
@@ -2192,6 +2461,76 @@ function renderCommencementSummary() {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
         html += `<td class="data-cell">${data.CAD || '-'}</td>`;
+        
+        currentFortnight++;
+        if (currentFortnight > 24) {
+            currentFortnight = 1;
+            currentYear++;
+        }
+    }
+    html += '</tr>';
+    
+    // NZ row when cross-location is toggled on and we're in AU view
+    if (viewState.showCrossLocationCommencements && currentLocation === 'AU') {
+        // Calculate NZ commencements
+        const nzCommencements = {};
+        const nzCohorts = locationData.NZ?.activeCohorts || [];
+        
+        nzCohorts.forEach(cohort => {
+            const nzPathways = locationData.NZ.pathways;
+            const pathway = nzPathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            const year = cohort.startYear;
+            const fortnight = cohort.startFortnight;
+            
+            if (year < range.startYear || year > range.endYear) return;
+            if (year === range.startYear && fortnight < range.startFortnight) return;
+            if (year === range.endYear && fortnight > range.endFortnight) return;
+            
+            const key = `${year}-${fortnight}`;
+            if (!nzCommencements[key]) {
+                nzCommencements[key] = { FO: 0, CAD: 0 };
+            }
+            
+            if (pathway.type === 'FO' || pathway.type === 'CAD') {
+                nzCommencements[key][pathway.type] += cohort.numTrainees;
+            }
+        });
+        
+        html += '<tr>';
+        html += '<td class="sticky-col type-label" style="font-style: italic; color: #3498db;">NZ (FO + CAD)</td>';
+        
+        currentYear = range.startYear;
+        currentFortnight = range.startFortnight;
+        
+        while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
+            const key = `${currentYear}-${currentFortnight}`;
+            const data = nzCommencements[key] || { FO: 0, CAD: 0 };
+            const nzTotal = data.FO + data.CAD;
+            html += `<td class="data-cell" style="font-style: italic; color: #3498db; background: rgba(52, 152, 219, 0.05);">${nzTotal || '-'}</td>`;
+            
+            currentFortnight++;
+            if (currentFortnight > 24) {
+                currentFortnight = 1;
+                currentYear++;
+            }
+        }
+        html += '</tr>';
+    }
+    
+    // FO + CAD row (AU total)
+    html += '<tr>';
+    html += '<td class="sticky-col type-label" style="font-style: italic; color: var(--text-secondary);">FO + CAD</td>';
+    
+    currentYear = range.startYear;
+    currentFortnight = range.startFortnight;
+    
+    while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
+        const key = `${currentYear}-${currentFortnight}`;
+        const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
+        const foAndCad = data.FO + data.CAD;
+        html += `<td class="data-cell" style="font-style: italic; color: var(--text-secondary);">${foAndCad || '-'}</td>`;
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -2392,13 +2731,13 @@ function renderDemandTable() {
             
             if (crossLocValue > 0) {
                 // Show total value with highlighting for cross-location
-                cellContent = value.toFixed(0);
-                tooltip = `title="Total: ${value.toFixed(0)} (Local: ${localValue.toFixed(0)} + Cross-location: ${crossLocValue.toFixed(0)} from ${currentLocation === 'AU' ? 'NZ' : 'AU'})"`;
+                cellContent = `${value.toFixed(0)}<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: #3498db; border-radius: 50%;"></span>`;
+                tooltip = `title="Total: ${value.toFixed(0)} (Local: ${localValue.toFixed(0)} + Cross-location: ${crossLocValue.toFixed(0)} from ${currentLocation === 'AU' ? 'NZ' : 'AU'})\n● = Includes cross-location trainer demand"`;
             } else {
                 cellContent = value.toFixed(0);
             }
             
-            html += `<td class="data-cell" ${tooltip}>${cellContent}</td>`;
+            html += `<td class="data-cell" style="position: relative;" ${tooltip}>${cellContent}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2643,17 +2982,17 @@ function renderCrossLocationSummary() {
 
 // Render Surplus/Deficit Table
 function renderSurplusDeficitTable() {
-    if (viewState.surplusDeficitView === 'intuitive') {
-        renderSurplusDeficitTableIntuitive();
+    if (viewState.surplusDeficitView === 'detailed') {
+        renderSurplusDeficitTableDetailed();
     } else {
-        renderSurplusDeficitTableClassic();
+        renderSurplusDeficitTableSimple();
     }
 }
 
-// Classic view - original implementation
-function renderSurplusDeficitTableClassic() {
+// Detailed view - shows training type capacity with trainer category breakdown
+function renderSurplusDeficitTableDetailed() {
     const container = document.getElementById('surplus-deficit-container');
-    const { demand, ltCpDeficit } = calculateDemand();
+    const { demand } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
     
@@ -2664,20 +3003,55 @@ function renderSurplusDeficitTableClassic() {
     html += '</thead>';
     html += '<tbody>';
     
-    // Category-specific surplus/deficit rows
-    TRAINER_CATEGORIES.forEach(category => {
-        html += '<tr>';
-        html += `<td class="sticky-first-column">${category} S/D</td>`;
+    // Calculate and display surplus/deficit by training type with category breakdown
+    const trainingTypes = [
+        { type: 'LT-CAD', label: 'CAD Training' },
+        { type: 'LT-CP', label: 'CP Training' },
+        { type: 'LT-FO', label: 'FO Training' }
+    ];
+    
+    // Get current location's FTE data
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].trainerFTE : trainerFTE;
+    
+    trainingTypes.forEach(({ type, label }) => {
+        // Main training type row
+        html += '<tr class="training-type-main">';
+        html += `<td class="sticky-first-column">${label}</td>`;
         
         let currentYear = range.startYear;
         let currentFn = range.startFortnight;
         
         while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
-            const allocated = demand[currentYear]?.[currentFn]?.allocated?.[category] || 0;
-            const difference = categorySupply - allocated;
-            const isDeficit = difference < 0;
-            html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}">${difference.toFixed(0)}</td>`;
+            const demandData = demand[currentYear]?.[currentFn];
+            const demandForType = demandData?.byTrainingType[type] || 0;
+            
+            // Calculate available trainers based on priority cascading
+            let availableCapacity = 0;
+            
+            if (type === 'LT-CAD') {
+                availableCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
+                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+            } else if (type === 'LT-CP') {
+                const rhsCapacity = (locationFTE[currentYear]?.['RHS'] || 0) / FORTNIGHTS_PER_YEAR;
+                const universalCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
+                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
+                const universalSurplus = Math.max(0, universalCapacity - cadDemand);
+                availableCapacity = rhsCapacity + universalSurplus;
+            } else if (type === 'LT-FO') {
+                const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                const higherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
+                                           (demandData?.byTrainingType['LT-CP'] || 0);
+                availableCapacity = Math.max(0, totalSupply - higherPriorityDemand);
+            }
+            
+            const surplusDeficit = availableCapacity - demandForType;
+            const isDeficit = surplusDeficit < 0;
+            const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
+            
+            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2685,32 +3059,68 @@ function renderSurplusDeficitTableClassic() {
                 currentYear++;
             }
         }
-        
         html += '</tr>';
+        
+        // Trainer category breakdown rows
+        const relevantCategories = type === 'LT-CAD' ? ['CATB', 'CATA', 'STP'] :
+                                  type === 'LT-CP' ? ['RHS', 'CATB', 'CATA', 'STP'] :
+                                  TRAINER_CATEGORIES;
+        
+        relevantCategories.forEach(category => {
+            const canPerformTraining = TRAINER_QUALIFICATIONS[category].includes(type);
+            if (!canPerformTraining) return;
+            
+            html += '<tr class="category-breakdown">';
+            html += `<td class="sticky-first-column category-indent">&nbsp;&nbsp;↳ ${category}</td>`;
+            
+            let catYear = range.startYear;
+            let catFn = range.startFortnight;
+            
+            while (catYear < range.endYear || (catYear === range.endYear && catFn <= range.endFortnight)) {
+                const categorySupply = (locationFTE[catYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+                const allocated = demand[catYear]?.[catFn]?.allocated?.[category] || 0;
+                const available = categorySupply - allocated;
+                
+                // For this training type, show how much of this category could contribute
+                let contribution = 0;
+                if (type === 'LT-CAD' && (category === 'CATB' || category === 'CATA' || category === 'STP')) {
+                    contribution = Math.max(0, available);
+                } else if (type === 'LT-CP') {
+                    if (category === 'RHS') {
+                        contribution = Math.max(0, available);
+                    } else {
+                        // Universal trainers contribute only after CAD demand
+                        const cadDemand = demand[catYear]?.[catFn]?.byTrainingType['LT-CAD'] || 0;
+                        const catShare = categorySupply / 3; // Split evenly among CATB/CATA/STP
+                        contribution = Math.max(0, catShare - (cadDemand / 3));
+                    }
+                } else if (type === 'LT-FO') {
+                    // FO gets whatever is left after higher priorities
+                    contribution = Math.max(0, available);
+                }
+                
+                const cellClass = contribution > 0 ? 'available' : '';
+                html += `<td class="data-cell category-cell ${cellClass}">${contribution > 0 ? contribution.toFixed(0) : '-'}</td>`;
+                
+                catFn++;
+                if (catFn > FORTNIGHTS_PER_YEAR) {
+                    catFn = 1;
+                    catYear++;
+                }
+            }
+            html += '</tr>';
+        });
+        
+        // Add spacing between training types
+        if (type !== 'LT-FO') {
+            html += '<tr class="spacing-row"><td colspan="100%" style="height: 10px;"></td></tr>';
+        }
     });
     
-    // LT-CP Training Deficit row
-    html += '<tr>';
-    html += '<td class="sticky-first-column">LT-CP Training Deficit</td>';
+    // Separator row
+    html += '<tr class="separator-row"><td colspan="100%" class="separator-cell"></td></tr>';
     
-    let deficitYear = range.startYear;
-    let deficitFn = range.startFortnight;
-    
-    while (deficitYear < range.endYear || (deficitYear === range.endYear && deficitFn <= range.endFortnight)) {
-        const deficit = ltCpDeficit[deficitYear]?.[deficitFn] || 0;
-        const hasDeficit = deficit > 0;
-        html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}">${deficit.toFixed(0)}</td>`;
-        
-        deficitFn++;
-        if (deficitFn > FORTNIGHTS_PER_YEAR) {
-            deficitFn = 1;
-            deficitYear++;
-        }
-    }
-    
-    html += '</tr>';
-    
-    // Total Net S/D row (Total Initial FTE - Total Line Training Demand)
+    // Total Net S/D row
     html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Net S/D</td>';
     
@@ -2718,18 +3128,15 @@ function renderSurplusDeficitTableClassic() {
     let netFn = range.startFortnight;
     
     while (netYear < range.endYear || (netYear === range.endYear && netFn <= range.endFortnight)) {
-        // Calculate total initial FTE for the year (sum of all categories)
-        const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (trainerFTE[netYear]?.[cat] || 0), 0);
+        const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[netYear]?.[cat] || 0), 0);
         const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
         
-        // Get total line training demand (sum of all training types)
         const demandData = demand[netYear]?.[netFn] || { byTrainingType: {} };
         const totalLineTrainingDemand = 
             (demandData.byTrainingType['LT-CAD'] || 0) +
             (demandData.byTrainingType['LT-CP'] || 0) +
             (demandData.byTrainingType['LT-FO'] || 0);
         
-        // Total Net S/D = Total Initial FTE - Total Line Training Demand
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
         html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
@@ -2746,21 +3153,89 @@ function renderSurplusDeficitTableClassic() {
     container.innerHTML = html;
 }
 
-// Intuitive view - simple, clean, easy to scan
-function renderSurplusDeficitTableIntuitive() {
+// Simple view - shows actual capacity by training type after cascading
+function renderSurplusDeficitTableSimple() {
     const container = document.getElementById('surplus-deficit-container');
     const { demand } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
     
-    let html = '<div class="table-wrapper sd-intuitive-view"><table class="data-table">';
+    let html = '<div class="table-wrapper"><table class="data-table">';
     html += '<thead>';
     html += headers.monthRow;
     html += headers.fortnightRow;
     html += '</thead>';
     html += '<tbody>';
     
-    // 1. Total Net S/D - The main metric (same as classic view)
+    // Calculate and display surplus/deficit by training type
+    const trainingTypes = [
+        { type: 'LT-CAD', label: 'CAD Training' },
+        { type: 'LT-CP', label: 'CP Training' },
+        { type: 'LT-FO', label: 'FO Training' }
+    ];
+    
+    trainingTypes.forEach(({ type, label }) => {
+        html += '<tr>';
+        html += `<td class="sticky-first-column">${label}</td>`;
+        
+        let currentYear = range.startYear;
+        let currentFn = range.startFortnight;
+        
+        while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+            // For training type view, we need to show actual surplus/deficit
+            // This requires recalculating with proper cascading allocation
+            const demandData = demand[currentYear]?.[currentFn];
+            const demandForType = demandData?.byTrainingType[type] || 0;
+            
+            // Get trainer supply for this period
+            const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+                locationData[currentLocation].trainerFTE : trainerFTE;
+            
+            // Calculate available trainers based on priority cascading
+            let availableCapacity = 0;
+            
+            if (type === 'LT-CAD') {
+                // CAD can only use CATB, CATA, STP
+                availableCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
+                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+            } else if (type === 'LT-CP') {
+                // CP uses RHS first, then surplus from CATB/CATA/STP after CAD
+                const rhsCapacity = (locationFTE[currentYear]?.['RHS'] || 0) / FORTNIGHTS_PER_YEAR;
+                const universalCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
+                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
+                const universalSurplus = Math.max(0, universalCapacity - cadDemand);
+                availableCapacity = rhsCapacity + universalSurplus;
+            } else if (type === 'LT-FO') {
+                // FO can use all trainers, but only after higher priority demands are met
+                const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
+                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                const higherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
+                                           (demandData?.byTrainingType['LT-CP'] || 0);
+                
+                // FO gets whatever is left after CAD and CP
+                availableCapacity = Math.max(0, totalSupply - higherPriorityDemand);
+            }
+            
+            const surplusDeficit = availableCapacity - demandForType;
+            const isDeficit = surplusDeficit < 0;
+            const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
+            
+            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
+            
+            currentFn++;
+            if (currentFn > FORTNIGHTS_PER_YEAR) {
+                currentFn = 1;
+                currentYear++;
+            }
+        }
+        html += '</tr>';
+    });
+    
+    // Separator row
+    html += '<tr class="separator-row"><td colspan="100%" class="separator-cell"></td></tr>';
+    
+    // Total Net S/D row
     html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Net S/D</td>';
     
@@ -2787,141 +3262,63 @@ function renderSurplusDeficitTableIntuitive() {
             netYear++;
         }
     }
+    
     html += '</tr>';
-    
-    // 2. Unmet Demand Summary - just show if there's any unmet demand
-    html += '<tr>';
-    html += '<td class="sticky-first-column">Unmet Demand</td>';
-    
-    let unmetYear = range.startYear;
-    let unmetFn = range.startFortnight;
-    
-    while (unmetYear < range.endYear || (unmetYear === range.endYear && unmetFn <= range.endFortnight)) {
-        const demandData = demand[unmetYear]?.[unmetFn] || { unallocated: {} };
-        const totalUnmet = Object.values(demandData.unallocated).reduce((sum, val) => sum + val, 0);
-        
-        if (totalUnmet > 0) {
-            // Show which types have unmet demand
-            let unmetTypes = [];
-            if (demandData.unallocated['LT-CAD'] > 0) unmetTypes.push(`CAD:${demandData.unallocated['LT-CAD'].toFixed(0)}`);
-            if (demandData.unallocated['LT-CP'] > 0) unmetTypes.push(`CP:${demandData.unallocated['LT-CP'].toFixed(0)}`);
-            if (demandData.unallocated['LT-FO'] > 0) unmetTypes.push(`FO:${demandData.unallocated['LT-FO'].toFixed(0)}`);
-            html += `<td class="data-cell deficit" title="${unmetTypes.join(', ')}">${totalUnmet.toFixed(0)}</td>`;
-        } else {
-            html += `<td class="data-cell">-</td>`;
-        }
-        
-        unmetFn++;
-        if (unmetFn > FORTNIGHTS_PER_YEAR) {
-            unmetFn = 1;
-            unmetYear++;
-        }
-    }
-    html += '</tr>';
-    
-    // 3. Bottleneck Indicator - which trainer categories are TRUE bottlenecks (considering cascading)
-    html += '<tr>';
-    html += '<td class="sticky-first-column">Bottlenecks</td>';
-    
-    let bottleneckYear = range.startYear;
-    let bottleneckFn = range.startFortnight;
-    
-    while (bottleneckYear < range.endYear || (bottleneckYear === range.endYear && bottleneckFn <= range.endFortnight)) {
-        const demandData = demand[bottleneckYear]?.[bottleneckFn] || { allocated: {}, unallocated: {} };
-        let bottlenecks = [];
-        
-        // A trainer is only a bottleneck if:
-        // 1. They're at capacity (>=95% utilization) AND
-        // 2. There's unmet demand that they could serve
-        
-        TRAINER_CATEGORIES.forEach(cat => {
-            const supply = (trainerFTE[bottleneckYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR;
-            const allocated = demandData.allocated?.[cat] || 0;
-            const utilization = supply > 0 ? (allocated / supply) * 100 : 0;
-            
-            if (utilization >= 95) {
-                // Check if this category's constraint is causing unmet demand
-                let isRealBottleneck = false;
-                
-                if (cat === 'CATB' || cat === 'CATA' || cat === 'STP') {
-                    // These can do all training types - check if any are unmet
-                    isRealBottleneck = Object.values(demandData.unallocated).some(v => v > 0);
-                } else if (cat === 'RHS') {
-                    // RHS can only do LT-CP and LT-FO - check if these are unmet
-                    isRealBottleneck = (demandData.unallocated['LT-CP'] > 0 || demandData.unallocated['LT-FO'] > 0);
-                } else if (cat === 'LHS') {
-                    // LHS can only do LT-FO - check if it's unmet
-                    isRealBottleneck = demandData.unallocated['LT-FO'] > 0;
-                }
-                
-                if (isRealBottleneck) {
-                    bottlenecks.push(cat);
-                }
-            }
-        });
-        
-        if (bottlenecks.length > 0) {
-            html += `<td class="data-cell bottleneck-highlight">${bottlenecks.join(',')}</td>`;
-        } else {
-            html += `<td class="data-cell">-</td>`;
-        }
-        
-        bottleneckFn++;
-        if (bottleneckFn > FORTNIGHTS_PER_YEAR) {
-            bottleneckFn = 1;
-            bottleneckYear++;
-        }
-    }
-    html += '</tr>';
-    
-    // Separator row
-    html += '<tr class="separator-row"><td class="sticky-first-column" style="height: 10px; background-color: #f5f5f5;"></td>';
-    let sepYear = range.startYear;
-    let sepFn = range.startFortnight;
-    while (sepYear < range.endYear || (sepYear === range.endYear && sepFn <= range.endFortnight)) {
-        html += '<td class="data-cell" style="height: 10px; background-color: #f5f5f5;"></td>';
-        sepFn++;
-        if (sepFn > FORTNIGHTS_PER_YEAR) {
-            sepFn = 1;
-            sepYear++;
-        }
-    }
-    html += '</tr>';
-    
-    // 4. Trainer Availability - show remaining capacity for each category
-    TRAINER_CATEGORIES.forEach(category => {
-        html += '<tr>';
-        html += `<td class="sticky-first-column">${category} Available</td>`;
-        
-        let currentYear = range.startYear;
-        let currentFn = range.startFortnight;
-        
-        while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
-            const allocated = demand[currentYear]?.[currentFn]?.allocated?.[category] || 0;
-            const remaining = categorySupply - allocated;
-            
-            if (categorySupply === 0) {
-                html += `<td class="data-cell" style="color: #999;">-</td>`;
-            } else if (remaining <= 0) {
-                html += `<td class="data-cell deficit">0</td>`;
-            } else if (remaining < 2) {
-                html += `<td class="data-cell unmet-demand">${remaining.toFixed(0)}</td>`;
-            } else {
-                html += `<td class="data-cell">${remaining.toFixed(0)}</td>`;
-            }
-            
-            currentFn++;
-            if (currentFn > FORTNIGHTS_PER_YEAR) {
-                currentFn = 1;
-                currentYear++;
-            }
-        }
-        html += '</tr>';
-    });
-    
     html += '</tbody></table></div>';
     container.innerHTML = html;
+}
+
+// Helper function to calculate available capacity for a specific training type
+function calculateCapacityForTrainingType(trainingType, year, fortnight, demandData) {
+    // Get FTE for this period
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].trainerFTE : trainerFTE;
+    
+    const supply = {};
+    TRAINER_CATEGORIES.forEach(cat => {
+        supply[cat] = (locationFTE[year]?.[cat] || 0) / FORTNIGHTS_PER_YEAR;
+    });
+    
+    // Calculate capacity based on training type and trainer qualifications
+    let capacity = 0;
+    
+    switch (trainingType) {
+        case 'LT-CAD':
+            // Only CATB, CATA, STP can do CAD training
+            capacity = supply['CATB'] + supply['CATA'] + supply['STP'];
+            break;
+            
+        case 'LT-CP':
+            // RHS is primary, plus any surplus from CATB/CATA/STP after CAD allocation
+            capacity = supply['RHS'];
+            
+            // Add surplus from universal trainers after CAD demand
+            const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
+            const universalSupply = supply['CATB'] + supply['CATA'] + supply['STP'];
+            const universalSurplus = Math.max(0, universalSupply - cadDemand);
+            capacity += universalSurplus;
+            break;
+            
+        case 'LT-FO':
+            // LHS is primary, plus surplus from all others after their primary allocations
+            capacity = supply['LHS'];
+            
+            // Add surplus from RHS after CP demand
+            const cpDemandForRHS = demandData?.byTrainingType['LT-CP'] || 0;
+            const rhsSupply = supply['RHS'];
+            const rhsSurplus = Math.max(0, rhsSupply - cpDemandForRHS);
+            capacity += rhsSurplus;
+            
+            // Add surplus from universal trainers after CAD and CP demand
+            const totalHigherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
+                                              (demandData?.byTrainingType['LT-CP'] || 0);
+            const universalSupplyForFO = supply['CATB'] + supply['CATA'] + supply['STP'];
+            const universalSurplusForFO = Math.max(0, universalSupplyForFO - totalHigherPriorityDemand);
+            capacity += universalSurplusForFO;
+            break;
+    }
+    
+    return capacity;
 }
 
 // Calculate Demand with priority-based allocation
@@ -3442,6 +3839,9 @@ function renderGanttChart() {
                             data.phases[phase.name].includes(globalFortnightCounter)) {
                             usesCrossLocation = true;
                             crossLocationTo = location;
+                            if (DEBUG_MODE) {
+                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.name}, Fortnight ${globalFortnightCounter}, To: ${location}`);
+                            }
                         }
                     });
                 }
@@ -3486,6 +3886,7 @@ function renderGanttChart() {
                 
                 let backgroundColor = phaseColors[cell.phase.name] || '#9b59b6';
                 let cellContent = '';
+                let cellStyle = `background-color: ${backgroundColor} !important;`;
                 
                 // Add phase name if it's the start of the phase
                 // For short phases (1-2 fortnights), use smaller font or abbreviation
@@ -3501,27 +3902,23 @@ function renderGanttChart() {
                     // For 1-fortnight phases, no text (too small)
                 }
                 
-                // Add flag badge for cross-location training
-                if (cell.usesCrossLocation) {
-                    const flag = cell.crossLocationTo === 'AU' ? '🇦🇺' : '🇳🇿';
-                    cellContent += `<span class="cross-location-flag" style="position: absolute; top: 1px; right: 1px; font-size: 12px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));">${flag}</span>`;
-                }
-                
                 let tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name}\nFortnight ${cell.progress}/${cell.totalDuration}\nYear ${renderYear}, Fortnight ${renderFn}`;
                 
                 // Add cross-location indicator
-                let cellStyle = `background-color: ${backgroundColor} !important;`;
                 if (cell.usesCrossLocation) {
                     tooltip += `\n⚡ Using ${cell.crossLocationTo} trainers`;
                     // Add striped pattern for cross-location
                     cellStyle += ` background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.2) 5px, rgba(255,255,255,0.2) 10px);`;
+                    
+                    // Add white dot indicator with higher z-index
+                    cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative;" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative; overflow: visible;" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
                 html += '<td class="gantt-empty-cell data-cell"></td>';
@@ -3827,6 +4224,7 @@ function handleDrop(e) {
     // Recalculate and re-render
     updateAllTables();
     renderGanttChart();
+    markDirty();  // Mark scenario as modified
     
     // Show success message with detailed information
     showNotification(`${cohortLabel} moved to ${newMonthName} ${cohort.startYear}, FN${cohort.startFortnight}`, 'success');
@@ -4040,59 +4438,90 @@ function renderPathwaysTable() {
 }
 
 // Modal Management
+// FTE editor state
+let fteYearOffset = 0; // Year offset for FTE editor
+
 function openFTEModal() {
     const container = document.getElementById('fte-edit-container');
     
     let html = '<div style="max-height: 500px; overflow-y: auto;">';
     
-    // Quick fill buttons at the top
-    html += '<div class="fte-quick-fill" style="margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px; position: sticky; top: 0; z-index: 10; background-color: white; border-bottom: 2px solid #e0e0e0;">';
-    html += '<h4 style="margin-bottom: 10px;">Quick Fill All:</h4>';
-    html += '<div style="display: flex; gap: 10px; flex-wrap: wrap;">';
-    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(10)">10 per fortnight</button>';
-    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(15)">15 per fortnight</button>';
-    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(20)">20 per fortnight</button>';
-    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(25)">25 per fortnight</button>';
-    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(0)">Clear All</button>';
+    // Info about FTE settings
+    html += '<div style="margin-bottom: 15px; padding: 10px; background-color: var(--bg-secondary); border-radius: 5px; border-left: 4px solid #2196f3;">';
+    html += '<p style="margin: 0; font-size: 0.9em; color: var(--text-primary);"><strong>Note:</strong> These FTE values are for the current location (' + currentLocation + '). ';
+    html += 'Changes here will apply to the current scenario. To save as system defaults (persistent across refreshes), use "Save as Default" below.</p>';
+    html += '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: var(--text-secondary);"><em>Tip: You can copy/paste values between cells. Select cells with click+drag or Shift+click.</em></p>';
     html += '</div>';
+    
+    // Year navigation
+    html += '<div style="margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 15px;">';
+    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(-1)">◀ Previous</button>';
+    html += '<span id="fte-year-display" style="font-weight: bold; font-size: 1.1em;"></span>';
+    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(1)">Next ▶</button>';
     html += '</div>';
 
     html += generateFTEInputFields();
     html += '</div>';
 
     container.innerHTML = html;
+    
+    // Update year display
+    const currentYear = new Date().getFullYear();
+    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
+    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
+    const yearDisplay = document.getElementById('fte-year-display');
+    if (yearDisplay) {
+        yearDisplay.textContent = `${startYear} - ${endYear}`;
+    }
+    
+    // Setup selection handlers
+    setupFTESelection();
+    
     fteModal.classList.add('active');
 }
 
 function generateFTEInputFields() {
     let html = '';
     
+    // Calculate which years to show
+    const currentYear = new Date().getFullYear();
+    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
+    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
+    
+    // Update year display
+    const yearDisplay = document.getElementById('fte-year-display');
+    if (yearDisplay) {
+        yearDisplay.textContent = `${startYear} - ${endYear}`;
+    }
+    
     // Create a simple table for years with FTE per fortnight
-    html += '<table class="fte-edit-table" style="width: 100%; border-collapse: collapse;">';
+    html += '<table class="fte-edit-table" style="width: 100%; border-collapse: collapse; user-select: none;">';
     html += '<thead>';
     html += '<tr>';
-    html += '<th style="text-align: left; padding: 10px; background-color: #f8f9fa; border: 1px solid #e0e0e0;">Year</th>';
+    html += '<th style="text-align: left; padding: 10px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);">Year</th>';
     
     // Add column headers for each trainer category
     TRAINER_CATEGORIES.forEach(category => {
-        html += `<th style="text-align: center; padding: 10px; background-color: #f8f9fa; border: 1px solid #e0e0e0;">${category}</th>`;
+        html += `<th style="text-align: center; padding: 10px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);">${category}</th>`;
     });
     html += '</tr>';
     html += '</thead>';
-    html += '<tbody>';
+    html += '<tbody id="fte-table-body">';
     
     // Add rows for each year
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
+    for (let year = startYear; year <= endYear; year++) {
         html += '<tr>';
-        html += `<td style="padding: 10px; font-weight: 500; border: 1px solid #e0e0e0;">${year}</td>`;
+        html += `<td style="padding: 10px; font-weight: 500; border: 1px solid var(--border-color); background-color: var(--bg-secondary); color: var(--text-primary);">${year}</td>`;
         
         TRAINER_CATEGORIES.forEach(category => {
             const fortnightlyFTE = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
-            html += `<td style="padding: 8px; text-align: center; border: 1px solid #e0e0e0;">`;
+            html += `<td class="fte-cell" style="padding: 8px; text-align: center; border: 1px solid var(--border-color); cursor: cell;">`;
             html += `<input type="number" id="fte-${year}-${category}" name="fte-${year}-${category}" `;
-            html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center;" `;
-            html += `data-year="${year}" data-category="${category}">`;
-            html += `</td>`;
+            html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: none; background: transparent;" `;
+            html += `data-year="${year}" data-category="${category}" `;
+            html += `onpaste="handleFTEPaste(event, ${year}, '${category}')" onkeydown="handleFTEKeyDown(event, ${year}, '${category}')" `;
+            html += `onfocus="this.select()" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
+            html += `></td>`;
         });
         html += '</tr>';
     }
@@ -4103,15 +4532,299 @@ function generateFTEInputFields() {
     return html;
 }
 
-function quickFillFTE(fortnightlyValue) {
-    // Fill all inputs with the same fortnightly value
-    for (let year = START_YEAR; year <= END_YEAR; year++) {
-        TRAINER_CATEGORIES.forEach(category => {
-            const input = document.getElementById(`fte-${year}-${category}`);
-            if (input) {
-                input.value = fortnightlyValue.toFixed(1);
+// FTE cell selection state
+let fteSelection = {
+    startCell: null,
+    endCell: null,
+    isSelecting: false,
+    selectedCells: new Set()
+};
+
+function navigateFTEYears(direction) {
+    fteYearOffset += direction;
+    
+    // Ensure we stay within bounds
+    const currentYear = new Date().getFullYear();
+    const minOffset = START_YEAR - (currentYear - 1);
+    const maxOffset = END_YEAR - (currentYear + 1);
+    fteYearOffset = Math.max(minOffset, Math.min(maxOffset, fteYearOffset));
+    
+    // Regenerate the table
+    const container = document.getElementById('fte-edit-container');
+    if (container) {
+        const wrapper = container.querySelector('div');
+        if (wrapper) {
+            const existingTable = wrapper.querySelector('.fte-edit-table');
+            if (existingTable) {
+                const newTableHTML = generateFTEInputFields();
+                const tempDiv = document.createElement('div');
+                tempDiv.innerHTML = newTableHTML;
+                existingTable.replaceWith(tempDiv.firstChild);
+                
+                // Update year display
+                const yearDisplay = document.getElementById('fte-year-display');
+                if (yearDisplay) {
+                    const currentYear = new Date().getFullYear();
+                    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
+                    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
+                    yearDisplay.textContent = `${startYear} - ${endYear}`;
+                }
+                
+                // Setup selection handlers
+                setupFTESelection();
             }
-        });
+        }
+    }
+}
+
+function handleFTEMouseDown(event, year, category) {
+    event.preventDefault();
+    
+    // Clear previous selection
+    document.querySelectorAll('.fte-cell.selected').forEach(cell => {
+        cell.classList.remove('selected');
+    });
+    
+    fteSelection.isSelecting = true;
+    fteSelection.startCell = { year, category };
+    fteSelection.endCell = { year, category };
+    fteSelection.selectedCells.clear();
+    
+    // Add selection class
+    const cell = event.target.closest('.fte-cell');
+    if (cell) {
+        cell.classList.add('selected');
+        fteSelection.selectedCells.add(`${year}-${category}`);
+    }
+    
+    // Add document-level mouse events
+    document.addEventListener('mousemove', handleFTEMouseMove);
+    document.addEventListener('mouseup', handleFTEMouseUp);
+    
+    // Enable copy functionality
+    document.addEventListener('copy', handleFTECopy);
+}
+
+function handleFTEMouseMove(event) {
+    if (!fteSelection.isSelecting) return;
+    
+    // Find the cell under the mouse
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    const input = element?.closest('input[data-year][data-category]');
+    
+    if (input) {
+        const year = parseInt(input.dataset.year);
+        const category = input.dataset.category;
+        
+        if (year && category) {
+            fteSelection.endCell = { year, category };
+            updateFTESelection();
+        }
+    }
+}
+
+function handleFTEMouseUp() {
+    fteSelection.isSelecting = false;
+    document.removeEventListener('mousemove', handleFTEMouseMove);
+    document.removeEventListener('mouseup', handleFTEMouseUp);
+}
+
+function updateFTESelection() {
+    // Clear previous selection
+    document.querySelectorAll('.fte-cell.selected').forEach(cell => {
+        cell.classList.remove('selected');
+    });
+    fteSelection.selectedCells.clear();
+    
+    if (!fteSelection.startCell || !fteSelection.endCell) return;
+    
+    // Calculate selection bounds
+    const startYearIndex = fteSelection.startCell.year - START_YEAR;
+    const endYearIndex = fteSelection.endCell.year - START_YEAR;
+    const startCatIndex = TRAINER_CATEGORIES.indexOf(fteSelection.startCell.category);
+    const endCatIndex = TRAINER_CATEGORIES.indexOf(fteSelection.endCell.category);
+    
+    const minYear = Math.min(fteSelection.startCell.year, fteSelection.endCell.year);
+    const maxYear = Math.max(fteSelection.startCell.year, fteSelection.endCell.year);
+    const minCat = Math.min(startCatIndex, endCatIndex);
+    const maxCat = Math.max(startCatIndex, endCatIndex);
+    
+    // Select all cells in the rectangle
+    for (let y = minYear; y <= maxYear; y++) {
+        for (let c = minCat; c <= maxCat; c++) {
+            const category = TRAINER_CATEGORIES[c];
+            const input = document.getElementById(`fte-${y}-${category}`);
+            if (input) {
+                const cell = input.closest('.fte-cell');
+                if (cell) {
+                    cell.classList.add('selected');
+                    fteSelection.selectedCells.add(`${y}-${category}`);
+                }
+            }
+        }
+    }
+}
+
+function handleFTECopy(event) {
+    if (fteSelection.selectedCells.size === 0) return;
+    
+    event.preventDefault();
+    
+    // Get selected values in order
+    const values = [];
+    const cells = Array.from(fteSelection.selectedCells).sort((a, b) => {
+        const [yearA, catA] = a.split('-');
+        const [yearB, catB] = b.split('-');
+        const catIndexA = TRAINER_CATEGORIES.indexOf(catA);
+        const catIndexB = TRAINER_CATEGORIES.indexOf(catB);
+        
+        if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
+        return catIndexA - catIndexB;
+    });
+    
+    let currentYear = null;
+    let rowValues = [];
+    
+    cells.forEach(cellKey => {
+        const [year, category] = cellKey.split('-');
+        if (currentYear && year !== currentYear) {
+            values.push(rowValues.join('\t'));
+            rowValues = [];
+        }
+        currentYear = year;
+        
+        const input = document.getElementById(`fte-${year}-${category}`);
+        if (input) {
+            rowValues.push(input.value);
+        }
+    });
+    
+    if (rowValues.length > 0) {
+        values.push(rowValues.join('\t'));
+    }
+    
+    // Copy to clipboard
+    event.clipboardData.setData('text/plain', values.join('\n'));
+}
+
+function setupFTESelection() {
+    // Add selection styles if not already present
+    if (!document.getElementById('fte-selection-styles')) {
+        const style = document.createElement('style');
+        style.id = 'fte-selection-styles';
+        style.textContent = `
+            .fte-cell.selected {
+                background-color: rgba(52, 152, 219, 0.2) !important;
+            }
+            .dark-mode .fte-cell.selected {
+                background-color: rgba(52, 152, 219, 0.3) !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+}
+
+function saveFTEAsDefault() {
+    // First, save the current form values
+    const form = document.getElementById('fte-edit-form');
+    if (form) {
+        // Trigger form save first
+        const event = new Event('submit', { cancelable: true });
+        form.dispatchEvent(event);
+    }
+    
+    // Then save as default
+    saveDefaultFTE();
+    showNotification(`Default FTE values saved for ${currentLocation}. These will persist across browser refreshes.`, 'success');
+}
+
+// Handle paste event in FTE cells
+function handleFTEPaste(event, year, category) {
+    event.preventDefault();
+    const pastedData = event.clipboardData.getData('text');
+    const values = pastedData.split(/[\t\n\r,;\s]+/).filter(v => v.trim() !== '');
+    
+    if (values.length === 0) return;
+    
+    // Get current position
+    const yearIndex = year - START_YEAR;
+    const categoryIndex = TRAINER_CATEGORIES.indexOf(category);
+    
+    let valueIndex = 0;
+    
+    // Paste across categories first, then years
+    for (let y = yearIndex; y <= END_YEAR - START_YEAR && valueIndex < values.length; y++) {
+        for (let c = categoryIndex; c < TRAINER_CATEGORIES.length && valueIndex < values.length; c++) {
+            const targetYear = START_YEAR + y;
+            const targetCategory = TRAINER_CATEGORIES[c];
+            const input = document.getElementById(`fte-${targetYear}-${targetCategory}`);
+            
+            if (input) {
+                const value = parseFloat(values[valueIndex]);
+                if (!isNaN(value)) {
+                    input.value = value.toFixed(1);
+                }
+                valueIndex++;
+            }
+        }
+        // Reset to first category for next row
+        if (valueIndex < values.length && y < END_YEAR - START_YEAR) {
+            categoryIndex = 0;
+        }
+    }
+}
+
+// Handle keyboard navigation in FTE grid
+function handleFTEKeyDown(event, year, category) {
+    const categoryIndex = TRAINER_CATEGORIES.indexOf(category);
+    let newYear = year;
+    let newCategory = category;
+    
+    switch(event.key) {
+        case 'ArrowUp':
+            if (year > START_YEAR) {
+                newYear = year - 1;
+                event.preventDefault();
+            }
+            break;
+        case 'ArrowDown':
+            if (year < END_YEAR) {
+                newYear = year + 1;
+                event.preventDefault();
+            }
+            break;
+        case 'ArrowLeft':
+            if (categoryIndex > 0) {
+                newCategory = TRAINER_CATEGORIES[categoryIndex - 1];
+                event.preventDefault();
+            }
+            break;
+        case 'ArrowRight':
+            if (categoryIndex < TRAINER_CATEGORIES.length - 1) {
+                newCategory = TRAINER_CATEGORIES[categoryIndex + 1];
+                event.preventDefault();
+            }
+            break;
+        case 'Enter':
+            if (event.shiftKey && year > START_YEAR) {
+                newYear = year - 1;
+            } else if (year < END_YEAR) {
+                newYear = year + 1;
+            }
+            event.preventDefault();
+            break;
+        case 'Tab':
+            // Let default tab behavior work
+            return;
+        default:
+            return;
+    }
+    
+    // Focus the new cell
+    const newInput = document.getElementById(`fte-${newYear}-${newCategory}`);
+    if (newInput) {
+        newInput.focus();
+        newInput.select();
     }
 }
 
@@ -5189,6 +5902,9 @@ function performMerge() {
     // Close dialog
     document.getElementById('merge-dialog').remove();
     
+    // Recalculate demand after merge
+    calculateDemand();
+    
     // Update UI
     updateAllTables();
     renderGanttChart();
@@ -5299,6 +6015,34 @@ function toggleGroup(groupName) {
         viewState.collapsedGroups.push(groupName);
     }
     renderGanttChart();
+}
+
+// Toggle Commencement Cross-Location View
+function toggleCommencementCrossLocation() {
+    viewState.showCrossLocationCommencements = !viewState.showCrossLocationCommencements;
+    
+    // Update button text and style
+    const btn = document.querySelector('[onclick="toggleCommencementCrossLocation()"]');
+    const text = document.getElementById('commencement-cross-loc-text');
+    const icon = document.getElementById('commencement-cross-loc-icon');
+    
+    if (viewState.showCrossLocationCommencements) {
+        text.textContent = 'Cross-Location ON';
+        icon.textContent = '✓';
+        btn.style.background = '#2ecc71';
+        btn.style.color = 'white';
+    } else {
+        text.textContent = 'Cross-Location OFF';
+        icon.textContent = '🌐';
+        btn.style.background = '';
+        btn.style.color = '';
+    }
+    
+    // Re-render the commencement summary
+    const commencementBtn = document.getElementById('toggle-commencement-btn');
+    if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
+        renderCommencementSummary();
+    }
 }
 
 // Toggle Demand Split View
@@ -7159,18 +7903,44 @@ function updateScenarioPreview(name = null, description = null) {
         document.getElementById('preview-cohorts').textContent = scenario.stats.totalCohorts;
         document.getElementById('preview-trainees').textContent = scenario.stats.totalTrainees;
     } else {
-        // Use current state
-        document.getElementById('preview-cohorts').textContent = activeCohorts.length;
-        document.getElementById('preview-trainees').textContent = 
-            activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+        // Calculate AU/NZ breakdown using locationData
+        const auCohorts = locationData.AU.activeCohorts || [];
+        const nzCohorts = locationData.NZ.activeCohorts || [];
+        const auTrainees = auCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+        const nzTrainees = nzCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+        const totalCohorts = auCohorts.length + nzCohorts.length;
+        const totalTrainees = auTrainees + nzTrainees;
+        
+        // Display with location breakdown
+        let cohortsText = `${totalCohorts}`;
+        if (totalCohorts > 0) {
+            cohortsText += ` (AU: ${auCohorts.length}, NZ: ${nzCohorts.length})`;
+        }
+        
+        let traineesText = `${totalTrainees}`;
+        if (totalTrainees > 0) {
+            traineesText += ` (AU: ${auTrainees}, NZ: ${nzTrainees})`;
+        }
+        
+        document.getElementById('preview-cohorts').textContent = cohortsText;
+        document.getElementById('preview-trainees').textContent = traineesText;
     }
     
-    // Calculate date range
-    const cohorts = scenario ? scenario.state.cohorts : activeCohorts;
-    const scenarioPathways = scenario ? scenario.state.pathways : pathways;
+    // Calculate date range across both locations
+    let allCohorts;
+    let scenarioPathways;
     
-    if (cohorts.length > 0) {
-        const dates = cohorts.map(c => ({
+    if (scenario) {
+        allCohorts = scenario.state.cohorts || [];
+        scenarioPathways = scenario.state.pathways;
+    } else {
+        // Combine cohorts from both locations
+        allCohorts = [...(locationData.AU.activeCohorts || []), ...(locationData.NZ.activeCohorts || [])];
+        scenarioPathways = pathways; // Current location's pathways
+    }
+    
+    if (allCohorts.length > 0) {
+        const dates = allCohorts.map(c => ({
             year: c.startYear,
             fortnight: c.startFortnight
         }));
@@ -7186,22 +7956,54 @@ function updateScenarioPreview(name = null, description = null) {
         document.getElementById('preview-daterange').textContent = 'No cohorts';
     }
     
-    // Calculate pathways in use
-    if (cohorts.length > 0) {
-        const pathwayCount = {};
-        cohorts.forEach(cohort => {
-            const pathway = scenarioPathways.find(p => p.id === cohort.pathwayId);
-            if (pathway) {
-                const type = pathway.type;
-                pathwayCount[type] = (pathwayCount[type] || 0) + cohort.numTrainees;
+    // Calculate pathways in use by location
+    if (allCohorts.length > 0) {
+        const pathwayCountByLocation = { AU: {}, NZ: {} };
+        
+        if (scenario) {
+            // For saved scenarios, use the cohort's location property
+            allCohorts.forEach(cohort => {
+                const cohortLocation = cohort.location || 'AU';
+                const pathway = scenarioPathways.find(p => p.id === cohort.pathwayId);
+                if (pathway) {
+                    const type = pathway.type;
+                    if (!pathwayCountByLocation[cohortLocation]) {
+                        pathwayCountByLocation[cohortLocation] = {};
+                    }
+                    pathwayCountByLocation[cohortLocation][type] = 
+                        (pathwayCountByLocation[cohortLocation][type] || 0) + cohort.numTrainees;
+                }
+            });
+        } else {
+            // For current state, process each location separately
+            ['AU', 'NZ'].forEach(loc => {
+                const locCohorts = locationData[loc].activeCohorts || [];
+                const locPathways = locationData[loc].pathways || [];
+                
+                locCohorts.forEach(cohort => {
+                    const pathway = locPathways.find(p => p.id === cohort.pathwayId);
+                    if (pathway) {
+                        const type = pathway.type;
+                        pathwayCountByLocation[loc][type] = 
+                            (pathwayCountByLocation[loc][type] || 0) + cohort.numTrainees;
+                    }
+                });
+            });
+        }
+        
+        // Format pathways display with location breakdown
+        const pathwaysList = [];
+        ['AU', 'NZ'].forEach(loc => {
+            const locCounts = pathwayCountByLocation[loc];
+            if (Object.keys(locCounts).length > 0) {
+                const locList = Object.entries(locCounts)
+                    .map(([type, count]) => `${count} ${type}`)
+                    .join(', ');
+                pathwaysList.push(`${loc}: ${locList}`);
             }
         });
         
-        const pathwaysList = Object.entries(pathwayCount)
-            .map(([type, count]) => `${count} ${type}`)
-            .join(', ');
-        
-        document.getElementById('preview-pathways').textContent = pathwaysList || 'None';
+        document.getElementById('preview-pathways').textContent = pathwaysList.join(' | ') || 'None';
     } else {
         document.getElementById('preview-pathways').textContent = 'None';
     }
@@ -7242,6 +8044,7 @@ function handleScenarioSave(event) {
         };
     }
     
+    ensureScenarios();
     scenarios.push(scenario);
     localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
     
@@ -7270,7 +8073,7 @@ function closeScenarioModal() {
     window.pendingDuplicateScenario = null;
 }
 
-function showNotification(message, type = 'info') {
+function showNotification(message, type = 'info', duration = 5000) {
     const toastContainer = document.getElementById('toast-container');
     
     // Create toast element
@@ -7294,10 +8097,15 @@ function showNotification(message, type = 'info') {
     // Add to container
     toastContainer.appendChild(toast);
     
-    // Auto remove after 5 seconds
-    setTimeout(() => {
-        removeToast(toast.querySelector('.toast-close'));
-    }, 5000);
+    // Auto remove after specified duration (0 means no auto-remove)
+    if (duration > 0) {
+        setTimeout(() => {
+            removeToast(toast.querySelector('.toast-close'));
+        }, duration);
+    }
+    
+    // Return the toast element so it can be removed manually
+    return toast;
 }
 
 // Show centered notification (for page refresh)
@@ -7418,7 +8226,7 @@ function updateCurrentScenario() {
     }
     
     // Find the current scenario
-    const scenarioIndex = scenarios.findIndex(s => s.id === viewState.currentScenarioId);
+    const scenarioIndex = getScenarios().findIndex(s => s.id === viewState.currentScenarioId);
     if (scenarioIndex === -1) {
         showNotification('Current scenario not found.', 'error');
         return;
@@ -7450,7 +8258,7 @@ function updateCurrentScenario() {
 }
 
 function loadScenarioWithoutConfirm(scenarioId) {
-    const scenario = scenarios.find(s => s.id === scenarioId);
+    const scenario = getScenarios().find(s => s.id === scenarioId);
     if (!scenario) return;
     
     loadScenarioData(scenario);
@@ -7469,8 +8277,12 @@ function loadScenarioDataOnly(scenario) {
     if (scenario.state.locationData) {
         // New format with location data
         locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
-        currentLocation = scenario.state.currentLocation || 'AU';
-        viewState.currentLocation = currentLocation;
+        // Only use scenario's location if we don't have a saved preference
+        const savedLocation = localStorage.getItem('currentLocation');
+        if (!savedLocation) {
+            currentLocation = scenario.state.currentLocation || 'AU';
+            viewState.currentLocation = currentLocation;
+        }
         
         // Load data for current location
         pathways = locationData[currentLocation].pathways;
@@ -7501,9 +8313,8 @@ function loadScenarioDataOnly(scenario) {
         locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
-        // Set current location
-        currentLocation = nzCohorts.length > 0 && auCohorts.length === 0 ? 'NZ' : 'AU';
-        viewState.currentLocation = currentLocation;
+        // Don't override the saved location preference
+        // The location should already be set from localStorage in init()
         
         // Update activeCohorts to current location's cohorts
         activeCohorts = locationData[currentLocation].activeCohorts;
@@ -7522,7 +8333,7 @@ function loadScenarioDataOnly(scenario) {
 }
 
 function loadScenario(scenarioId) {
-    const scenario = scenarios.find(s => s.id === scenarioId);
+    const scenario = getScenarios().find(s => s.id === scenarioId);
     if (!scenario) return;
     
     if (viewState.isDirty) {
@@ -7546,8 +8357,12 @@ function loadScenarioData(scenario) {
     if (scenario.state.locationData) {
         // New format with location data
         locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
-        currentLocation = scenario.state.currentLocation || 'AU';
-        viewState.currentLocation = currentLocation;
+        // Only use scenario's location if we don't have a saved preference
+        const savedLocation = localStorage.getItem('currentLocation');
+        if (!savedLocation) {
+            currentLocation = scenario.state.currentLocation || 'AU';
+            viewState.currentLocation = currentLocation;
+        }
         
         // Load data for current location
         pathways = locationData[currentLocation].pathways;
@@ -7585,14 +8400,8 @@ function loadScenarioData(scenario) {
         locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
-        // Set current location based on where we have cohorts
-        if (nzCohorts.length > 0 && auCohorts.length === 0) {
-            currentLocation = 'NZ';
-            viewState.currentLocation = 'NZ';
-        } else {
-            currentLocation = 'AU';
-            viewState.currentLocation = 'AU';
-        }
+        // Don't override the saved location preference during scenario load
+        // The user's location preference should persist
         
         // Update activeCohorts to current location's cohorts
         activeCohorts = locationData[currentLocation].activeCohorts;
@@ -7617,10 +8426,8 @@ function loadScenarioData(scenario) {
     renderGanttChart();
     populatePathwaySelect();
     
-    // Update dashboard if it exists
-    if (typeof updateDashboard === 'function') {
-        updateDashboard();
-    }
+    // Update dashboard
+    updateDashboardV2();
     
     // Re-establish synchronized scrolling after a delay to ensure all tables are rendered
     setTimeout(() => {
@@ -7654,6 +8461,7 @@ function loadScenarioData(scenario) {
 function deleteScenario(scenarioId) {
     if (!confirm('Are you sure you want to delete this scenario?')) return;
     
+    ensureScenarios();
     const deletedScenario = scenarios.find(s => s.id === scenarioId);
     scenarios = scenarios.filter(s => s.id !== scenarioId);
     localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
@@ -7669,7 +8477,7 @@ function deleteScenario(scenarioId) {
 }
 
 function duplicateScenario(scenarioId) {
-    const originalScenario = scenarios.find(s => s.id === scenarioId);
+    const originalScenario = getScenarios().find(s => s.id === scenarioId);
     if (!originalScenario) return;
     
     // Create a deep copy of the scenario
@@ -7704,7 +8512,8 @@ function duplicateScenario(scenarioId) {
 function renderScenarioList() {
     const container = document.getElementById('scenario-list');
     
-    if (scenarios.length === 0) {
+    const loadedScenarios = getScenarios();
+    if (loadedScenarios.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #999;">No saved scenarios yet</p>';
         updateScenarioCount();
         return;
@@ -7715,7 +8524,7 @@ function renderScenarioList() {
     const sortValue = sortSelect ? sortSelect.value : 'date-desc';
     
     // Sort scenarios
-    const sortedScenarios = [...scenarios].sort((a, b) => {
+    const sortedScenarios = [...loadedScenarios].sort((a, b) => {
         switch (sortValue) {
             case 'date-desc':
                 return new Date(b.date) - new Date(a.date);
@@ -7779,7 +8588,7 @@ function updateCurrentScenarioDisplay() {
     const updateBtn = document.getElementById('update-current-scenario');
     
     if (viewState.currentScenarioId) {
-        const scenario = scenarios.find(s => s.id === viewState.currentScenarioId);
+        const scenario = getScenarios().find(s => s.id === viewState.currentScenarioId);
         if (scenario) {
             const displayName = scenario.name + (viewState.isDirty ? ' (modified)' : '');
             nameSpan.textContent = displayName;
@@ -7848,7 +8657,8 @@ function exportScenario(scenarioId) {
 
 // Export all scenarios
 function exportAllScenarios() {
-    if (scenarios.length === 0) {
+    const loadedScenarios = getScenarios();
+    if (loadedScenarios.length === 0) {
         showNotification('No scenarios to export', 'warning');
         return;
     }
@@ -7856,7 +8666,7 @@ function exportAllScenarios() {
     const exportData = {
         version: '1.0',
         exportDate: new Date().toISOString(),
-        scenarios: scenarios
+        scenarios: loadedScenarios
     };
     
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -7867,7 +8677,7 @@ function exportAllScenarios() {
     link.download = `all_scenarios_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     
-    showNotification(`Exported ${scenarios.length} scenario${scenarios.length > 1 ? 's' : ''}`, 'success');
+    showNotification(`Exported ${loadedScenarios.length} scenario${loadedScenarios.length > 1 ? 's' : ''}`, 'success');
 }
 
 // Import scenarios
@@ -7891,6 +8701,7 @@ function importScenarios(event) {
             
             for (const scenario of importedScenarios) {
                 // Check for name conflicts
+                ensureScenarios();
                 const existingScenario = scenarios.find(s => s.name === scenario.name);
                 
                 if (existingScenario) {
@@ -7913,7 +8724,7 @@ function importScenarios(event) {
                             // Check if it's the old format (fortnight numbers as keys)
                             const keys = Object.keys(cohort.crossLocationTraining);
                             if (keys.length > 0 && !isNaN(keys[0])) {
-                                console.log('Converting legacy cross-location format for cohort:', cohort);
+                                // console.log('Converting legacy cross-location format for cohort:', cohort);
                                 cohort.crossLocationTraining = convertLegacyCrossLocation(cohort, scenario.state.pathways);
                             }
                         }
@@ -8091,8 +8902,9 @@ function compareScenarios() {
     }
     
     const [id1, id2] = Array.from(selectedForComparison);
-    const scenario1 = scenarios.find(s => s.id === id1);
-    const scenario2 = scenarios.find(s => s.id === id2);
+    const loadedScenarios = getScenarios();
+    const scenario1 = loadedScenarios.find(s => s.id === id1);
+    const scenario2 = loadedScenarios.find(s => s.id === id2);
     
     if (!scenario1 || !scenario2) {
         showNotification('Error loading scenarios for comparison', 'error');
@@ -8907,12 +9719,12 @@ function updateAlerts() {
 
 // Dashboard V2 Functions
 function updateDashboardV2() {
-    console.log('Updating Dashboard V2', {
-        activeCohorts: activeCohorts.length,
-        currentLocation: currentLocation,
-        pathways: pathways.length,
-        trainerFTE: Object.keys(trainerFTE).length
-    });
+    // console.log('Updating Dashboard V2', {
+    //     activeCohorts: activeCohorts.length,
+    //     currentLocation: currentLocation,
+    //     pathways: pathways.length,
+    //     trainerFTE: Object.keys(trainerFTE).length
+    // });
     
     updateMetricsV2();
     updateChartsV2();
@@ -8978,7 +9790,9 @@ function updateChartsV2() {
 }
 
 function updateDemandChartV2() {
-    const ctx = document.getElementById('demand-chart-v2').getContext('2d');
+    const ctx = document.getElementById('demand-chart-v2')?.getContext('2d');
+    if (!ctx) return;
+    
     const { demand } = calculateDemand();
     
     // Prepare data for the next 12 months
@@ -8987,6 +9801,7 @@ function updateDemandChartV2() {
     const supplyData = [];
     
     const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -9569,14 +10384,16 @@ function updateTrainerHeatmap() {
     if (!container) return;
     
     const { demand } = calculateDemand();
-    const currentYear = new Date().getFullYear();
+    const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    const currentYear = currentDate.getFullYear();
     
-    console.log('Heat map data:', {
-        demand: demand,
-        currentYear: currentYear,
-        trainerFTE: trainerFTE[currentYear],
-        hasData: demand && demand[currentYear]
-    });
+    // console.log('Heat map data:', {
+    //     demand: demand,
+    //     currentYear: currentYear,
+    //     trainerFTE: trainerFTE[currentYear],
+    //     hasData: demand && demand[currentYear]
+    // });
     
     // Check if we have any data to display
     const hasCurrentYearData = demand && demand[currentYear] && Object.keys(demand[currentYear]).length > 0;
@@ -9794,6 +10611,7 @@ function updateSupplyDemandChart() {
     
     const { demand } = calculateDemand();
     const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -10225,11 +11043,13 @@ function updateWorkloadChart() {
 
 function updateDetailCards() {
     const { demand } = calculateDemand();
-    const currentYear = new Date().getFullYear();
+    const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    const currentYear = currentDate.getFullYear();
     const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
     
-    console.log('UpdateDetailCards - demand:', demand);
-    console.log('UpdateDetailCards - cohorts:', cohorts.length);
+    // console.log('UpdateDetailCards - demand:', demand);
+    // console.log('UpdateDetailCards - cohorts:', cohorts.length);
     
     // Find peak demand period
     let peakDemand = 0;
@@ -10307,7 +11127,10 @@ window.removeCohort = removeCohort;
 window.editCohort = editCohort;
 window.editPathway = editPathway;
 window.removePhase = removePhase;
-window.quickFillFTE = quickFillFTE;
+window.navigateFTEYears = navigateFTEYears;
+window.handleFTEPaste = handleFTEPaste;
+window.handleFTEKeyDown = handleFTEKeyDown;
+window.handleFTEMouseDown = handleFTEMouseDown;
 window.toggleGroup = toggleGroup;
 window.loadScenario = loadScenario;
 window.deleteScenario = deleteScenario;
@@ -10315,6 +11138,27 @@ window.updateCurrentScenario = updateCurrentScenario;
 window.acknowledgeAlert = acknowledgeAlert;
 window.dismissAlert = dismissAlert;
 window.exportChart = exportChart;
+window.toggleCommencementCrossLocation = toggleCommencementCrossLocation;
+window.navigateDashboard = navigateDashboard;
+window.saveFTEAsDefault = saveFTEAsDefault;
+window.toggleDemandSplitView = toggleDemandSplitView;
+window.showHelpModal = showHelpModal;
+
+// Merge dialog functions
+window.selectAllMergeGroups = selectAllMergeGroups;
+window.deselectAllMergeGroups = deselectAllMergeGroups;
+window.updateMergeSelection = updateMergeSelection;
+window.toggleMergeDetails = toggleMergeDetails;
+window.performMerge = performMerge;
+
+// Additional functions
+window.removeToast = removeToast;
+window.handleCardClick = handleCardClick;
+window.duplicateScenario = duplicateScenario;
+window.exportAllScenarios = exportAllScenarios;
+window.importScenarios = importScenarios;
+window.exportScenario = exportScenario;
+window.compareScenarios = compareScenarios;
 
 // Test function for debugging sync
 window.testSync = function() {
@@ -10862,12 +11706,8 @@ window.addDemoDashboardData = function() {
     
     // Update dashboard if on dashboard view
     if (dashboardView.classList.contains('active')) {
-        const dashboardVersion = localStorage.getItem('dashboardVersion') || 'classic';
-        if (dashboardVersion === 'enhanced') {
-            updateDashboardV2();
-        } else {
-            updateDashboard();
-        }
+        // Always use enhanced dashboard
+        updateDashboardV2();
     }
     
     showNotification('Demo data loaded successfully', 'success');
