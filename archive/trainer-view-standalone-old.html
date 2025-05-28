@@ -3,51 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pilot Trainer Supply/Demand Planner - v1.8.0</title>
-    <script>
-        // Apply dark mode immediately to prevent flash
-        const isDarkMode = localStorage.getItem('darkMode') === 'true';
-        if (isDarkMode) {
-            document.documentElement.classList.add('dark-mode-loading');
-            // Also store the active tab for proper styling
-            const activeTab = localStorage.getItem('activeTab') || 'dashboard';
-            document.documentElement.setAttribute('data-active-tab', activeTab);
-        }
-        // Store current location for immediate application
-        const savedLocation = localStorage.getItem('currentLocation');
-        if (savedLocation) {
-            document.documentElement.setAttribute('data-location', savedLocation);
-        }
-    </script>
-    <style>
-        /* Critical inline styles to prevent FOUC */
-        .table-container { min-height: 100px; }
-        .sticky-first-column { left: 0 !important; }
-        
-        /* Apply active state based on saved location */
-        html[data-location="AU"] .location-toggle[data-location="AU"],
-        html:not([data-location]) .location-toggle[data-location="AU"] {
-            background-color: #2196F3;
-            color: white;
-        }
-        html[data-location="NZ"] .location-toggle[data-location="NZ"] {
-            background-color: #2196F3;
-            color: white;
-        }
-        
-        /* Dark mode button styles to prevent flash */
-        html.dark-mode-loading #dark-mode-toggle {
-            background-color: #444;
-            color: #e0e0e0;
-            border-color: #666;
-        }
-        html.dark-mode-loading .btn.btn-secondary {
-            background-color: #444;
-            border-color: #666;
-            color: #e0e0e0;
-        }
-    </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <title>Pilot Trainer Supply/Demand Planner</title>
     <style>
 /* General Styles */
 * {
@@ -322,34 +278,10 @@ body.dark-mode .help-content h2 {
     margin-top: 30px;
     margin-bottom: 15px;
     color: #444;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 8px;
 }
 
 body.dark-mode .help-content h3 {
     color: #ccc;
-    border-bottom-color: #444;
-}
-
-.help-content h4 {
-    margin-top: 20px;
-    margin-bottom: 10px;
-    color: #555;
-}
-
-body.dark-mode .help-content h4 {
-    color: #bbb;
-}
-
-.help-content h5 {
-    margin-top: 15px;
-    margin-bottom: 8px;
-    color: #666;
-    font-size: 1.1em;
-}
-
-body.dark-mode .help-content h5 {
-    color: #aaa;
 }
 
 .help-content p {
@@ -370,23 +302,12 @@ body.dark-mode .help-content h5 {
     background-color: #f4f4f4;
     padding: 2px 6px;
     border-radius: 3px;
-    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-family: monospace;
     font-size: 0.9em;
-    color: #d73a49;
 }
 
 body.dark-mode .help-content code {
     background-color: #333;
-    color: #f97583;
-}
-
-.help-content strong {
-    color: #333;
-    font-weight: 600;
-}
-
-body.dark-mode .help-content strong {
-    color: #f0f0f0;
 }
 
 .help-example {
@@ -2731,6 +2652,8 @@ body.dark-mode .gantt-phase-cell {
     width: 100%;
     height: 100%;
     background-color: rgba(0,0,0,0.5);
+    align-items: center;
+    justify-content: center;
 }
 
 .modal.active {
@@ -6104,444 +6027,52 @@ body.dark-mode .data-cell:has(span[style*="color: #3498db"]) {
 body.dark-mode .cross-location-row .gantt-cohort-cell {
     color: #5dade2;
 }
-
-/* Separator row styles for surplus/deficit table */
-.separator-row .separator-cell {
-    height: 5px;
-    background: #f0f0f0;
-    padding: 0;
-    border: none;
-}
-
-body.dark-mode .separator-row .separator-cell {
-    background: #333;
-}
-
-/* Smart Optimizer Styles */
-.smart-input-grid {
-    background: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
-    margin-bottom: 20px;
-}
-
-body.dark-mode .smart-input-grid {
-    background: #2a2a2a;
-}
-
-.smart-results-summary {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 25px;
-    margin: 20px 0;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-}
-
-body.dark-mode .smart-results-summary {
-    background: #2a2a2a;
-    border-color: #444;
-}
-
-.feasibility-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 16px;
-    border-radius: 20px;
-    font-weight: 600;
-    margin-bottom: 20px;
-}
-
-.feasibility-badge.partial {
-    background: #fff3cd;
-    color: #856404;
-}
-
-.feasibility-badge.full {
-    background: #d4edda;
-    color: #155724;
-}
-
-.feasibility-badge.not-feasible {
-    background: #f8d7da;
-    color: #721c24;
-}
-
-.achievement-list {
-    list-style: none;
-    padding: 0;
-    margin: 20px 0;
-}
-
-.achievement-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 0;
-    border-bottom: 1px solid #eee;
-}
-
-body.dark-mode .achievement-item {
-    border-bottom-color: #444;
-}
-
-.achievement-item:last-child {
-    border-bottom: none;
-}
-
-.achievement-label {
-    font-weight: 500;
-}
-
-.achievement-status {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-}
-
-.achievement-status.complete {
-    color: #28a745;
-}
-
-.achievement-status.partial {
-    color: #ffc107;
-}
-
-.smart-option-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 15px;
-    transition: all 0.2s;
-    cursor: pointer;
-}
-
-body.dark-mode .smart-option-card {
-    background: #2a2a2a;
-    border-color: #444;
-}
-
-.smart-option-card:hover {
-    border-color: #3498db;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-}
-
-.smart-option-card.selected {
-    border-color: #3498db;
-    border-width: 2px;
-}
-
-.option-pros-cons {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 20px;
-    margin-top: 15px;
-}
-
-.pros-list, .cons-list {
-    padding-left: 20px;
-}
-
-.pros-list li {
-    color: #28a745;
-}
-
-.cons-list li {
-    color: #dc3545;
-}
-
-body.dark-mode .pros-list li {
-    color: #5cb85c;
-}
-
-body.dark-mode .cons-list li {
-    color: #d9534f;
-}
-
-/* Deficit Resolution Assistant Styles */
-.deficit-indicator {
-    position: fixed;
-    bottom: 30px;
-    right: 30px;
-    background: white;
-    border: 2px solid #dc3545;
-    border-radius: 12px;
-    padding: 15px 20px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    z-index: 1000;
-    animation: pulse 2s ease-in-out infinite;
-    cursor: pointer;
-    transition: all 0.3s;
-}
-
-body.dark-mode .deficit-indicator {
-    background: #2a2a2a;
-    border-color: #dc3545;
-}
-
-@keyframes pulse {
-    0%, 100% {
-        transform: scale(1);
-    }
-    50% {
-        transform: scale(1.02);
-    }
-}
-
-.deficit-indicator:hover {
-    transform: scale(1.05);
-    box-shadow: 0 6px 16px rgba(0,0,0,0.3);
-}
-
-.deficit-indicator-content {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.deficit-icon {
-    font-size: 24px;
-}
-
-.deficit-count {
-    font-weight: 600;
-    font-size: 16px;
-    color: #dc3545;
-}
-
-.deficit-breakdown {
-    font-size: 12px;
-    color: #666;
-    margin-top: 2px;
-}
-
-body.dark-mode .deficit-breakdown {
-    color: #aaa;
-}
-
-.deficit-resolve-btn {
-    background: #dc3545;
-    color: white;
-    border: none;
-    padding: 8px 16px;
-    border-radius: 6px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.deficit-resolve-btn:hover {
-    background: #c82333;
-}
-
-.deficit-analysis-section {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 20px;
-    margin-bottom: 20px;
-}
-
-body.dark-mode .deficit-analysis-section {
-    background: #1a1a1a;
-}
-
-.deficit-period {
-    margin-bottom: 15px;
-    padding: 15px;
-    background: white;
-    border-radius: 6px;
-    border-left: 4px solid #dc3545;
-}
-
-body.dark-mode .deficit-period {
-    background: #2a2a2a;
-}
-
-.deficit-period-header {
-    font-weight: 600;
-    margin-bottom: 10px;
-}
-
-.deficit-details {
-    font-size: 14px;
-    color: #666;
-}
-
-body.dark-mode .deficit-details {
-    color: #aaa;
-}
-
-.solution-card {
-    background: white;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 10px;
-    transition: all 0.2s;
-}
-
-body.dark-mode .solution-card {
-    background: #2a2a2a;
-    border-color: #444;
-}
-
-.solution-card:hover {
-    border-color: #3498db;
-}
-
-.solution-checkbox {
-    margin-right: 10px;
-}
-
-.solution-impact {
-    float: right;
-    color: #28a745;
-    font-weight: 500;
-}
-
-/* Info icon and tooltip styles */
-.info-icon-wrapper {
-    position: relative;
-    display: inline-block;
-    margin-left: 8px;
-}
-
-.info-icon {
-    display: inline-block;
-    width: 20px;
-    height: 20px;
-    line-height: 20px;
-    text-align: center;
-    background: #e3f2fd;
-    color: #1976d2;
-    border-radius: 50%;
-    font-size: 14px;
-    font-weight: bold;
-    cursor: help;
-    transition: background-color 0.2s;
-}
-
-.info-icon:hover {
-    background: #bbdefb;
-}
-
-.info-tooltip {
-    position: absolute;
-    top: 30px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 320px;
-    padding: 15px;
-    background: white;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s, visibility 0.3s;
-    z-index: 1000;
-}
-
-.info-icon-wrapper:hover .info-tooltip {
-    opacity: 1;
-    visibility: visible;
-}
-
-.info-tooltip h4 {
-    margin: 0 0 10px 0;
-    color: #333;
-    font-size: 16px;
-}
-
-.info-tooltip p {
-    margin: 8px 0;
-    color: #666;
-    font-size: 14px;
-    line-height: 1.5;
-}
-
-.info-tooltip ul {
-    margin: 10px 0;
-    padding-left: 20px;
-}
-
-.info-tooltip li {
-    margin: 5px 0;
-    color: #666;
-    font-size: 14px;
-}
-
-.info-tooltip strong {
-    color: #333;
-}
-
-/* Dark mode support for info tooltip */
-body.dark-mode .info-icon {
-    background: #1e3a5f;
-    color: #64b5f6;
-}
-
-body.dark-mode .info-icon:hover {
-    background: #2c4a6f;
-}
-
-body.dark-mode .info-tooltip {
-    background: #2a2a2a;
-    border-color: #444;
-}
-
-body.dark-mode .info-tooltip h4 {
-    color: #e0e0e0;
-}
-
-body.dark-mode .info-tooltip p,
-body.dark-mode .info-tooltip li {
-    color: #bbb;
-}
-
-body.dark-mode .info-tooltip strong {
-    color: #e0e0e0;
-}
-
-/* Training type view styles */
-.training-type-main td {
-    font-weight: 600;
-}
-
-.category-breakdown {
-    background-color: rgba(0,0,0,0.02);
-}
-
-body.dark-mode .category-breakdown {
-    background-color: rgba(255,255,255,0.02);
-}
-
-.category-indent {
-    padding-left: 30px !important;
-    color: #666;
-    font-size: 0.9em;
-}
-
-body.dark-mode .category-indent {
-    color: #999;
-}
-
-.category-cell.available {
-    color: #2e7d32;
-}
-
-body.dark-mode .category-cell.available {
-    color: #66bb6a;
-}
-
-.spacing-row td {
-    padding: 0 !important;
-    height: 10px !important;
-    background: transparent !important;
-}
     </style>
+    <link rel="stylesheet" href="styles.css?v=2025012714">
+    <script>
+        // Apply dark mode immediately to prevent flash
+        const isDarkMode = localStorage.getItem('darkMode') === 'true';
+        if (isDarkMode) {
+            document.documentElement.classList.add('dark-mode-loading');
+            // Also store the active tab for proper styling
+            const activeTab = localStorage.getItem('activeTab') || 'dashboard';
+            document.documentElement.setAttribute('data-active-tab', activeTab);
+        }
+        // Store current location for immediate application
+        const savedLocation = localStorage.getItem('currentLocation');
+        if (savedLocation) {
+            document.documentElement.setAttribute('data-location', savedLocation);
+        }
+    </script>
+    <style>
+        /* Critical inline styles to prevent FOUC */
+        .table-container { min-height: 100px; }
+        .sticky-first-column { left: 0 !important; }
+        
+        /* Apply active state based on saved location */
+        html[data-location="AU"] .location-toggle[data-location="AU"],
+        html:not([data-location]) .location-toggle[data-location="AU"] {
+            background-color: #2196F3;
+            color: white;
+        }
+        html[data-location="NZ"] .location-toggle[data-location="NZ"] {
+            background-color: #2196F3;
+            color: white;
+        }
+        
+        /* Dark mode button styles to prevent flash */
+        html.dark-mode-loading #dark-mode-toggle {
+            background-color: #444;
+            color: #e0e0e0;
+            border-color: #666;
+        }
+        html.dark-mode-loading .btn.btn-secondary {
+            background-color: #444;
+            border-color: #666;
+            color: #e0e0e0;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <div class="container">
@@ -6573,22 +6104,63 @@ body.dark-mode .category-cell.available {
 
         <!-- Dashboard View -->
         <div id="dashboard-view" class="view active">
-            <!-- Enhanced Dashboard -->
-            <div class="dashboard-container" id="dashboard-enhanced">
-                <!-- Dashboard Navigation Controls -->
-                <div class="dashboard-navigation" style="margin-bottom: 20px; display: flex; justify-content: center; align-items: center; gap: 15px;">
-                    <button class="btn btn-secondary" onclick="navigateDashboard(-1)" title="Previous month">
-                        <span style="font-size: 1.2em;">◀</span>
-                    </button>
-                    <span id="dashboard-time-display" style="font-weight: bold; font-size: 1.1em;">Current View</span>
-                    <button class="btn btn-secondary" onclick="navigateDashboard(1)" title="Next month">
-                        <span style="font-size: 1.2em;">▶</span>
-                    </button>
-                    <button class="btn btn-secondary" onclick="navigateDashboard(0)" title="Go to today">
-                        Today
-                    </button>
+            <!-- Dashboard Toggle -->
+            <div class="dashboard-toggle-container">
+                <div class="dashboard-toggle">
+                    <button class="toggle-option active" data-version="classic">Classic Dashboard</button>
+                    <button class="toggle-option" data-version="enhanced">Enhanced Dashboard</button>
                 </div>
-                
+            </div>
+            
+            <!-- Classic Dashboard -->
+            <div class="dashboard-container" id="dashboard-classic">
+                <!-- Key Metrics Cards -->
+                <div class="metrics-row">
+                    <div class="metric-card clean">
+                        <div class="metric-label">Trainees in Training</div>
+                        <div class="metric-value" id="total-trainees">0</div>
+                    </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Trainer Utilization</div>
+                        <div class="metric-value" id="trainer-utilization">0%</div>
+                    </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Completions (3 months)</div>
+                        <div class="metric-value" id="upcoming-completions">0</div>
+                    </div>
+                    <div class="metric-card clean">
+                        <div class="metric-label">Capacity Warnings</div>
+                        <div class="metric-value" id="capacity-warnings">0</div>
+                    </div>
+                </div>
+
+                <!-- Charts Section -->
+                <div class="charts-row">
+                    <div class="chart-container">
+                        <h3>Trainer Demand Over Time</h3>
+                        <canvas id="demand-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <h3>Trainer Supply & Demand Overview</h3>
+                        <canvas id="supply-demand-overview"></canvas>
+                    </div>
+                </div>
+
+                <!-- Training Pipeline -->
+                <div class="pipeline-section">
+                    <h3>Training Pipeline</h3>
+                    <div id="pipeline-timeline"></div>
+                </div>
+
+                <!-- Alerts Section -->
+                <div class="alerts-section">
+                    <h3>Alerts & Warnings</h3>
+                    <div id="alerts-container"></div>
+                </div>
+            </div>
+            
+            <!-- Enhanced Dashboard -->
+            <div class="dashboard-container" id="dashboard-enhanced" style="display: none;">
                 <!-- Enhanced Metrics Cards with Trends -->
                 <div class="metrics-row">
                     <div class="metric-card clean enhanced">
@@ -6852,9 +6424,6 @@ body.dark-mode .category-cell.available {
                         </button>
                         Training Commencement Summary
                     </h2>
-                    <button id="commencement-cross-loc-btn" class="btn btn-secondary btn-sm" onclick="toggleCommencementCrossLocation()" title="Toggle cross-location commencements" style="position: absolute; right: 350px; top: 50%; transform: translateY(-50%);">
-                        <span id="commencement-cross-loc-icon">🌐</span> <span id="commencement-cross-loc-text">Cross-Location OFF</span>
-                    </button>
                     <div id="trainee-summary" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 0.9em; color: var(--text-secondary);">
                         <!-- Trainee summary will be populated here -->
                     </div>
@@ -6868,15 +6437,9 @@ body.dark-mode .category-cell.available {
             <section class="demand-table-section">
                 <div class="section-header">
                     <h2>Trainer Demand</h2>
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <span style="font-size: 0.85em; color: var(--text-secondary);">
-                            <span style="display: inline-block; width: 6px; height: 6px; background: #3498db; border-radius: 50%; margin-right: 4px;"></span>
-                            = Includes cross-location trainer demand
-                        </span>
-                        <button class="btn btn-secondary btn-sm" onclick="toggleDemandSplitView()" title="Split demand by location">
-                            <span id="split-view-icon">📊</span> <span id="split-view-text">Split by Location</span>
-                        </button>
-                    </div>
+                    <button class="btn btn-secondary btn-sm" onclick="toggleDemandSplitView()" title="Split demand by location">
+                        <span id="split-view-icon">📊</span> <span id="split-view-text">Split by Location</span>
+                    </button>
                 </div>
                 <div id="demand-table-container" class="table-container">
                     <!-- Demand table will be generated here -->
@@ -6886,25 +6449,11 @@ body.dark-mode .category-cell.available {
             <!-- Surplus/Deficit Table Section -->
             <section class="surplus-deficit-section">
                 <div class="section-header">
-                    <h2>Surplus/Deficit Analysis 
-                        <span class="info-icon-wrapper">
-                            <span class="info-icon" title="">ℹ</span>
-                            <div class="info-tooltip">
-                                <h4>Cascading Allocation System</h4>
-                                <p>Training capacity is allocated based on priorities:</p>
-                                <ul>
-                                    <li><strong>P1 (CAD):</strong> Served first by CATB/CATA/STP trainers only</li>
-                                    <li><strong>P2 (CP):</strong> Served by RHS trainers, plus any surplus from P1 trainers</li>
-                                    <li><strong>P3 (FO):</strong> Served by LHS trainers, plus any surplus from all other trainers</li>
-                                </ul>
-                                <p>This ensures critical training needs are met first, with remaining capacity cascading to lower priorities.</p>
-                            </div>
-                        </span>
-                    </h2>
+                    <h2>Surplus/Deficit Analysis</h2>
                     <div class="surplus-deficit-controls">
-                        <button id="toggle-sd-view" class="btn btn-secondary" title="Toggle between simple and detailed views">
+                        <button id="toggle-sd-view" class="btn btn-secondary" title="Toggle between classic and intuitive view">
                             <span class="toggle-view-icon">📊</span>
-                            <span class="toggle-view-text">Show Detailed View</span>
+                            <span class="toggle-view-text">Switch to Intuitive View</span>
                         </button>
                     </div>
                 </div>
@@ -6973,7 +6522,6 @@ body.dark-mode .category-cell.available {
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
-                            <button type="button" class="btn btn-secondary" onclick="saveFTEAsDefault()">Save as Default</button>
                             <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                         </div>
                     </form>
@@ -7108,7 +6656,6 @@ body.dark-mode .category-cell.available {
                     <button class="planner-tab active" data-tab="grid">Grid Entry</button>
                     <button class="planner-tab" data-tab="target">Target Optimizer</button>
                     <button class="planner-tab" data-tab="bulk">Bulk Input</button>
-                    <button class="planner-tab" data-tab="smart">Smart Optimizer</button>
                 </div>
                 
                 <!-- Grid Entry Tab -->
@@ -7256,45 +6803,6 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                     <div class="modal-footer">
                         <button id="validate-bulk" class="btn btn-secondary">Validate</button>
                         <button id="apply-bulk" class="btn btn-primary" disabled>Apply Schedule</button>
-                    </div>
-                </div>
-                
-                <!-- Smart Optimizer Tab -->
-                <div id="smart-tab" class="planner-content">
-                    <h3>Smart Optimizer</h3>
-                    <p>Set your training targets and get intelligent recommendations with partial achievement analysis.</p>
-                    
-                    <!-- Step 1: Input Phase -->
-                    <div id="smart-input-phase">
-                        <div class="smart-input-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; margin: 20px 0;">
-                            <div class="form-group">
-                                <label>Captains Target:</label>
-                                <input type="number" id="smart-target-cp" min="0" value="0" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>First Officers Target:</label>
-                                <input type="number" id="smart-target-fo" min="0" value="0" class="form-control">
-                            </div>
-                            <div class="form-group">
-                                <label>Cadets Target:</label>
-                                <input type="number" id="smart-target-cad" min="0" value="0" class="form-control">
-                            </div>
-                        </div>
-                        <div class="form-group" style="margin: 20px 0;">
-                            <label>Complete by:</label>
-                            <input type="date" id="smart-target-date" class="form-control" style="width: 200px;">
-                        </div>
-                        <button id="analyze-feasibility" class="btn btn-primary" style="width: 200px;">Analyze Feasibility →</button>
-                    </div>
-                    
-                    <!-- Step 2: Results Phase (hidden initially) -->
-                    <div id="smart-results-phase" style="display: none;">
-                        <!-- Results will be dynamically inserted here -->
-                    </div>
-                    
-                    <!-- Step 3: Options Phase (hidden initially) -->
-                    <div id="smart-options-phase" style="display: none;">
-                        <!-- Options will be dynamically inserted here -->
                     </div>
                 </div>
             </div>
@@ -7500,50 +7008,11 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
         </div>
     </div>
 
-    <!-- Deficit Resolution Assistant -->
-    <div id="deficit-indicator" class="deficit-indicator" style="display: none;">
-        <div class="deficit-indicator-content">
-            <span class="deficit-icon">⚠️</span>
-            <div class="deficit-summary">
-                <div class="deficit-count">0 Deficits Found</div>
-                <div class="deficit-breakdown"></div>
-            </div>
-            <button class="deficit-resolve-btn">Resolve →</button>
-        </div>
-    </div>
-    
-    <!-- Deficit Resolution Modal -->
-    <div id="deficit-resolution-modal" class="modal">
-        <div class="modal-content" style="max-width: 700px;">
-            <div class="modal-header">
-                <h2>Deficit Resolution Assistant</h2>
-                <button class="modal-close">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="deficit-analysis">
-                    <!-- Deficit analysis will be dynamically inserted here -->
-                </div>
-                <div id="deficit-solutions">
-                    <!-- Solutions will be dynamically inserted here -->
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button id="preview-deficit-changes" class="btn btn-secondary">Preview Impact</button>
-                <button id="apply-deficit-solutions" class="btn btn-primary" disabled>Apply Selected</button>
-                <button class="btn btn-secondary modal-cancel">Cancel</button>
-            </div>
-        </div>
-    </div>
-
-    <script src="app.js"></script>
-<script>
+    <script>
 // Configuration Constants
 const START_YEAR = 2024;
 const END_YEAR = 2034;
 const FORTNIGHTS_PER_YEAR = 24;
-
-// Debug mode - set to true to enable console logging
-const DEBUG_MODE = false;
 
 // Month mapping for fortnights
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -7813,91 +7282,35 @@ let viewState = {
     isDirty: false, // Track if current state has unsaved changes
     currentView: '12months',  // 'all', '6months', '12months'
     viewOffset: 0,       // Offset in months from current date
-    surplusDeficitView: 'simple',  // 'simple' or 'detailed'
+    surplusDeficitView: 'classic',  // 'classic' or 'intuitive'
     currentLocation: 'AU',  // Track current location in view state
-    demandSplitByLocation: false,  // Toggle for split view in demand table
-    showCrossLocationCommencements: false
+    demandSplitByLocation: false  // Toggle for split view in demand table
 };
 
-// Dashboard navigation state
-let dashboardViewOffset = 0; // Months offset from current date
-
-// Navigate dashboard view
-function navigateDashboard(months) {
-    if (months === 0) {
-        // Reset to today
-        dashboardViewOffset = 0;
-    } else {
-        dashboardViewOffset += months;
-    }
-    
-    // Update time display
-    const currentDate = new Date();
-    const viewDate = new Date(currentDate);
-    viewDate.setMonth(viewDate.getMonth() + dashboardViewOffset);
-    
-    const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    document.getElementById('dashboard-time-display').textContent = dashboardViewOffset === 0 ? 'Current View' : monthName;
-    
-    // Update dashboard
-    updateDashboardV2();
-}
-
-// Scenarios storage - lazy loaded
-let scenarios = null;
+// Scenarios storage
+let scenarios = JSON.parse(localStorage.getItem('pilotTrainerScenarios')) || [];
 let selectedForComparison = new Set(); // Track scenarios selected for comparison
 
-// Lazy load scenarios when needed
-function getScenarios() {
-    if (scenarios === null) {
-        perfMonitor.start('loadScenarios');
-        const stored = localStorage.getItem('pilotTrainerScenarios');
-        scenarios = stored ? JSON.parse(stored) : [];
-        perfMonitor.end('loadScenarios');
-        // console.log(`[PERF] Loaded ${scenarios.length} scenarios from localStorage`);
-    }
-    return scenarios;
-}
+// DOM Elements
+const dashboardView = document.getElementById('dashboard-view');
+const plannerView = document.getElementById('planner-view');
+const settingsView = document.getElementById('settings-view');
+const scenariosView = document.getElementById('scenarios-view');
+const navTabs = document.querySelectorAll('.nav-tab');
+const addCohortForm = document.getElementById('add-cohort-form');
+const pathwaySelect = document.getElementById('pathway');
+const editFTEBtn = document.getElementById('edit-fte-btn');
+const addPathwayBtn = document.getElementById('add-pathway-btn');
+const toggleFTEBtn = document.getElementById('toggle-fte-btn');
+const editPriorityBtn = document.getElementById('edit-priority-btn');
 
-// Helper to check if scenarios are loaded
-function scenariosLoaded() {
-    return scenarios !== null;
-}
-
-// Ensure scenarios are loaded (use this before modifying scenarios)
-function ensureScenarios() {
-    if (scenarios === null) {
-        getScenarios();
-    }
-}
-
-// DOM Elements - will be initialized after DOM loads
-let dashboardView, plannerView, settingsView, scenariosView;
-let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
-let fteModal, pathwayModal, cohortModal, priorityModal, modalCloseButtons, modalCancelButtons;
-
-// Initialize DOM elements after DOMContentLoaded
-function initializeDOMElements() {
-    dashboardView = document.getElementById('dashboard-view');
-    plannerView = document.getElementById('planner-view');
-    settingsView = document.getElementById('settings-view');
-    scenariosView = document.getElementById('scenarios-view');
-    navTabs = document.querySelectorAll('.nav-tab');
-    addCohortForm = document.getElementById('add-cohort-form');
-    pathwaySelect = document.getElementById('pathway');
-    editFTEBtn = document.getElementById('edit-fte-btn');
-    addPathwayBtn = document.getElementById('add-pathway-btn');
-    toggleFTEBtn = document.getElementById('toggle-fte-btn');
-    editPriorityBtn = document.getElementById('edit-priority-btn');
-    
-    // Modal Elements
-    fteModal = document.getElementById('fte-modal');
-    pathwayModal = document.getElementById('pathway-modal');
-    cohortModal = document.getElementById('cohort-modal');
-    priorityModal = document.getElementById('priority-modal');
-    modalCloseButtons = document.querySelectorAll('.modal-close');
-    modalCancelButtons = document.querySelectorAll('.modal-cancel');
-}
+// Modal Elements
+const fteModal = document.getElementById('fte-modal');
+const pathwayModal = document.getElementById('pathway-modal');
+const cohortModal = document.getElementById('cohort-modal');
+const priorityModal = document.getElementById('priority-modal');
+const modalCloseButtons = document.querySelectorAll('.modal-close');
+const modalCancelButtons = document.querySelectorAll('.modal-cancel');
 
 // Get time range for current view
 function getTimeRangeForView() {
@@ -7966,147 +7379,50 @@ function getTimeRangeForView() {
     };
 }
 
-// Performance monitoring
-const perfMonitor = {
-    enabled: false, // Set to true to enable performance logging
-    timings: {},
-    
-    start(operation) {
-        if (!this.enabled) return;
-        this.timings[operation] = { start: performance.now(), children: {} };
-    },
-    
-    end(operation) {
-        if (!this.enabled || !this.timings[operation]) return;
-        const duration = performance.now() - this.timings[operation].start;
-        // console.log(`[PERF] ${operation}: ${duration.toFixed(2)}ms`);
-        return duration;
-    },
-    
-    measure(operation, fn) {
-        this.start(operation);
-        const result = fn();
-        this.end(operation);
-        return result;
-    },
-    
-    async measureAsync(operation, fn) {
-        this.start(operation);
-        const result = await fn();
-        this.end(operation);
-        return result;
-    },
-    
-    report() {
-        // Uncomment for performance debugging
-        // console.group('[PERF] Performance Report');
-        // Object.entries(this.timings).forEach(([op, data]) => {
-        //     const duration = performance.now() - data.start;
-        //     console.log(`${op}: ${duration.toFixed(2)}ms`);
-        // });
-        // console.groupEnd();
-    }
-};
-
 // Switch location
 function switchLocation(newLocation) {
-    // Ensure we have a valid location
-    if (!newLocation || (newLocation !== 'AU' && newLocation !== 'NZ')) {
-        return;
-    }
-    
     if (currentLocation === newLocation) return;
     
-    perfMonitor.start('switchLocation');
-    // console.log(`[PERF] Starting location switch from ${currentLocation} to ${newLocation}`);
+    // Save current location data
+    locationData[currentLocation].pathways = pathways;
+    locationData[currentLocation].trainerFTE = trainerFTE;
+    locationData[currentLocation].priorityConfig = priorityConfig;
+    locationData[currentLocation].activeCohorts = activeCohorts;
     
-    // Show loading indicator
-    const loadingMsg = showNotification(`Switching to ${newLocation}...`, 'info', 0);
+    // Switch to new location
+    currentLocation = newLocation;
+    viewState.currentLocation = newLocation;
     
-    // Use requestAnimationFrame to ensure UI updates
-    requestAnimationFrame(() => {
-        perfMonitor.start('switchLocation.saveCurrentData');
-        // Save current location data
-        locationData[currentLocation].pathways = pathways;
-        locationData[currentLocation].trainerFTE = trainerFTE;
-        locationData[currentLocation].priorityConfig = priorityConfig;
-        locationData[currentLocation].activeCohorts = activeCohorts;
-        perfMonitor.end('switchLocation.saveCurrentData');
-        
-        perfMonitor.start('switchLocation.loadNewData');
-        // Switch to new location
-        currentLocation = newLocation;
-        viewState.currentLocation = newLocation;
-        
-        // Save location preference
-        localStorage.setItem('currentLocation', newLocation);
-        
-        // Load new location data
-        pathways = locationData[newLocation].pathways;
-        trainerFTE = locationData[newLocation].trainerFTE;
-        priorityConfig = locationData[newLocation].priorityConfig;
-        activeCohorts = locationData[newLocation].activeCohorts;
-        perfMonitor.end('switchLocation.loadNewData');
-        
-        perfMonitor.start('switchLocation.updateUI');
-        // Update UI tabs immediately
-        document.querySelectorAll('.location-tab').forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.location === newLocation);
-        });
-        document.querySelectorAll('.location-toggle').forEach(toggle => {
-            toggle.classList.toggle('active', toggle.dataset.location === newLocation);
-        });
-        
-        // Update HTML data attribute for CSS styling
-        document.documentElement.setAttribute('data-location', newLocation);
-        
-        // Update cross-location button visibility
-        const crossLocBtn = document.getElementById('commencement-cross-loc-btn');
-        if (crossLocBtn) {
-            crossLocBtn.style.display = newLocation === 'AU' ? '' : 'none';
-        }
-        perfMonitor.end('switchLocation.updateUI');
-        
-        // Defer heavy rendering operations
-        setTimeout(() => {
-            perfMonitor.start('switchLocation.renderViews');
-            // Only update visible views
-            const activeView = document.querySelector('.view.active');
-            
-            if (activeView) {
-                if (activeView.id === 'dashboard-view') {
-                    perfMonitor.start('switchLocation.updateDashboard');
-                    updateDashboardV2();
-                    perfMonitor.end('switchLocation.updateDashboard');
-                } else if (activeView.id === 'planner-view') {
-                    perfMonitor.start('switchLocation.updateTables');
-                    updateAllTables();
-                    perfMonitor.end('switchLocation.updateTables');
-                    
-                    perfMonitor.start('switchLocation.renderGantt');
-                    renderGanttChart();
-                    perfMonitor.end('switchLocation.renderGantt');
-                } else if (activeView.id === 'settings-view') {
-                    renderPathwaysTable();
-                    renderPrioritySettingsTable();
-                }
-            }
-            perfMonitor.end('switchLocation.renderViews');
-            
-            populatePathwaySelect();
-            
-            // Remove loading message
-            if (loadingMsg && loadingMsg.remove) {
-                loadingMsg.remove();
-            }
-            
-            // Show completion notification
-            showNotification(`Switched to ${newLocation} location`, 'success');
-            
-            perfMonitor.end('switchLocation');
-            perfMonitor.report();
-        }, 10);
+    // Save location preference
+    localStorage.setItem('currentLocation', newLocation);
+    
+    // Load new location data
+    pathways = locationData[newLocation].pathways;
+    trainerFTE = locationData[newLocation].trainerFTE;
+    priorityConfig = locationData[newLocation].priorityConfig;
+    activeCohorts = locationData[newLocation].activeCohorts;
+    
+    // Update UI
+    document.querySelectorAll('.location-tab').forEach(tab => {
+        tab.classList.toggle('active', tab.dataset.location === newLocation);
     });
+    document.querySelectorAll('.location-toggle').forEach(toggle => {
+        toggle.classList.toggle('active', toggle.dataset.location === newLocation);
+    });
+    
+    // Update HTML data attribute for CSS styling
+    document.documentElement.setAttribute('data-location', newLocation);
+    
+    // Re-render all views
+    populatePathwaySelect();
+    updateAllTables();
+    renderGanttChart();
+    renderPathwaysTable();
+    renderPrioritySettingsTable();
+    updateDashboard();
+    
+    // Show notification
+    showNotification(`Switched to ${newLocation} location`, 'info');
 }
 
 // Migrate existing data to location-aware structure
@@ -8182,24 +7498,45 @@ let distributionChartV2 = null;
 let acknowledgedAlerts = new Set(JSON.parse(localStorage.getItem('acknowledgedAlerts') || '[]'));
 
 function initDashboardToggle() {
-    // Always use enhanced dashboard
+    const toggleButtons = document.querySelectorAll('.toggle-option');
     const classicDashboard = document.getElementById('dashboard-classic');
     const enhancedDashboard = document.getElementById('dashboard-enhanced');
     
-    if (classicDashboard) {
-        classicDashboard.style.display = 'none';
-    }
-    if (enhancedDashboard) {
-        enhancedDashboard.style.display = 'block';
-    }
+    // Load saved preference
+    const savedVersion = localStorage.getItem('dashboardVersion') || 'classic';
     
-    // Always update enhanced dashboard
-    updateDashboardV2();
+    toggleButtons.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const version = this.dataset.version;
+            
+            // Update active state
+            toggleButtons.forEach(b => b.classList.remove('active'));
+            this.classList.add('active');
+            
+            // Show/hide dashboards
+            if (version === 'classic') {
+                classicDashboard.style.display = 'block';
+                enhancedDashboard.style.display = 'none';
+                updateDashboard();
+            } else {
+                classicDashboard.style.display = 'none';
+                enhancedDashboard.style.display = 'block';
+                updateDashboardV2();
+            }
+            
+            // Save preference
+            localStorage.setItem('dashboardVersion', version);
+        });
+        
+        // Set initial state
+        if (btn.dataset.version === savedVersion) {
+            btn.click();
+        }
+    });
 }
 
 function calculateMetricTrends() {
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
@@ -8255,14 +7592,8 @@ function calculateMetricsForPeriod(year, fortnight) {
     let totalTrainees = 0;
     let upcomingCompletions = 0;
     
-    // Use location-specific data
-    const locationCohorts = (locationData && currentLocation && locationData[currentLocation]) ? 
-        locationData[currentLocation].activeCohorts : activeCohorts;
-    const locationPathways = (locationData && currentLocation && locationData[currentLocation]) ? 
-        locationData[currentLocation].pathways : pathways;
-    
-    locationCohorts.forEach(cohort => {
-        const pathway = locationPathways.find(p => p.id === cohort.pathwayId);
+    activeCohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
         
         const duration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
@@ -8329,101 +7660,46 @@ function calculateMetricsForPeriod(year, fortnight) {
     };
 }
 
-// FTE Default Management
-function saveDefaultFTE() {
-    const defaultFTE = {
-        AU: JSON.parse(JSON.stringify(locationData.AU.trainerFTE)),
-        NZ: JSON.parse(JSON.stringify(locationData.NZ.trainerFTE))
-    };
-    localStorage.setItem('defaultFTE', JSON.stringify(defaultFTE));
-}
-
-function loadDefaultFTE() {
-    const defaultFTE = localStorage.getItem('defaultFTE');
-    if (defaultFTE) {
-        try {
-            const parsed = JSON.parse(defaultFTE);
-            if (parsed.AU) {
-                locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
-            }
-            if (parsed.NZ) {
-                locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
-            }
-            return true;
-        } catch (e) {
-            console.error('Error loading default FTE:', e);
-        }
-    }
-    return false;
-}
-
 // Initialize the application
 function init() {
-    perfMonitor.start('init');
-    // console.log('[PERF] Starting application initialization');
-    
-    // Initialize DOM elements first
-    initializeDOMElements();
-    
-    perfMonitor.start('init.migrate');
     migrateDataToLocations(); // Migrate data first
-    perfMonitor.end('init.migrate');
     
-    perfMonitor.start('init.loadDefaults');
-    // Load default FTE if available
-    if (loadDefaultFTE()) {
-        // console.log('Loaded default FTE from localStorage');
-    }
-    perfMonitor.end('init.loadDefaults');
-    
-    perfMonitor.start('init.loadLocation');
     // Load saved location preference
     const savedLocation = localStorage.getItem('currentLocation');
     if (savedLocation && (savedLocation === 'AU' || savedLocation === 'NZ')) {
         currentLocation = savedLocation;
         viewState.currentLocation = savedLocation;
+        
+        // Load data for saved location
+        if (locationData && locationData[currentLocation]) {
+            pathways = locationData[currentLocation].pathways;
+            trainerFTE = locationData[currentLocation].trainerFTE;
+            priorityConfig = locationData[currentLocation].priorityConfig;
+            activeCohorts = locationData[currentLocation].activeCohorts;
+        }
+        
+        // Update UI to reflect saved location
+        document.querySelectorAll('.location-tab').forEach(tab => {
+            tab.classList.toggle('active', tab.dataset.location === currentLocation);
+        });
+        document.querySelectorAll('.location-toggle').forEach(toggle => {
+            toggle.classList.toggle('active', toggle.dataset.location === currentLocation);
+        });
     }
     
-    // Load the correct location data
-    if (locationData && locationData[currentLocation]) {
-        pathways = locationData[currentLocation].pathways;
-        trainerFTE = locationData[currentLocation].trainerFTE;
-        priorityConfig = locationData[currentLocation].priorityConfig;
-        activeCohorts = locationData[currentLocation].activeCohorts;
-    }
-    
-    // Update UI to reflect saved location
-    document.querySelectorAll('.location-tab').forEach(tab => {
-        tab.classList.toggle('active', tab.dataset.location === currentLocation);
-    });
-    document.querySelectorAll('.location-toggle').forEach(toggle => {
-        toggle.classList.toggle('active', toggle.dataset.location === currentLocation);
-    });
-    
-    // Set HTML attribute
-    document.documentElement.setAttribute('data-location', currentLocation);
-    
-    perfMonitor.end('init.loadLocation');
-    
-    perfMonitor.start('init.darkMode');
     // Initialize dark mode FIRST to prevent flash
     initDarkMode();
-    perfMonitor.end('init.darkMode');
     
-    perfMonitor.start('init.dashboardToggle');
     // Initialize dashboard toggle
     initDashboardToggle();
-    perfMonitor.end('init.dashboardToggle');
     
-    perfMonitor.start('init.loadScenario');
     // Auto-load last scenario BEFORE initial render
     const lastScenarioId = localStorage.getItem('lastScenarioId');
     let scenarioLoaded = false;
-    const loadedScenarios = getScenarios();
-    if (lastScenarioId && loadedScenarios.length > 0) {
-        const scenario = loadedScenarios.find(s => s.id === parseInt(lastScenarioId));
+    if (lastScenarioId && scenarios.length > 0) {
+        const scenario = scenarios.find(s => s.id === parseInt(lastScenarioId));
         if (scenario) {
-            // console.log(`Auto-loading last scenario: ${scenario.name}`);
+            console.log(`Auto-loading last scenario: ${scenario.name}`);
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
@@ -8433,36 +7709,19 @@ function init() {
             }, 500);
         }
     }
-    perfMonitor.end('init.loadScenario');
     
-    perfMonitor.start('init.setupUI');
     setupEventListeners();
     populatePathwaySelect();
     populateYearSelect();
     populateFortnightSelect();
     adjustColumnWidths(); // Set initial column widths
     
-    // Ensure location toggles reflect current state after event listeners are attached
-    // Force update the visual state
-    document.querySelectorAll('.location-toggle').forEach(toggle => {
-        const isActive = toggle.dataset.location === currentLocation;
-        toggle.classList.toggle('active', isActive);
-        
-        // Also ensure the HTML attribute is set correctly
-        if (isActive) {
-            document.documentElement.setAttribute('data-location', currentLocation);
-        }
-    });
-    
     // Mark UI elements as initialized to prevent flicker
     document.querySelector('.view-controls')?.classList.add('initialized');
-    perfMonitor.end('init.setupUI');
     
-    perfMonitor.start('init.renderViews');
     // Now render everything once
     updateAllTables();
     renderGanttChart();
-    perfMonitor.end('init.renderViews');
     
     // Ensure sync is established after initial render
     setTimeout(() => {
@@ -8474,22 +7733,18 @@ function init() {
     setTimeout(() => {
         if (viewState.currentView === 'all') {
             setupSynchronizedScrolling();
-            // console.log('Extra sync setup for ALL view on init');
+            console.log('Extra sync setup for ALL view on init');
         }
     }, 500);
     
-    perfMonitor.start('init.switchView');
     // Restore last active tab or start with dashboard
     const lastActiveTab = localStorage.getItem('activeTab') || 'dashboard';
     switchView(lastActiveTab);
-    perfMonitor.end('init.switchView');
     
     // Mark initial load complete
     setTimeout(() => {
         isInitialLoad = false;
         document.body.classList.add('initialized');
-        perfMonitor.end('init');
-        perfMonitor.report();
     }, 100);
     
     // Extra sync setup after everything is loaded
@@ -8497,7 +7752,7 @@ function init() {
         setTimeout(() => {
             if (plannerView.classList.contains('active')) {
                 setupSynchronizedScrolling();
-                // console.log('Final sync setup after page load');
+                console.log('Final sync setup after page load');
             }
         }, 500);
     });
@@ -8652,15 +7907,8 @@ function setupEventListeners() {
     const locationToggles = document.querySelectorAll('.location-toggle');
     locationToggles.forEach(toggle => {
         toggle.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            // Use currentTarget to ensure we get the button, not child elements
-            const newLocation = e.currentTarget.dataset.location;
-            
-            if (newLocation) {
-                switchLocation(newLocation);
-            }
+            const newLocation = e.target.dataset.location;
+            switchLocation(newLocation);
         });
     });
 
@@ -9108,21 +8356,15 @@ function setupEventListeners() {
     const toggleSDViewBtn = document.getElementById('toggle-sd-view');
     if (toggleSDViewBtn) {
         toggleSDViewBtn.addEventListener('click', () => {
-            // Toggle between simple and detailed views
-            if (viewState.surplusDeficitView === 'simple') {
-                viewState.surplusDeficitView = 'detailed';
-            } else {
-                viewState.surplusDeficitView = 'simple';
-            }
+            // Toggle between classic and intuitive view
+            viewState.surplusDeficitView = viewState.surplusDeficitView === 'classic' ? 'intuitive' : 'classic';
             
             // Update button text
             const btnText = toggleSDViewBtn.querySelector('.toggle-view-text');
             if (btnText) {
-                if (viewState.surplusDeficitView === 'simple') {
-                    btnText.textContent = 'Show Detailed View';
-                } else {
-                    btnText.textContent = 'Show Simple View';
-                }
+                btnText.textContent = viewState.surplusDeficitView === 'classic' 
+                    ? 'Switch to Intuitive View' 
+                    : 'Switch to Classic View';
             }
             
             // Re-render the surplus/deficit table
@@ -9575,8 +8817,11 @@ function switchView(viewName) {
             dashboardView.classList.add('active');
             // Check which dashboard version to update
             const dashboardVersion = localStorage.getItem('dashboardVersion') || 'classic';
-            // Always use enhanced dashboard
-            updateDashboardV2();
+            if (dashboardVersion === 'enhanced') {
+                updateDashboardV2();
+            } else {
+                updateDashboard();
+            }
             break;
         case 'planner':
             plannerView.classList.add('active');
@@ -9693,8 +8938,6 @@ function handleAddCohort(e) {
 
 // Update All Tables
 function updateAllTables() {
-    perfMonitor.start('updateAllTables');
-    
     // Store scroll positions before update
     const containers = document.querySelectorAll('.table-container');
     const scrollPositions = Array.from(containers).map(c => ({
@@ -9703,29 +8946,17 @@ function updateAllTables() {
         top: c.scrollTop
     }));
     
-    perfMonitor.start('updateAllTables.renderFTE');
     renderFTESummaryTable();
-    perfMonitor.end('updateAllTables.renderFTE');
-    
-    perfMonitor.start('updateAllTables.renderDemand');
     renderDemandTable();
-    perfMonitor.end('updateAllTables.renderDemand');
-    
-    perfMonitor.start('updateAllTables.renderSupplyDeficit');
     renderSurplusDeficitTable();
-    perfMonitor.end('updateAllTables.renderSupplyDeficit');
     
     // Always update trainee summary
-    perfMonitor.start('updateAllTables.updateTraineeSummary');
     updateGanttTraineeSummary();
-    perfMonitor.end('updateAllTables.updateTraineeSummary');
     
     // Update commencement summary if it's expanded
     const commencementBtn = document.getElementById('toggle-commencement-btn');
     if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
-        perfMonitor.start('updateAllTables.renderCommencement');
         renderCommencementSummary();
-        perfMonitor.end('updateAllTables.renderCommencement');
     }
     
     // Restore scroll positions
@@ -9741,16 +8972,13 @@ function updateAllTables() {
     requestAnimationFrame(() => {
         adjustColumnWidths();
         setupSynchronizedScrolling();
-        // console.log('Sync re-established after table update');
+        console.log('Sync re-established after table update');
     });
     
     // Update dashboard if it's active
     if (dashboardView && dashboardView.classList.contains('active')) {
-        // Always use enhanced dashboard
-        updateDashboardV2();
+        updateDashboard();
     }
-    
-    perfMonitor.end('updateAllTables');
 }
 
 // Adjust column widths based on current view
@@ -9886,38 +9114,13 @@ function renderCommencementSummary() {
     const container = document.getElementById("commencement-summary-container");
     if (!container) return;
     
-    // Hide/show cross-location toggle based on current location
-    const crossLocBtn = document.getElementById('commencement-cross-loc-btn');
-    if (crossLocBtn) {
-        crossLocBtn.style.display = currentLocation === 'AU' ? '' : 'none';
-    }
-    
     // Get time range based on current view
     const range = getTimeRangeForView();
     
     // Calculate commencements by month/fortnight and type
     const commencements = {};
     
-    // Get cohorts to display based on cross-location toggle
-    let cohortsToShow = activeCohorts;
-    
-    if (viewState.showCrossLocationCommencements && currentLocation) {
-        // Include cohorts from other location if they have cross-location training here
-        const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
-        const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
-        
-        // Add cohorts from other location that train here
-        const crossLocationCohorts = otherLocationCohorts.filter(cohort => {
-            return cohort.crossLocationTraining && 
-                   cohort.crossLocationTraining[currentLocation] && 
-                   cohort.crossLocationTraining[currentLocation].phases &&
-                   Object.keys(cohort.crossLocationTraining[currentLocation].phases).length > 0;
-        });
-        
-        cohortsToShow = [...activeCohorts, ...crossLocationCohorts];
-    }
-    
-    cohortsToShow.forEach(cohort => {
+    activeCohorts.forEach(cohort => {
         const pathway = pathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
         
@@ -10000,76 +9203,6 @@ function renderCommencementSummary() {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
         html += `<td class="data-cell">${data.CAD || '-'}</td>`;
-        
-        currentFortnight++;
-        if (currentFortnight > 24) {
-            currentFortnight = 1;
-            currentYear++;
-        }
-    }
-    html += '</tr>';
-    
-    // NZ row when cross-location is toggled on and we're in AU view
-    if (viewState.showCrossLocationCommencements && currentLocation === 'AU') {
-        // Calculate NZ commencements
-        const nzCommencements = {};
-        const nzCohorts = locationData.NZ?.activeCohorts || [];
-        
-        nzCohorts.forEach(cohort => {
-            const nzPathways = locationData.NZ.pathways;
-            const pathway = nzPathways.find(p => p.id === cohort.pathwayId);
-            if (!pathway) return;
-            
-            const year = cohort.startYear;
-            const fortnight = cohort.startFortnight;
-            
-            if (year < range.startYear || year > range.endYear) return;
-            if (year === range.startYear && fortnight < range.startFortnight) return;
-            if (year === range.endYear && fortnight > range.endFortnight) return;
-            
-            const key = `${year}-${fortnight}`;
-            if (!nzCommencements[key]) {
-                nzCommencements[key] = { FO: 0, CAD: 0 };
-            }
-            
-            if (pathway.type === 'FO' || pathway.type === 'CAD') {
-                nzCommencements[key][pathway.type] += cohort.numTrainees;
-            }
-        });
-        
-        html += '<tr>';
-        html += '<td class="sticky-col type-label" style="font-style: italic; color: #3498db;">NZ (FO + CAD)</td>';
-        
-        currentYear = range.startYear;
-        currentFortnight = range.startFortnight;
-        
-        while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
-            const key = `${currentYear}-${currentFortnight}`;
-            const data = nzCommencements[key] || { FO: 0, CAD: 0 };
-            const nzTotal = data.FO + data.CAD;
-            html += `<td class="data-cell" style="font-style: italic; color: #3498db; background: rgba(52, 152, 219, 0.05);">${nzTotal || '-'}</td>`;
-            
-            currentFortnight++;
-            if (currentFortnight > 24) {
-                currentFortnight = 1;
-                currentYear++;
-            }
-        }
-        html += '</tr>';
-    }
-    
-    // FO + CAD row (AU total)
-    html += '<tr>';
-    html += '<td class="sticky-col type-label" style="font-style: italic; color: var(--text-secondary);">FO + CAD</td>';
-    
-    currentYear = range.startYear;
-    currentFortnight = range.startFortnight;
-    
-    while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
-        const key = `${currentYear}-${currentFortnight}`;
-        const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        const foAndCad = data.FO + data.CAD;
-        html += `<td class="data-cell" style="font-style: italic; color: var(--text-secondary);">${foAndCad || '-'}</td>`;
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -10270,13 +9403,13 @@ function renderDemandTable() {
             
             if (crossLocValue > 0) {
                 // Show total value with highlighting for cross-location
-                cellContent = `${value.toFixed(0)}<span style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: #3498db; border-radius: 50%;"></span>`;
-                tooltip = `title="Total: ${value.toFixed(0)} (Local: ${localValue.toFixed(0)} + Cross-location: ${crossLocValue.toFixed(0)} from ${currentLocation === 'AU' ? 'NZ' : 'AU'})\n● = Includes cross-location trainer demand"`;
+                cellContent = value.toFixed(0);
+                tooltip = `title="Total: ${value.toFixed(0)} (Local: ${localValue.toFixed(0)} + Cross-location: ${crossLocValue.toFixed(0)} from ${currentLocation === 'AU' ? 'NZ' : 'AU'})"`;
             } else {
                 cellContent = value.toFixed(0);
             }
             
-            html += `<td class="data-cell" style="position: relative;" ${tooltip}>${cellContent}</td>`;
+            html += `<td class="data-cell" ${tooltip}>${cellContent}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10521,17 +9654,17 @@ function renderCrossLocationSummary() {
 
 // Render Surplus/Deficit Table
 function renderSurplusDeficitTable() {
-    if (viewState.surplusDeficitView === 'detailed') {
-        renderSurplusDeficitTableDetailed();
+    if (viewState.surplusDeficitView === 'intuitive') {
+        renderSurplusDeficitTableIntuitive();
     } else {
-        renderSurplusDeficitTableSimple();
+        renderSurplusDeficitTableClassic();
     }
 }
 
-// Detailed view - shows training type capacity with trainer category breakdown
-function renderSurplusDeficitTableDetailed() {
+// Classic view - original implementation
+function renderSurplusDeficitTableClassic() {
     const container = document.getElementById('surplus-deficit-container');
-    const { demand } = calculateDemand();
+    const { demand, ltCpDeficit } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
     
@@ -10542,55 +9675,20 @@ function renderSurplusDeficitTableDetailed() {
     html += '</thead>';
     html += '<tbody>';
     
-    // Calculate and display surplus/deficit by training type with category breakdown
-    const trainingTypes = [
-        { type: 'LT-CAD', label: 'CAD Training' },
-        { type: 'LT-CP', label: 'CP Training' },
-        { type: 'LT-FO', label: 'FO Training' }
-    ];
-    
-    // Get current location's FTE data
-    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
-        locationData[currentLocation].trainerFTE : trainerFTE;
-    
-    trainingTypes.forEach(({ type, label }) => {
-        // Main training type row
-        html += '<tr class="training-type-main">';
-        html += `<td class="sticky-first-column">${label}</td>`;
+    // Category-specific surplus/deficit rows
+    TRAINER_CATEGORIES.forEach(category => {
+        html += '<tr>';
+        html += `<td class="sticky-first-column">${category} S/D</td>`;
         
         let currentYear = range.startYear;
         let currentFn = range.startFortnight;
         
         while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-            const demandData = demand[currentYear]?.[currentFn];
-            const demandForType = demandData?.byTrainingType[type] || 0;
-            
-            // Calculate available trainers based on priority cascading
-            let availableCapacity = 0;
-            
-            if (type === 'LT-CAD') {
-                availableCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
-            } else if (type === 'LT-CP') {
-                const rhsCapacity = (locationFTE[currentYear]?.['RHS'] || 0) / FORTNIGHTS_PER_YEAR;
-                const universalCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
-                const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
-                const universalSurplus = Math.max(0, universalCapacity - cadDemand);
-                availableCapacity = rhsCapacity + universalSurplus;
-            } else if (type === 'LT-FO') {
-                const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
-                const higherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
-                                           (demandData?.byTrainingType['LT-CP'] || 0);
-                availableCapacity = Math.max(0, totalSupply - higherPriorityDemand);
-            }
-            
-            const surplusDeficit = availableCapacity - demandForType;
-            const isDeficit = surplusDeficit < 0;
-            const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
-            
-            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
+            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+            const allocated = demand[currentYear]?.[currentFn]?.allocated?.[category] || 0;
+            const difference = categorySupply - allocated;
+            const isDeficit = difference < 0;
+            html += `<td class="data-cell ${isDeficit ? 'deficit' : 'surplus'}">${difference.toFixed(0)}</td>`;
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10598,68 +9696,32 @@ function renderSurplusDeficitTableDetailed() {
                 currentYear++;
             }
         }
+        
         html += '</tr>';
-        
-        // Trainer category breakdown rows
-        const relevantCategories = type === 'LT-CAD' ? ['CATB', 'CATA', 'STP'] :
-                                  type === 'LT-CP' ? ['RHS', 'CATB', 'CATA', 'STP'] :
-                                  TRAINER_CATEGORIES;
-        
-        relevantCategories.forEach(category => {
-            const canPerformTraining = TRAINER_QUALIFICATIONS[category].includes(type);
-            if (!canPerformTraining) return;
-            
-            html += '<tr class="category-breakdown">';
-            html += `<td class="sticky-first-column category-indent">&nbsp;&nbsp;↳ ${category}</td>`;
-            
-            let catYear = range.startYear;
-            let catFn = range.startFortnight;
-            
-            while (catYear < range.endYear || (catYear === range.endYear && catFn <= range.endFortnight)) {
-                const categorySupply = (locationFTE[catYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
-                const allocated = demand[catYear]?.[catFn]?.allocated?.[category] || 0;
-                const available = categorySupply - allocated;
-                
-                // For this training type, show how much of this category could contribute
-                let contribution = 0;
-                if (type === 'LT-CAD' && (category === 'CATB' || category === 'CATA' || category === 'STP')) {
-                    contribution = Math.max(0, available);
-                } else if (type === 'LT-CP') {
-                    if (category === 'RHS') {
-                        contribution = Math.max(0, available);
-                    } else {
-                        // Universal trainers contribute only after CAD demand
-                        const cadDemand = demand[catYear]?.[catFn]?.byTrainingType['LT-CAD'] || 0;
-                        const catShare = categorySupply / 3; // Split evenly among CATB/CATA/STP
-                        contribution = Math.max(0, catShare - (cadDemand / 3));
-                    }
-                } else if (type === 'LT-FO') {
-                    // FO gets whatever is left after higher priorities
-                    contribution = Math.max(0, available);
-                }
-                
-                const cellClass = contribution > 0 ? 'available' : '';
-                html += `<td class="data-cell category-cell ${cellClass}">${contribution > 0 ? contribution.toFixed(0) : '-'}</td>`;
-                
-                catFn++;
-                if (catFn > FORTNIGHTS_PER_YEAR) {
-                    catFn = 1;
-                    catYear++;
-                }
-            }
-            html += '</tr>';
-        });
-        
-        // Add spacing between training types
-        if (type !== 'LT-FO') {
-            html += '<tr class="spacing-row"><td colspan="100%" style="height: 10px;"></td></tr>';
-        }
     });
     
-    // Separator row
-    html += '<tr class="separator-row"><td colspan="100%" class="separator-cell"></td></tr>';
+    // LT-CP Training Deficit row
+    html += '<tr>';
+    html += '<td class="sticky-first-column">LT-CP Training Deficit</td>';
     
-    // Total Net S/D row
+    let deficitYear = range.startYear;
+    let deficitFn = range.startFortnight;
+    
+    while (deficitYear < range.endYear || (deficitYear === range.endYear && deficitFn <= range.endFortnight)) {
+        const deficit = ltCpDeficit[deficitYear]?.[deficitFn] || 0;
+        const hasDeficit = deficit > 0;
+        html += `<td class="data-cell ${hasDeficit ? 'deficit' : ''}">${deficit.toFixed(0)}</td>`;
+        
+        deficitFn++;
+        if (deficitFn > FORTNIGHTS_PER_YEAR) {
+            deficitFn = 1;
+            deficitYear++;
+        }
+    }
+    
+    html += '</tr>';
+    
+    // Total Net S/D row (Total Initial FTE - Total Line Training Demand)
     html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Net S/D</td>';
     
@@ -10667,15 +9729,18 @@ function renderSurplusDeficitTableDetailed() {
     let netFn = range.startFortnight;
     
     while (netYear < range.endYear || (netYear === range.endYear && netFn <= range.endFortnight)) {
-        const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[netYear]?.[cat] || 0), 0);
+        // Calculate total initial FTE for the year (sum of all categories)
+        const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (trainerFTE[netYear]?.[cat] || 0), 0);
         const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
         
+        // Get total line training demand (sum of all training types)
         const demandData = demand[netYear]?.[netFn] || { byTrainingType: {} };
         const totalLineTrainingDemand = 
             (demandData.byTrainingType['LT-CAD'] || 0) +
             (demandData.byTrainingType['LT-CP'] || 0) +
             (demandData.byTrainingType['LT-FO'] || 0);
         
+        // Total Net S/D = Total Initial FTE - Total Line Training Demand
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
         html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
@@ -10692,89 +9757,21 @@ function renderSurplusDeficitTableDetailed() {
     container.innerHTML = html;
 }
 
-// Simple view - shows actual capacity by training type after cascading
-function renderSurplusDeficitTableSimple() {
+// Intuitive view - simple, clean, easy to scan
+function renderSurplusDeficitTableIntuitive() {
     const container = document.getElementById('surplus-deficit-container');
     const { demand } = calculateDemand();
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
     
-    let html = '<div class="table-wrapper"><table class="data-table">';
+    let html = '<div class="table-wrapper sd-intuitive-view"><table class="data-table">';
     html += '<thead>';
     html += headers.monthRow;
     html += headers.fortnightRow;
     html += '</thead>';
     html += '<tbody>';
     
-    // Calculate and display surplus/deficit by training type
-    const trainingTypes = [
-        { type: 'LT-CAD', label: 'CAD Training' },
-        { type: 'LT-CP', label: 'CP Training' },
-        { type: 'LT-FO', label: 'FO Training' }
-    ];
-    
-    trainingTypes.forEach(({ type, label }) => {
-        html += '<tr>';
-        html += `<td class="sticky-first-column">${label}</td>`;
-        
-        let currentYear = range.startYear;
-        let currentFn = range.startFortnight;
-        
-        while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-            // For training type view, we need to show actual surplus/deficit
-            // This requires recalculating with proper cascading allocation
-            const demandData = demand[currentYear]?.[currentFn];
-            const demandForType = demandData?.byTrainingType[type] || 0;
-            
-            // Get trainer supply for this period
-            const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
-                locationData[currentLocation].trainerFTE : trainerFTE;
-            
-            // Calculate available trainers based on priority cascading
-            let availableCapacity = 0;
-            
-            if (type === 'LT-CAD') {
-                // CAD can only use CATB, CATA, STP
-                availableCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
-            } else if (type === 'LT-CP') {
-                // CP uses RHS first, then surplus from CATB/CATA/STP after CAD
-                const rhsCapacity = (locationFTE[currentYear]?.['RHS'] || 0) / FORTNIGHTS_PER_YEAR;
-                const universalCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
-                const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
-                const universalSurplus = Math.max(0, universalCapacity - cadDemand);
-                availableCapacity = rhsCapacity + universalSurplus;
-            } else if (type === 'LT-FO') {
-                // FO can use all trainers, but only after higher priority demands are met
-                const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
-                const higherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
-                                           (demandData?.byTrainingType['LT-CP'] || 0);
-                
-                // FO gets whatever is left after CAD and CP
-                availableCapacity = Math.max(0, totalSupply - higherPriorityDemand);
-            }
-            
-            const surplusDeficit = availableCapacity - demandForType;
-            const isDeficit = surplusDeficit < 0;
-            const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
-            
-            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
-            
-            currentFn++;
-            if (currentFn > FORTNIGHTS_PER_YEAR) {
-                currentFn = 1;
-                currentYear++;
-            }
-        }
-        html += '</tr>';
-    });
-    
-    // Separator row
-    html += '<tr class="separator-row"><td colspan="100%" class="separator-cell"></td></tr>';
-    
-    // Total Net S/D row
+    // 1. Total Net S/D - The main metric (same as classic view)
     html += '<tr>';
     html += '<td class="sticky-first-column total-row">Total Net S/D</td>';
     
@@ -10801,63 +9798,141 @@ function renderSurplusDeficitTableSimple() {
             netYear++;
         }
     }
-    
     html += '</tr>';
-    html += '</tbody></table></div>';
-    container.innerHTML = html;
-}
-
-// Helper function to calculate available capacity for a specific training type
-function calculateCapacityForTrainingType(trainingType, year, fortnight, demandData) {
-    // Get FTE for this period
-    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
-        locationData[currentLocation].trainerFTE : trainerFTE;
     
-    const supply = {};
-    TRAINER_CATEGORIES.forEach(cat => {
-        supply[cat] = (locationFTE[year]?.[cat] || 0) / FORTNIGHTS_PER_YEAR;
+    // 2. Unmet Demand Summary - just show if there's any unmet demand
+    html += '<tr>';
+    html += '<td class="sticky-first-column">Unmet Demand</td>';
+    
+    let unmetYear = range.startYear;
+    let unmetFn = range.startFortnight;
+    
+    while (unmetYear < range.endYear || (unmetYear === range.endYear && unmetFn <= range.endFortnight)) {
+        const demandData = demand[unmetYear]?.[unmetFn] || { unallocated: {} };
+        const totalUnmet = Object.values(demandData.unallocated).reduce((sum, val) => sum + val, 0);
+        
+        if (totalUnmet > 0) {
+            // Show which types have unmet demand
+            let unmetTypes = [];
+            if (demandData.unallocated['LT-CAD'] > 0) unmetTypes.push(`CAD:${demandData.unallocated['LT-CAD'].toFixed(0)}`);
+            if (demandData.unallocated['LT-CP'] > 0) unmetTypes.push(`CP:${demandData.unallocated['LT-CP'].toFixed(0)}`);
+            if (demandData.unallocated['LT-FO'] > 0) unmetTypes.push(`FO:${demandData.unallocated['LT-FO'].toFixed(0)}`);
+            html += `<td class="data-cell deficit" title="${unmetTypes.join(', ')}">${totalUnmet.toFixed(0)}</td>`;
+        } else {
+            html += `<td class="data-cell">-</td>`;
+        }
+        
+        unmetFn++;
+        if (unmetFn > FORTNIGHTS_PER_YEAR) {
+            unmetFn = 1;
+            unmetYear++;
+        }
+    }
+    html += '</tr>';
+    
+    // 3. Bottleneck Indicator - which trainer categories are TRUE bottlenecks (considering cascading)
+    html += '<tr>';
+    html += '<td class="sticky-first-column">Bottlenecks</td>';
+    
+    let bottleneckYear = range.startYear;
+    let bottleneckFn = range.startFortnight;
+    
+    while (bottleneckYear < range.endYear || (bottleneckYear === range.endYear && bottleneckFn <= range.endFortnight)) {
+        const demandData = demand[bottleneckYear]?.[bottleneckFn] || { allocated: {}, unallocated: {} };
+        let bottlenecks = [];
+        
+        // A trainer is only a bottleneck if:
+        // 1. They're at capacity (>=95% utilization) AND
+        // 2. There's unmet demand that they could serve
+        
+        TRAINER_CATEGORIES.forEach(cat => {
+            const supply = (trainerFTE[bottleneckYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR;
+            const allocated = demandData.allocated?.[cat] || 0;
+            const utilization = supply > 0 ? (allocated / supply) * 100 : 0;
+            
+            if (utilization >= 95) {
+                // Check if this category's constraint is causing unmet demand
+                let isRealBottleneck = false;
+                
+                if (cat === 'CATB' || cat === 'CATA' || cat === 'STP') {
+                    // These can do all training types - check if any are unmet
+                    isRealBottleneck = Object.values(demandData.unallocated).some(v => v > 0);
+                } else if (cat === 'RHS') {
+                    // RHS can only do LT-CP and LT-FO - check if these are unmet
+                    isRealBottleneck = (demandData.unallocated['LT-CP'] > 0 || demandData.unallocated['LT-FO'] > 0);
+                } else if (cat === 'LHS') {
+                    // LHS can only do LT-FO - check if it's unmet
+                    isRealBottleneck = demandData.unallocated['LT-FO'] > 0;
+                }
+                
+                if (isRealBottleneck) {
+                    bottlenecks.push(cat);
+                }
+            }
+        });
+        
+        if (bottlenecks.length > 0) {
+            html += `<td class="data-cell bottleneck-highlight">${bottlenecks.join(',')}</td>`;
+        } else {
+            html += `<td class="data-cell">-</td>`;
+        }
+        
+        bottleneckFn++;
+        if (bottleneckFn > FORTNIGHTS_PER_YEAR) {
+            bottleneckFn = 1;
+            bottleneckYear++;
+        }
+    }
+    html += '</tr>';
+    
+    // Separator row
+    html += '<tr class="separator-row"><td class="sticky-first-column" style="height: 10px; background-color: #f5f5f5;"></td>';
+    let sepYear = range.startYear;
+    let sepFn = range.startFortnight;
+    while (sepYear < range.endYear || (sepYear === range.endYear && sepFn <= range.endFortnight)) {
+        html += '<td class="data-cell" style="height: 10px; background-color: #f5f5f5;"></td>';
+        sepFn++;
+        if (sepFn > FORTNIGHTS_PER_YEAR) {
+            sepFn = 1;
+            sepYear++;
+        }
+    }
+    html += '</tr>';
+    
+    // 4. Trainer Availability - show remaining capacity for each category
+    TRAINER_CATEGORIES.forEach(category => {
+        html += '<tr>';
+        html += `<td class="sticky-first-column">${category} Available</td>`;
+        
+        let currentYear = range.startYear;
+        let currentFn = range.startFortnight;
+        
+        while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+            const allocated = demand[currentYear]?.[currentFn]?.allocated?.[category] || 0;
+            const remaining = categorySupply - allocated;
+            
+            if (categorySupply === 0) {
+                html += `<td class="data-cell" style="color: #999;">-</td>`;
+            } else if (remaining <= 0) {
+                html += `<td class="data-cell deficit">0</td>`;
+            } else if (remaining < 2) {
+                html += `<td class="data-cell unmet-demand">${remaining.toFixed(0)}</td>`;
+            } else {
+                html += `<td class="data-cell">${remaining.toFixed(0)}</td>`;
+            }
+            
+            currentFn++;
+            if (currentFn > FORTNIGHTS_PER_YEAR) {
+                currentFn = 1;
+                currentYear++;
+            }
+        }
+        html += '</tr>';
     });
     
-    // Calculate capacity based on training type and trainer qualifications
-    let capacity = 0;
-    
-    switch (trainingType) {
-        case 'LT-CAD':
-            // Only CATB, CATA, STP can do CAD training
-            capacity = supply['CATB'] + supply['CATA'] + supply['STP'];
-            break;
-            
-        case 'LT-CP':
-            // RHS is primary, plus any surplus from CATB/CATA/STP after CAD allocation
-            capacity = supply['RHS'];
-            
-            // Add surplus from universal trainers after CAD demand
-            const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
-            const universalSupply = supply['CATB'] + supply['CATA'] + supply['STP'];
-            const universalSurplus = Math.max(0, universalSupply - cadDemand);
-            capacity += universalSurplus;
-            break;
-            
-        case 'LT-FO':
-            // LHS is primary, plus surplus from all others after their primary allocations
-            capacity = supply['LHS'];
-            
-            // Add surplus from RHS after CP demand
-            const cpDemandForRHS = demandData?.byTrainingType['LT-CP'] || 0;
-            const rhsSupply = supply['RHS'];
-            const rhsSurplus = Math.max(0, rhsSupply - cpDemandForRHS);
-            capacity += rhsSurplus;
-            
-            // Add surplus from universal trainers after CAD and CP demand
-            const totalHigherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
-                                              (demandData?.byTrainingType['LT-CP'] || 0);
-            const universalSupplyForFO = supply['CATB'] + supply['CATA'] + supply['STP'];
-            const universalSurplusForFO = Math.max(0, universalSupplyForFO - totalHigherPriorityDemand);
-            capacity += universalSurplusForFO;
-            break;
-    }
-    
-    return capacity;
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
 }
 
 // Calculate Demand with priority-based allocation
@@ -11378,9 +10453,6 @@ function renderGanttChart() {
                             data.phases[phase.name].includes(globalFortnightCounter)) {
                             usesCrossLocation = true;
                             crossLocationTo = location;
-                            if (DEBUG_MODE) {
-                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.name}, Fortnight ${globalFortnightCounter}, To: ${location}`);
-                            }
                         }
                     });
                 }
@@ -11425,7 +10497,6 @@ function renderGanttChart() {
                 
                 let backgroundColor = phaseColors[cell.phase.name] || '#9b59b6';
                 let cellContent = '';
-                let cellStyle = `background-color: ${backgroundColor} !important;`;
                 
                 // Add phase name if it's the start of the phase
                 // For short phases (1-2 fortnights), use smaller font or abbreviation
@@ -11441,23 +10512,27 @@ function renderGanttChart() {
                     // For 1-fortnight phases, no text (too small)
                 }
                 
+                // Add flag badge for cross-location training
+                if (cell.usesCrossLocation) {
+                    const flag = cell.crossLocationTo === 'AU' ? '🇦🇺' : '🇳🇿';
+                    cellContent += `<span class="cross-location-flag" style="position: absolute; top: 1px; right: 1px; font-size: 12px; filter: drop-shadow(0 0 2px rgba(0,0,0,0.5));">${flag}</span>`;
+                }
+                
                 let tooltip = `${cohort.numTrainees} x ${pathway.name}\n${cell.phase.name}\nFortnight ${cell.progress}/${cell.totalDuration}\nYear ${renderYear}, Fortnight ${renderFn}`;
                 
                 // Add cross-location indicator
+                let cellStyle = `background-color: ${backgroundColor} !important;`;
                 if (cell.usesCrossLocation) {
                     tooltip += `\n⚡ Using ${cell.crossLocationTo} trainers`;
                     // Add striped pattern for cross-location
                     cellStyle += ` background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.2) 5px, rgba(255,255,255,0.2) 10px);`;
-                    
-                    // Add white dot indicator with higher z-index
-                    cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative; overflow: visible;" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative;" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
                 html += '<td class="gantt-empty-cell data-cell"></td>';
@@ -11763,7 +10838,6 @@ function handleDrop(e) {
     // Recalculate and re-render
     updateAllTables();
     renderGanttChart();
-    markDirty();  // Mark scenario as modified
     
     // Show success message with detailed information
     showNotification(`${cohortLabel} moved to ${newMonthName} ${cohort.startYear}, FN${cohort.startFortnight}`, 'success');
@@ -11977,90 +11051,59 @@ function renderPathwaysTable() {
 }
 
 // Modal Management
-// FTE editor state
-let fteYearOffset = 0; // Year offset for FTE editor
-
 function openFTEModal() {
     const container = document.getElementById('fte-edit-container');
     
     let html = '<div style="max-height: 500px; overflow-y: auto;">';
     
-    // Info about FTE settings
-    html += '<div style="margin-bottom: 15px; padding: 10px; background-color: var(--bg-secondary); border-radius: 5px; border-left: 4px solid #2196f3;">';
-    html += '<p style="margin: 0; font-size: 0.9em; color: var(--text-primary);"><strong>Note:</strong> These FTE values are for the current location (' + currentLocation + '). ';
-    html += 'Changes here will apply to the current scenario. To save as system defaults (persistent across refreshes), use "Save as Default" below.</p>';
-    html += '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: var(--text-secondary);"><em>Tip: You can copy/paste values between cells. Select cells with click+drag or Shift+click.</em></p>';
+    // Quick fill buttons at the top
+    html += '<div class="fte-quick-fill" style="margin-bottom: 20px; padding: 15px; background-color: #f5f5f5; border-radius: 5px; position: sticky; top: 0; z-index: 10; background-color: white; border-bottom: 2px solid #e0e0e0;">';
+    html += '<h4 style="margin-bottom: 10px;">Quick Fill All:</h4>';
+    html += '<div style="display: flex; gap: 10px; flex-wrap: wrap;">';
+    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(10)">10 per fortnight</button>';
+    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(15)">15 per fortnight</button>';
+    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(20)">20 per fortnight</button>';
+    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(25)">25 per fortnight</button>';
+    html += '<button type="button" class="btn btn-secondary" onclick="quickFillFTE(0)">Clear All</button>';
     html += '</div>';
-    
-    // Year navigation
-    html += '<div style="margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 15px;">';
-    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(-1)">◀ Previous</button>';
-    html += '<span id="fte-year-display" style="font-weight: bold; font-size: 1.1em;"></span>';
-    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(1)">Next ▶</button>';
     html += '</div>';
 
     html += generateFTEInputFields();
     html += '</div>';
 
     container.innerHTML = html;
-    
-    // Update year display
-    const currentYear = new Date().getFullYear();
-    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
-    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
-    const yearDisplay = document.getElementById('fte-year-display');
-    if (yearDisplay) {
-        yearDisplay.textContent = `${startYear} - ${endYear}`;
-    }
-    
-    // Setup selection handlers
-    setupFTESelection();
-    
     fteModal.classList.add('active');
 }
 
 function generateFTEInputFields() {
     let html = '';
     
-    // Calculate which years to show
-    const currentYear = new Date().getFullYear();
-    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
-    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
-    
-    // Update year display
-    const yearDisplay = document.getElementById('fte-year-display');
-    if (yearDisplay) {
-        yearDisplay.textContent = `${startYear} - ${endYear}`;
-    }
-    
     // Create a simple table for years with FTE per fortnight
-    html += '<table class="fte-edit-table" style="width: 100%; border-collapse: collapse; user-select: none;">';
+    html += '<table class="fte-edit-table" style="width: 100%; border-collapse: collapse;">';
     html += '<thead>';
     html += '<tr>';
-    html += '<th style="text-align: left; padding: 10px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);">Year</th>';
+    html += '<th style="text-align: left; padding: 10px; background-color: #f8f9fa; border: 1px solid #e0e0e0;">Year</th>';
     
     // Add column headers for each trainer category
     TRAINER_CATEGORIES.forEach(category => {
-        html += `<th style="text-align: center; padding: 10px; background-color: var(--bg-secondary); border: 1px solid var(--border-color); color: var(--text-primary);">${category}</th>`;
+        html += `<th style="text-align: center; padding: 10px; background-color: #f8f9fa; border: 1px solid #e0e0e0;">${category}</th>`;
     });
     html += '</tr>';
     html += '</thead>';
-    html += '<tbody id="fte-table-body">';
+    html += '<tbody>';
     
     // Add rows for each year
-    for (let year = startYear; year <= endYear; year++) {
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
         html += '<tr>';
-        html += `<td style="padding: 10px; font-weight: 500; border: 1px solid var(--border-color); background-color: var(--bg-secondary); color: var(--text-primary);">${year}</td>`;
+        html += `<td style="padding: 10px; font-weight: 500; border: 1px solid #e0e0e0;">${year}</td>`;
         
         TRAINER_CATEGORIES.forEach(category => {
             const fortnightlyFTE = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
-            html += `<td class="fte-cell" style="padding: 8px; text-align: center; border: 1px solid var(--border-color); cursor: cell;">`;
+            html += `<td style="padding: 8px; text-align: center; border: 1px solid #e0e0e0;">`;
             html += `<input type="number" id="fte-${year}-${category}" name="fte-${year}-${category}" `;
-            html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: none; background: transparent;" `;
-            html += `data-year="${year}" data-category="${category}" `;
-            html += `onpaste="handleFTEPaste(event, ${year}, '${category}')" onkeydown="handleFTEKeyDown(event, ${year}, '${category}')" `;
-            html += `onfocus="this.select()" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
-            html += `></td>`;
+            html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center;" `;
+            html += `data-year="${year}" data-category="${category}">`;
+            html += `</td>`;
         });
         html += '</tr>';
     }
@@ -12071,299 +11114,15 @@ function generateFTEInputFields() {
     return html;
 }
 
-// FTE cell selection state
-let fteSelection = {
-    startCell: null,
-    endCell: null,
-    isSelecting: false,
-    selectedCells: new Set()
-};
-
-function navigateFTEYears(direction) {
-    fteYearOffset += direction;
-    
-    // Ensure we stay within bounds
-    const currentYear = new Date().getFullYear();
-    const minOffset = START_YEAR - (currentYear - 1);
-    const maxOffset = END_YEAR - (currentYear + 1);
-    fteYearOffset = Math.max(minOffset, Math.min(maxOffset, fteYearOffset));
-    
-    // Regenerate the table
-    const container = document.getElementById('fte-edit-container');
-    if (container) {
-        const wrapper = container.querySelector('div');
-        if (wrapper) {
-            const existingTable = wrapper.querySelector('.fte-edit-table');
-            if (existingTable) {
-                const newTableHTML = generateFTEInputFields();
-                const tempDiv = document.createElement('div');
-                tempDiv.innerHTML = newTableHTML;
-                existingTable.replaceWith(tempDiv.firstChild);
-                
-                // Update year display
-                const yearDisplay = document.getElementById('fte-year-display');
-                if (yearDisplay) {
-                    const currentYear = new Date().getFullYear();
-                    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
-                    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
-                    yearDisplay.textContent = `${startYear} - ${endYear}`;
-                }
-                
-                // Setup selection handlers
-                setupFTESelection();
-            }
-        }
-    }
-}
-
-function handleFTEMouseDown(event, year, category) {
-    event.preventDefault();
-    
-    // Clear previous selection
-    document.querySelectorAll('.fte-cell.selected').forEach(cell => {
-        cell.classList.remove('selected');
-    });
-    
-    fteSelection.isSelecting = true;
-    fteSelection.startCell = { year, category };
-    fteSelection.endCell = { year, category };
-    fteSelection.selectedCells.clear();
-    
-    // Add selection class
-    const cell = event.target.closest('.fte-cell');
-    if (cell) {
-        cell.classList.add('selected');
-        fteSelection.selectedCells.add(`${year}-${category}`);
-    }
-    
-    // Add document-level mouse events
-    document.addEventListener('mousemove', handleFTEMouseMove);
-    document.addEventListener('mouseup', handleFTEMouseUp);
-    
-    // Enable copy functionality
-    document.addEventListener('copy', handleFTECopy);
-}
-
-function handleFTEMouseMove(event) {
-    if (!fteSelection.isSelecting) return;
-    
-    // Find the cell under the mouse
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    const input = element?.closest('input[data-year][data-category]');
-    
-    if (input) {
-        const year = parseInt(input.dataset.year);
-        const category = input.dataset.category;
-        
-        if (year && category) {
-            fteSelection.endCell = { year, category };
-            updateFTESelection();
-        }
-    }
-}
-
-function handleFTEMouseUp() {
-    fteSelection.isSelecting = false;
-    document.removeEventListener('mousemove', handleFTEMouseMove);
-    document.removeEventListener('mouseup', handleFTEMouseUp);
-}
-
-function updateFTESelection() {
-    // Clear previous selection
-    document.querySelectorAll('.fte-cell.selected').forEach(cell => {
-        cell.classList.remove('selected');
-    });
-    fteSelection.selectedCells.clear();
-    
-    if (!fteSelection.startCell || !fteSelection.endCell) return;
-    
-    // Calculate selection bounds
-    const startYearIndex = fteSelection.startCell.year - START_YEAR;
-    const endYearIndex = fteSelection.endCell.year - START_YEAR;
-    const startCatIndex = TRAINER_CATEGORIES.indexOf(fteSelection.startCell.category);
-    const endCatIndex = TRAINER_CATEGORIES.indexOf(fteSelection.endCell.category);
-    
-    const minYear = Math.min(fteSelection.startCell.year, fteSelection.endCell.year);
-    const maxYear = Math.max(fteSelection.startCell.year, fteSelection.endCell.year);
-    const minCat = Math.min(startCatIndex, endCatIndex);
-    const maxCat = Math.max(startCatIndex, endCatIndex);
-    
-    // Select all cells in the rectangle
-    for (let y = minYear; y <= maxYear; y++) {
-        for (let c = minCat; c <= maxCat; c++) {
-            const category = TRAINER_CATEGORIES[c];
-            const input = document.getElementById(`fte-${y}-${category}`);
+function quickFillFTE(fortnightlyValue) {
+    // Fill all inputs with the same fortnightly value
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        TRAINER_CATEGORIES.forEach(category => {
+            const input = document.getElementById(`fte-${year}-${category}`);
             if (input) {
-                const cell = input.closest('.fte-cell');
-                if (cell) {
-                    cell.classList.add('selected');
-                    fteSelection.selectedCells.add(`${y}-${category}`);
-                }
+                input.value = fortnightlyValue.toFixed(1);
             }
-        }
-    }
-}
-
-function handleFTECopy(event) {
-    if (fteSelection.selectedCells.size === 0) return;
-    
-    event.preventDefault();
-    
-    // Get selected values in order
-    const values = [];
-    const cells = Array.from(fteSelection.selectedCells).sort((a, b) => {
-        const [yearA, catA] = a.split('-');
-        const [yearB, catB] = b.split('-');
-        const catIndexA = TRAINER_CATEGORIES.indexOf(catA);
-        const catIndexB = TRAINER_CATEGORIES.indexOf(catB);
-        
-        if (yearA !== yearB) return parseInt(yearA) - parseInt(yearB);
-        return catIndexA - catIndexB;
-    });
-    
-    let currentYear = null;
-    let rowValues = [];
-    
-    cells.forEach(cellKey => {
-        const [year, category] = cellKey.split('-');
-        if (currentYear && year !== currentYear) {
-            values.push(rowValues.join('\t'));
-            rowValues = [];
-        }
-        currentYear = year;
-        
-        const input = document.getElementById(`fte-${year}-${category}`);
-        if (input) {
-            rowValues.push(input.value);
-        }
-    });
-    
-    if (rowValues.length > 0) {
-        values.push(rowValues.join('\t'));
-    }
-    
-    // Copy to clipboard
-    event.clipboardData.setData('text/plain', values.join('\n'));
-}
-
-function setupFTESelection() {
-    // Add selection styles if not already present
-    if (!document.getElementById('fte-selection-styles')) {
-        const style = document.createElement('style');
-        style.id = 'fte-selection-styles';
-        style.textContent = `
-            .fte-cell.selected {
-                background-color: rgba(52, 152, 219, 0.2) !important;
-            }
-            .dark-mode .fte-cell.selected {
-                background-color: rgba(52, 152, 219, 0.3) !important;
-            }
-        `;
-        document.head.appendChild(style);
-    }
-}
-
-function saveFTEAsDefault() {
-    // First, save the current form values
-    const form = document.getElementById('fte-edit-form');
-    if (form) {
-        // Trigger form save first
-        const event = new Event('submit', { cancelable: true });
-        form.dispatchEvent(event);
-    }
-    
-    // Then save as default
-    saveDefaultFTE();
-    showNotification(`Default FTE values saved for ${currentLocation}. These will persist across browser refreshes.`, 'success');
-}
-
-// Handle paste event in FTE cells
-function handleFTEPaste(event, year, category) {
-    event.preventDefault();
-    const pastedData = event.clipboardData.getData('text');
-    const values = pastedData.split(/[\t\n\r,;\s]+/).filter(v => v.trim() !== '');
-    
-    if (values.length === 0) return;
-    
-    // Get current position
-    const yearIndex = year - START_YEAR;
-    const categoryIndex = TRAINER_CATEGORIES.indexOf(category);
-    
-    let valueIndex = 0;
-    
-    // Paste across categories first, then years
-    for (let y = yearIndex; y <= END_YEAR - START_YEAR && valueIndex < values.length; y++) {
-        for (let c = categoryIndex; c < TRAINER_CATEGORIES.length && valueIndex < values.length; c++) {
-            const targetYear = START_YEAR + y;
-            const targetCategory = TRAINER_CATEGORIES[c];
-            const input = document.getElementById(`fte-${targetYear}-${targetCategory}`);
-            
-            if (input) {
-                const value = parseFloat(values[valueIndex]);
-                if (!isNaN(value)) {
-                    input.value = value.toFixed(1);
-                }
-                valueIndex++;
-            }
-        }
-        // Reset to first category for next row
-        if (valueIndex < values.length && y < END_YEAR - START_YEAR) {
-            categoryIndex = 0;
-        }
-    }
-}
-
-// Handle keyboard navigation in FTE grid
-function handleFTEKeyDown(event, year, category) {
-    const categoryIndex = TRAINER_CATEGORIES.indexOf(category);
-    let newYear = year;
-    let newCategory = category;
-    
-    switch(event.key) {
-        case 'ArrowUp':
-            if (year > START_YEAR) {
-                newYear = year - 1;
-                event.preventDefault();
-            }
-            break;
-        case 'ArrowDown':
-            if (year < END_YEAR) {
-                newYear = year + 1;
-                event.preventDefault();
-            }
-            break;
-        case 'ArrowLeft':
-            if (categoryIndex > 0) {
-                newCategory = TRAINER_CATEGORIES[categoryIndex - 1];
-                event.preventDefault();
-            }
-            break;
-        case 'ArrowRight':
-            if (categoryIndex < TRAINER_CATEGORIES.length - 1) {
-                newCategory = TRAINER_CATEGORIES[categoryIndex + 1];
-                event.preventDefault();
-            }
-            break;
-        case 'Enter':
-            if (event.shiftKey && year > START_YEAR) {
-                newYear = year - 1;
-            } else if (year < END_YEAR) {
-                newYear = year + 1;
-            }
-            event.preventDefault();
-            break;
-        case 'Tab':
-            // Let default tab behavior work
-            return;
-        default:
-            return;
-    }
-    
-    // Focus the new cell
-    const newInput = document.getElementById(`fte-${newYear}-${newCategory}`);
-    if (newInput) {
-        newInput.focus();
-        newInput.select();
+        });
     }
 }
 
@@ -13441,9 +12200,6 @@ function performMerge() {
     // Close dialog
     document.getElementById('merge-dialog').remove();
     
-    // Recalculate demand after merge
-    calculateDemand();
-    
     // Update UI
     updateAllTables();
     renderGanttChart();
@@ -13554,34 +12310,6 @@ function toggleGroup(groupName) {
         viewState.collapsedGroups.push(groupName);
     }
     renderGanttChart();
-}
-
-// Toggle Commencement Cross-Location View
-function toggleCommencementCrossLocation() {
-    viewState.showCrossLocationCommencements = !viewState.showCrossLocationCommencements;
-    
-    // Update button text and style
-    const btn = document.querySelector('[onclick="toggleCommencementCrossLocation()"]');
-    const text = document.getElementById('commencement-cross-loc-text');
-    const icon = document.getElementById('commencement-cross-loc-icon');
-    
-    if (viewState.showCrossLocationCommencements) {
-        text.textContent = 'Cross-Location ON';
-        icon.textContent = '✓';
-        btn.style.background = '#2ecc71';
-        btn.style.color = 'white';
-    } else {
-        text.textContent = 'Cross-Location OFF';
-        icon.textContent = '🌐';
-        btn.style.background = '';
-        btn.style.color = '';
-    }
-    
-    // Re-render the commencement summary
-    const commencementBtn = document.getElementById('toggle-commencement-btn');
-    if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
-        renderCommencementSummary();
-    }
 }
 
 // Toggle Demand Split View
@@ -15442,44 +14170,18 @@ function updateScenarioPreview(name = null, description = null) {
         document.getElementById('preview-cohorts').textContent = scenario.stats.totalCohorts;
         document.getElementById('preview-trainees').textContent = scenario.stats.totalTrainees;
     } else {
-        // Calculate AU/NZ breakdown using locationData
-        const auCohorts = locationData.AU.activeCohorts || [];
-        const nzCohorts = locationData.NZ.activeCohorts || [];
-        const auTrainees = auCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
-        const nzTrainees = nzCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
-        const totalCohorts = auCohorts.length + nzCohorts.length;
-        const totalTrainees = auTrainees + nzTrainees;
-        
-        // Display with location breakdown
-        let cohortsText = `${totalCohorts}`;
-        if (totalCohorts > 0) {
-            cohortsText += ` (AU: ${auCohorts.length}, NZ: ${nzCohorts.length})`;
-        }
-        
-        let traineesText = `${totalTrainees}`;
-        if (totalTrainees > 0) {
-            traineesText += ` (AU: ${auTrainees}, NZ: ${nzTrainees})`;
-        }
-        
-        document.getElementById('preview-cohorts').textContent = cohortsText;
-        document.getElementById('preview-trainees').textContent = traineesText;
+        // Use current state
+        document.getElementById('preview-cohorts').textContent = activeCohorts.length;
+        document.getElementById('preview-trainees').textContent = 
+            activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
     }
     
-    // Calculate date range across both locations
-    let allCohorts;
-    let scenarioPathways;
+    // Calculate date range
+    const cohorts = scenario ? scenario.state.cohorts : activeCohorts;
+    const scenarioPathways = scenario ? scenario.state.pathways : pathways;
     
-    if (scenario) {
-        allCohorts = scenario.state.cohorts || [];
-        scenarioPathways = scenario.state.pathways;
-    } else {
-        // Combine cohorts from both locations
-        allCohorts = [...(locationData.AU.activeCohorts || []), ...(locationData.NZ.activeCohorts || [])];
-        scenarioPathways = pathways; // Current location's pathways
-    }
-    
-    if (allCohorts.length > 0) {
-        const dates = allCohorts.map(c => ({
+    if (cohorts.length > 0) {
+        const dates = cohorts.map(c => ({
             year: c.startYear,
             fortnight: c.startFortnight
         }));
@@ -15495,54 +14197,22 @@ function updateScenarioPreview(name = null, description = null) {
         document.getElementById('preview-daterange').textContent = 'No cohorts';
     }
     
-    // Calculate pathways in use by location
-    if (allCohorts.length > 0) {
-        const pathwayCountByLocation = { AU: {}, NZ: {} };
-        
-        if (scenario) {
-            // For saved scenarios, use the cohort's location property
-            allCohorts.forEach(cohort => {
-                const cohortLocation = cohort.location || 'AU';
-                const pathway = scenarioPathways.find(p => p.id === cohort.pathwayId);
-                if (pathway) {
-                    const type = pathway.type;
-                    if (!pathwayCountByLocation[cohortLocation]) {
-                        pathwayCountByLocation[cohortLocation] = {};
-                    }
-                    pathwayCountByLocation[cohortLocation][type] = 
-                        (pathwayCountByLocation[cohortLocation][type] || 0) + cohort.numTrainees;
-                }
-            });
-        } else {
-            // For current state, process each location separately
-            ['AU', 'NZ'].forEach(loc => {
-                const locCohorts = locationData[loc].activeCohorts || [];
-                const locPathways = locationData[loc].pathways || [];
-                
-                locCohorts.forEach(cohort => {
-                    const pathway = locPathways.find(p => p.id === cohort.pathwayId);
-                    if (pathway) {
-                        const type = pathway.type;
-                        pathwayCountByLocation[loc][type] = 
-                            (pathwayCountByLocation[loc][type] || 0) + cohort.numTrainees;
-                    }
-                });
-            });
-        }
-        
-        // Format pathways display with location breakdown
-        const pathwaysList = [];
-        ['AU', 'NZ'].forEach(loc => {
-            const locCounts = pathwayCountByLocation[loc];
-            if (Object.keys(locCounts).length > 0) {
-                const locList = Object.entries(locCounts)
-                    .map(([type, count]) => `${count} ${type}`)
-                    .join(', ');
-                pathwaysList.push(`${loc}: ${locList}`);
+    // Calculate pathways in use
+    if (cohorts.length > 0) {
+        const pathwayCount = {};
+        cohorts.forEach(cohort => {
+            const pathway = scenarioPathways.find(p => p.id === cohort.pathwayId);
+            if (pathway) {
+                const type = pathway.type;
+                pathwayCount[type] = (pathwayCount[type] || 0) + cohort.numTrainees;
             }
         });
         
-        document.getElementById('preview-pathways').textContent = pathwaysList.join(' | ') || 'None';
+        const pathwaysList = Object.entries(pathwayCount)
+            .map(([type, count]) => `${count} ${type}`)
+            .join(', ');
+        
+        document.getElementById('preview-pathways').textContent = pathwaysList || 'None';
     } else {
         document.getElementById('preview-pathways').textContent = 'None';
     }
@@ -15583,7 +14253,6 @@ function handleScenarioSave(event) {
         };
     }
     
-    ensureScenarios();
     scenarios.push(scenario);
     localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
     
@@ -15612,7 +14281,7 @@ function closeScenarioModal() {
     window.pendingDuplicateScenario = null;
 }
 
-function showNotification(message, type = 'info', duration = 5000) {
+function showNotification(message, type = 'info') {
     const toastContainer = document.getElementById('toast-container');
     
     // Create toast element
@@ -15636,15 +14305,10 @@ function showNotification(message, type = 'info', duration = 5000) {
     // Add to container
     toastContainer.appendChild(toast);
     
-    // Auto remove after specified duration (0 means no auto-remove)
-    if (duration > 0) {
-        setTimeout(() => {
-            removeToast(toast.querySelector('.toast-close'));
-        }, duration);
-    }
-    
-    // Return the toast element so it can be removed manually
-    return toast;
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        removeToast(toast.querySelector('.toast-close'));
+    }, 5000);
 }
 
 // Show centered notification (for page refresh)
@@ -15765,7 +14429,7 @@ function updateCurrentScenario() {
     }
     
     // Find the current scenario
-    const scenarioIndex = getScenarios().findIndex(s => s.id === viewState.currentScenarioId);
+    const scenarioIndex = scenarios.findIndex(s => s.id === viewState.currentScenarioId);
     if (scenarioIndex === -1) {
         showNotification('Current scenario not found.', 'error');
         return;
@@ -15797,7 +14461,7 @@ function updateCurrentScenario() {
 }
 
 function loadScenarioWithoutConfirm(scenarioId) {
-    const scenario = getScenarios().find(s => s.id === scenarioId);
+    const scenario = scenarios.find(s => s.id === scenarioId);
     if (!scenario) return;
     
     loadScenarioData(scenario);
@@ -15816,12 +14480,8 @@ function loadScenarioDataOnly(scenario) {
     if (scenario.state.locationData) {
         // New format with location data
         locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
-        // Only use scenario's location if we don't have a saved preference
-        const savedLocation = localStorage.getItem('currentLocation');
-        if (!savedLocation) {
-            currentLocation = scenario.state.currentLocation || 'AU';
-            viewState.currentLocation = currentLocation;
-        }
+        currentLocation = scenario.state.currentLocation || 'AU';
+        viewState.currentLocation = currentLocation;
         
         // Load data for current location
         pathways = locationData[currentLocation].pathways;
@@ -15852,8 +14512,9 @@ function loadScenarioDataOnly(scenario) {
         locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
-        // Don't override the saved location preference
-        // The location should already be set from localStorage in init()
+        // Set current location
+        currentLocation = nzCohorts.length > 0 && auCohorts.length === 0 ? 'NZ' : 'AU';
+        viewState.currentLocation = currentLocation;
         
         // Update activeCohorts to current location's cohorts
         activeCohorts = locationData[currentLocation].activeCohorts;
@@ -15872,7 +14533,7 @@ function loadScenarioDataOnly(scenario) {
 }
 
 function loadScenario(scenarioId) {
-    const scenario = getScenarios().find(s => s.id === scenarioId);
+    const scenario = scenarios.find(s => s.id === scenarioId);
     if (!scenario) return;
     
     if (viewState.isDirty) {
@@ -15896,12 +14557,8 @@ function loadScenarioData(scenario) {
     if (scenario.state.locationData) {
         // New format with location data
         locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
-        // Only use scenario's location if we don't have a saved preference
-        const savedLocation = localStorage.getItem('currentLocation');
-        if (!savedLocation) {
-            currentLocation = scenario.state.currentLocation || 'AU';
-            viewState.currentLocation = currentLocation;
-        }
+        currentLocation = scenario.state.currentLocation || 'AU';
+        viewState.currentLocation = currentLocation;
         
         // Load data for current location
         pathways = locationData[currentLocation].pathways;
@@ -15939,8 +14596,14 @@ function loadScenarioData(scenario) {
         locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
-        // Don't override the saved location preference during scenario load
-        // The user's location preference should persist
+        // Set current location based on where we have cohorts
+        if (nzCohorts.length > 0 && auCohorts.length === 0) {
+            currentLocation = 'NZ';
+            viewState.currentLocation = 'NZ';
+        } else {
+            currentLocation = 'AU';
+            viewState.currentLocation = 'AU';
+        }
         
         // Update activeCohorts to current location's cohorts
         activeCohorts = locationData[currentLocation].activeCohorts;
@@ -15965,8 +14628,10 @@ function loadScenarioData(scenario) {
     renderGanttChart();
     populatePathwaySelect();
     
-    // Update dashboard
-    updateDashboardV2();
+    // Update dashboard if it exists
+    if (typeof updateDashboard === 'function') {
+        updateDashboard();
+    }
     
     // Re-establish synchronized scrolling after a delay to ensure all tables are rendered
     setTimeout(() => {
@@ -16000,7 +14665,6 @@ function loadScenarioData(scenario) {
 function deleteScenario(scenarioId) {
     if (!confirm('Are you sure you want to delete this scenario?')) return;
     
-    ensureScenarios();
     const deletedScenario = scenarios.find(s => s.id === scenarioId);
     scenarios = scenarios.filter(s => s.id !== scenarioId);
     localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
@@ -16016,7 +14680,7 @@ function deleteScenario(scenarioId) {
 }
 
 function duplicateScenario(scenarioId) {
-    const originalScenario = getScenarios().find(s => s.id === scenarioId);
+    const originalScenario = scenarios.find(s => s.id === scenarioId);
     if (!originalScenario) return;
     
     // Create a deep copy of the scenario
@@ -16051,8 +14715,7 @@ function duplicateScenario(scenarioId) {
 function renderScenarioList() {
     const container = document.getElementById('scenario-list');
     
-    const loadedScenarios = getScenarios();
-    if (loadedScenarios.length === 0) {
+    if (scenarios.length === 0) {
         container.innerHTML = '<p style="text-align: center; color: #999;">No saved scenarios yet</p>';
         updateScenarioCount();
         return;
@@ -16063,7 +14726,7 @@ function renderScenarioList() {
     const sortValue = sortSelect ? sortSelect.value : 'date-desc';
     
     // Sort scenarios
-    const sortedScenarios = [...loadedScenarios].sort((a, b) => {
+    const sortedScenarios = [...scenarios].sort((a, b) => {
         switch (sortValue) {
             case 'date-desc':
                 return new Date(b.date) - new Date(a.date);
@@ -16127,7 +14790,7 @@ function updateCurrentScenarioDisplay() {
     const updateBtn = document.getElementById('update-current-scenario');
     
     if (viewState.currentScenarioId) {
-        const scenario = getScenarios().find(s => s.id === viewState.currentScenarioId);
+        const scenario = scenarios.find(s => s.id === viewState.currentScenarioId);
         if (scenario) {
             const displayName = scenario.name + (viewState.isDirty ? ' (modified)' : '');
             nameSpan.textContent = displayName;
@@ -16196,8 +14859,7 @@ function exportScenario(scenarioId) {
 
 // Export all scenarios
 function exportAllScenarios() {
-    const loadedScenarios = getScenarios();
-    if (loadedScenarios.length === 0) {
+    if (scenarios.length === 0) {
         showNotification('No scenarios to export', 'warning');
         return;
     }
@@ -16205,7 +14867,7 @@ function exportAllScenarios() {
     const exportData = {
         version: '1.0',
         exportDate: new Date().toISOString(),
-        scenarios: loadedScenarios
+        scenarios: scenarios
     };
     
     const dataStr = JSON.stringify(exportData, null, 2);
@@ -16216,7 +14878,7 @@ function exportAllScenarios() {
     link.download = `all_scenarios_${new Date().toISOString().split('T')[0]}.json`;
     link.click();
     
-    showNotification(`Exported ${loadedScenarios.length} scenario${loadedScenarios.length > 1 ? 's' : ''}`, 'success');
+    showNotification(`Exported ${scenarios.length} scenario${scenarios.length > 1 ? 's' : ''}`, 'success');
 }
 
 // Import scenarios
@@ -16240,7 +14902,6 @@ function importScenarios(event) {
             
             for (const scenario of importedScenarios) {
                 // Check for name conflicts
-                ensureScenarios();
                 const existingScenario = scenarios.find(s => s.name === scenario.name);
                 
                 if (existingScenario) {
@@ -16263,7 +14924,7 @@ function importScenarios(event) {
                             // Check if it's the old format (fortnight numbers as keys)
                             const keys = Object.keys(cohort.crossLocationTraining);
                             if (keys.length > 0 && !isNaN(keys[0])) {
-                                // console.log('Converting legacy cross-location format for cohort:', cohort);
+                                console.log('Converting legacy cross-location format for cohort:', cohort);
                                 cohort.crossLocationTraining = convertLegacyCrossLocation(cohort, scenario.state.pathways);
                             }
                         }
@@ -16441,9 +15102,8 @@ function compareScenarios() {
     }
     
     const [id1, id2] = Array.from(selectedForComparison);
-    const loadedScenarios = getScenarios();
-    const scenario1 = loadedScenarios.find(s => s.id === id1);
-    const scenario2 = loadedScenarios.find(s => s.id === id2);
+    const scenario1 = scenarios.find(s => s.id === id1);
+    const scenario2 = scenarios.find(s => s.id === id2);
     
     if (!scenario1 || !scenario2) {
         showNotification('Error loading scenarios for comparison', 'error');
@@ -17258,12 +15918,12 @@ function updateAlerts() {
 
 // Dashboard V2 Functions
 function updateDashboardV2() {
-    // console.log('Updating Dashboard V2', {
-    //     activeCohorts: activeCohorts.length,
-    //     currentLocation: currentLocation,
-    //     pathways: pathways.length,
-    //     trainerFTE: Object.keys(trainerFTE).length
-    // });
+    console.log('Updating Dashboard V2', {
+        activeCohorts: activeCohorts.length,
+        currentLocation: currentLocation,
+        pathways: pathways.length,
+        trainerFTE: Object.keys(trainerFTE).length
+    });
     
     updateMetricsV2();
     updateChartsV2();
@@ -17329,9 +15989,7 @@ function updateChartsV2() {
 }
 
 function updateDemandChartV2() {
-    const ctx = document.getElementById('demand-chart-v2')?.getContext('2d');
-    if (!ctx) return;
-    
+    const ctx = document.getElementById('demand-chart-v2').getContext('2d');
     const { demand } = calculateDemand();
     
     // Prepare data for the next 12 months
@@ -17340,7 +15998,6 @@ function updateDemandChartV2() {
     const supplyData = [];
     
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -17923,16 +16580,14 @@ function updateTrainerHeatmap() {
     if (!container) return;
     
     const { demand } = calculateDemand();
-    const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
-    const currentYear = currentDate.getFullYear();
+    const currentYear = new Date().getFullYear();
     
-    // console.log('Heat map data:', {
-    //     demand: demand,
-    //     currentYear: currentYear,
-    //     trainerFTE: trainerFTE[currentYear],
-    //     hasData: demand && demand[currentYear]
-    // });
+    console.log('Heat map data:', {
+        demand: demand,
+        currentYear: currentYear,
+        trainerFTE: trainerFTE[currentYear],
+        hasData: demand && demand[currentYear]
+    });
     
     // Check if we have any data to display
     const hasCurrentYearData = demand && demand[currentYear] && Object.keys(demand[currentYear]).length > 0;
@@ -18150,7 +16805,6 @@ function updateSupplyDemandChart() {
     
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -18582,13 +17236,11 @@ function updateWorkloadChart() {
 
 function updateDetailCards() {
     const { demand } = calculateDemand();
-    const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
-    const currentYear = currentDate.getFullYear();
+    const currentYear = new Date().getFullYear();
     const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
     
-    // console.log('UpdateDetailCards - demand:', demand);
-    // console.log('UpdateDetailCards - cohorts:', cohorts.length);
+    console.log('UpdateDetailCards - demand:', demand);
+    console.log('UpdateDetailCards - cohorts:', cohorts.length);
     
     // Find peak demand period
     let peakDemand = 0;
@@ -18666,10 +17318,7 @@ window.removeCohort = removeCohort;
 window.editCohort = editCohort;
 window.editPathway = editPathway;
 window.removePhase = removePhase;
-window.navigateFTEYears = navigateFTEYears;
-window.handleFTEPaste = handleFTEPaste;
-window.handleFTEKeyDown = handleFTEKeyDown;
-window.handleFTEMouseDown = handleFTEMouseDown;
+window.quickFillFTE = quickFillFTE;
 window.toggleGroup = toggleGroup;
 window.loadScenario = loadScenario;
 window.deleteScenario = deleteScenario;
@@ -18677,27 +17326,6 @@ window.updateCurrentScenario = updateCurrentScenario;
 window.acknowledgeAlert = acknowledgeAlert;
 window.dismissAlert = dismissAlert;
 window.exportChart = exportChart;
-window.toggleCommencementCrossLocation = toggleCommencementCrossLocation;
-window.navigateDashboard = navigateDashboard;
-window.saveFTEAsDefault = saveFTEAsDefault;
-window.toggleDemandSplitView = toggleDemandSplitView;
-window.showHelpModal = showHelpModal;
-
-// Merge dialog functions
-window.selectAllMergeGroups = selectAllMergeGroups;
-window.deselectAllMergeGroups = deselectAllMergeGroups;
-window.updateMergeSelection = updateMergeSelection;
-window.toggleMergeDetails = toggleMergeDetails;
-window.performMerge = performMerge;
-
-// Additional functions
-window.removeToast = removeToast;
-window.handleCardClick = handleCardClick;
-window.duplicateScenario = duplicateScenario;
-window.exportAllScenarios = exportAllScenarios;
-window.importScenarios = importScenarios;
-window.exportScenario = exportScenario;
-window.compareScenarios = compareScenarios;
 
 // Test function for debugging sync
 window.testSync = function() {
@@ -19245,8 +17873,12 @@ window.addDemoDashboardData = function() {
     
     // Update dashboard if on dashboard view
     if (dashboardView.classList.contains('active')) {
-        // Always use enhanced dashboard
-        updateDashboardV2();
+        const dashboardVersion = localStorage.getItem('dashboardVersion') || 'classic';
+        if (dashboardVersion === 'enhanced') {
+            updateDashboardV2();
+        } else {
+            updateDashboard();
+        }
     }
     
     showNotification('Demo data loaded successfully', 'success');
@@ -19357,20 +17989,19 @@ const helpContent = {
             
             <h3>Key Concepts</h3>
             <ul>
-                <li><strong>FTE (Full-Time Equivalent):</strong> A measure of trainer capacity. 1 FTE = 1 full-time trainer working standard hours.</li>
-                <li><strong>Fortnights:</strong> The system uses 2-week periods (fortnights) as the base time unit, with 24 fortnights per year.</li>
-                <li><strong>Cohorts:</strong> Groups of pilot trainees who progress through training phases together.</li>
-                <li><strong>Pathways:</strong> Pre-defined training programs consisting of multiple phases (Ground School, Simulator, Line Training).</li>
-                <li><strong>Line Training (LT):</strong> The final phase requiring 1:1 trainer-to-trainee ratio.</li>
+                <li><strong>FTE (Full-Time Equivalent):</strong> A measure of trainer capacity. 1 FTE = 1 full-time trainer.</li>
+                <li><strong>Fortnights:</strong> We use 2-week periods as our base time unit, with 24 fortnights per year.</li>
+                <li><strong>Cohorts:</strong> Groups of trainees going through training together.</li>
+                <li><strong>Pathways:</strong> Training programs with multiple phases (e.g., Ground School, Simulator, Line Training).</li>
             </ul>
             
             <h3>Quick Start Guide</h3>
             <ol>
-                <li><strong>Configure Trainer Capacity:</strong> Navigate to Settings → Edit FTE and enter your annual trainer numbers by category.</li>
-                <li><strong>Review Training Pathways:</strong> Check Settings → Training Pathways to ensure durations match your organization.</li>
-                <li><strong>Schedule Training Cohorts:</strong> Go to Planner → Add New Cohort or use the Training Planner for bulk entry.</li>
-                <li><strong>Monitor Performance:</strong> View the Dashboard to track utilization, identify bottlenecks, and see upcoming completions.</li>
-                <li><strong>Save Your Work:</strong> Create scenarios to save different planning options and compare alternatives.</li>
+                <li><strong>Set up your trainer FTE:</strong> Go to Settings → Edit FTE to configure trainer capacity.</li>
+                <li><strong>Configure pathways:</strong> Review and customize training pathways in Settings.</li>
+                <li><strong>Add cohorts:</strong> Use the Planner tab to schedule training cohorts.</li>
+                <li><strong>Analyze results:</strong> Check the Dashboard for utilization metrics and warnings.</li>
+                <li><strong>Save scenarios:</strong> Use the Scenarios tab to save different planning options.</li>
             </ol>
             
             <div class="help-tip">
@@ -19384,12 +18015,12 @@ const helpContent = {
             <h2>Understanding the Dashboard</h2>
             <p>The Dashboard provides a comprehensive overview of your training operations with key metrics and visualizations.</p>
             
-            <h3>Key Performance Indicators (KPIs)</h3>
+            <h3>Metrics Cards</h3>
             <ul>
-                <li><strong>Trainees in Training:</strong> Total number of pilots currently in any training phase (GS+SIM or Line Training).</li>
-                <li><strong>Trainer Utilization:</strong> Percentage of available trainer capacity being used. Target range: 80-90% for optimal efficiency.</li>
-                <li><strong>Upcoming Completions:</strong> Number of trainees who will complete all training phases within the next 3 months.</li>
-                <li><strong>Capacity Warnings:</strong> Number of future periods where trainer demand exceeds available supply.</li>
+                <li><strong>Trainees in Training:</strong> Total number of trainees currently in any training phase.</li>
+                <li><strong>Trainer Utilization:</strong> Percentage of trainer capacity being used. Aim for 80-90%.</li>
+                <li><strong>Upcoming Completions:</strong> Number of trainees completing training in the next 3 months.</li>
+                <li><strong>Capacity Warnings:</strong> Count of periods where demand exceeds supply.</li>
             </ul>
             
             <h3>Charts Explained</h3>
@@ -19435,13 +18066,12 @@ const helpContent = {
                 <li><strong>Bulk Input:</strong> Enter multiple cohorts using natural language (e.g., "Jan 2025: 12 FO, 8 CP").</li>
             </ul>
             
-            <h3>Gantt Chart (Visual Timeline)</h3>
-            <p>Interactive timeline displaying all scheduled training cohorts:</p>
+            <h3>Gantt Chart</h3>
+            <p>Visual timeline showing all training cohorts with their phases:</p>
             <ul>
-                <li><strong>Blue bars:</strong> Ground School + Simulator phases (no trainer required)</li>
-                <li><strong>Green bars:</strong> Line Training phases (requires 1:1 trainer-to-trainee ratio)</li>
-                <li><strong>🏁 Flag icons:</strong> Indicates cross-location training (using trainers from other location)</li>
-                <li><strong>Drag & Drop:</strong> Click and drag cohort bars to reschedule</li>
+                <li>🟦 Blue: Ground School + Simulator (no trainer demand)</li>
+                <li>🟩 Green: Line Training phases (1:1 trainer demand)</li>
+                <li>🏁 Flags: Cross-location training indicators</li>
             </ul>
             
             <div class="help-tip">
@@ -19664,40 +18294,17 @@ const qaDatabase = [
         answer: {
             summary: "When demand exceeds supply, use cross-location training, adjust cohort timing, or optimize allocation priorities.",
             full: `
-                <h4>Handling Trainer Shortages - Step by Step</h4>
-                <p>When you see red cells in your Surplus/Deficit table, try these solutions in order:</p>
+                <h4>Handling Trainer Shortages</h4>
+                <p>Several strategies can help when facing trainer shortages:</p>
                 <ol>
-                    <li><strong>Quick Fix - Cross-Location Training:</strong>
-                        <ul>
-                            <li>Right-click the affected cohort in the Gantt chart</li>
-                            <li>Select "Edit Cohort"</li>
-                            <li>Enable "Cross-location trainer usage"</li>
-                            <li>Select the specific fortnights needing external trainers</li>
-                        </ul>
-                    </li>
-                    <li><strong>Reschedule Cohorts:</strong>
-                        <ul>
-                            <li>Drag cohorts on the Gantt chart to periods with green (surplus) capacity</li>
-                            <li>Consider delaying non-critical training by 1-2 fortnights</li>
-                        </ul>
-                    </li>
-                    <li><strong>Split Large Cohorts:</strong>
-                        <ul>
-                            <li>Edit cohorts with 10+ trainees</li>
-                            <li>Use the "Split Cohort" feature to create smaller groups</li>
-                            <li>Stagger their start dates by 2-4 weeks</li>
-                        </ul>
-                    </li>
-                    <li><strong>Long-term Solution:</strong>
-                        <ul>
-                            <li>Go to Settings → Edit FTE</li>
-                            <li>Increase trainer numbers for future years</li>
-                            <li>Focus on the trainer categories showing consistent shortages</li>
-                        </ul>
-                    </li>
+                    <li><strong>Use Cross-Location Training:</strong> Borrow trainers from other locations for specific periods.</li>
+                    <li><strong>Adjust Cohort Timing:</strong> Delay or advance cohorts to periods with more capacity.</li>
+                    <li><strong>Optimize Priorities:</strong> Ensure critical training (P1) is covered first.</li>
+                    <li><strong>Split Large Cohorts:</strong> Break into smaller groups to spread demand.</li>
+                    <li><strong>Increase FTE:</strong> Hire more trainers or use contractors for peak periods.</li>
                 </ol>
-                <div class="help-warning">
-                    <strong>⚠️ Important:</strong> Cross-location training should be planned 2-3 months in advance to arrange travel and accommodation.
+                <div class="help-tip">
+                    <strong>Quick Fix:</strong> Right-click a cohort in the Gantt chart and select "Enable cross-location training" for immediate relief.
                 </div>
             `
         },
@@ -19875,52 +18482,6 @@ const qaDatabase = [
             `
         },
         relatedTopics: ["calculations", "cross-location"]
-    },
-    {
-        id: 7,
-        questions: [
-            "What's the difference between CP, FO, and CAD?",
-            "Pathway types explained",
-            "What does CP FO CAD mean?",
-            "pilot training types"
-        ],
-        keywords: ["CP", "FO", "CAD", "pathway", "types", "captain", "first officer", "cadet"],
-        answer: {
-            summary: "CP = Captain upgrade training, FO = First Officer training, CAD = Cadet (ab-initio) training. They differ in duration and complexity.",
-            full: `
-                <h4>Understanding Training Pathway Types</h4>
-                <p>The system supports three standard pilot training pathways:</p>
-                
-                <h5>🎖️ CP (Captain)</h5>
-                <ul>
-                    <li><strong>Purpose:</strong> Upgrade experienced First Officers to Captain</li>
-                    <li><strong>Duration:</strong> Shortest pathway (typically 3-8 fortnights)</li>
-                    <li><strong>Phases:</strong> Brief ground school + simulator, followed by line training</li>
-                    <li><strong>Trainer Type:</strong> Requires RHS trainers for line training (P2 priority)</li>
-                </ul>
-                
-                <h5>✈️ FO (First Officer)</h5>
-                <ul>
-                    <li><strong>Purpose:</strong> Train pilots to become First Officers</li>
-                    <li><strong>Duration:</strong> Medium pathway (typically 11 fortnights)</li>
-                    <li><strong>Phases:</strong> Moderate ground school + simulator, then line training</li>
-                    <li><strong>Trainer Type:</strong> Requires LHS trainers for line training (P3 priority)</li>
-                </ul>
-                
-                <h5>🎓 CAD (Cadet)</h5>
-                <ul>
-                    <li><strong>Purpose:</strong> Train new pilots from zero experience (ab-initio)</li>
-                    <li><strong>Duration:</strong> Longest pathway (typically 8-12 fortnights)</li>
-                    <li><strong>Phases:</strong> Extended ground school + simulator, then line training</li>
-                    <li><strong>Trainer Type:</strong> Requires specialized CATB/CATA/STP trainers (P1 priority)</li>
-                </ul>
-                
-                <div class="help-tip">
-                    <strong>💡 Planning Tip:</strong> CAD training gets first priority for trainer allocation because it requires specialized trainers who can't be substituted.
-                </div>
-            `
-        },
-        relatedTopics: ["settings", "priorities", "planner"]
     }
 ];
 
@@ -20213,6 +18774,6 @@ window.addEventListener('load', function() {
     if (helpIcon) {
         helpIcon.setAttribute('title', 'Help (F1)');
     }
-});</script>
+});    </script>
 </body>
 </html>
