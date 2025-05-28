@@ -1,5 +1,148 @@
 # Changelog
 
+## [1.8.0] - 2025-01-28
+
+### 🐛 Major Bug Fixes
+- Fixed location toggle not working on initial page load (required clicking AU first)
+- Fixed location preference not persisting across page refreshes
+- Fixed dashboard not updating when switching between AU/NZ locations
+- Fixed merge cohorts breaking demand calculations
+- Fixed drag & drop in Gantt chart not marking scenario as dirty
+- Fixed dashboard month navigation not updating all visualization cards
+- Fixed cross-location button showing in NZ view
+- Fixed row ordering (NZ row now appears before FO+CAD subtotal)
+
+### ⚡ Performance Improvements
+- Implemented lazy loading for scenarios (significant initial load improvement)
+- Optimized location switching with loading indicators
+- Added requestAnimationFrame for smoother UI updates
+- Fixed DOM element initialization timing issues
+
+### ✨ Enhancements
+- Added toggle to show/hide NZ training commencements in AU view
+- Added FO+CAD subtotal row in commencement summary
+- Enhanced dashboard month navigation (< > buttons) for time-based views
+- Improved FTE persistence (now saves globally and in scenarios)
+- Added visual indicators for NZ cohorts using AU trainers (striped pattern + white dots)
+- Improved scenario save preview with AU/NZ cohort breakdown
+
+### 🔧 Code Quality
+- Cleaned up console logging (added DEBUG_MODE flag)
+- Fixed multiple ReferenceError issues from removed functions
+- Improved error handling for location switching
+- Better separation of concerns for location data management
+
+---
+
+## [1.7.0] - 2025-01-27
+
+### ✨ New Features
+- **Help System** - Comprehensive interactive help documentation
+  - Getting Started guide
+  - Feature tutorials
+  - FAQ section
+  - Searchable content
+  - Interactive tour system
+- **Help Icon** - Quick access help button in header (F1 shortcut)
+- **Standalone Updates** - Updated standalone version with latest features
+
+### 🔧 Improvements
+- Better error handling for help system
+- Improved modal styling for help interface
+- Added keyboard shortcuts documentation
+
+---
+
+## [1.6.0] - 2025-01-27
+
+### ✨ New Features
+- **Auto-load Last Scenario** - Automatically loads the last used scenario on startup
+- **Smart Excel Import Tool** - New tool for importing FSO training data from Excel
+  - Automatically extracts pathways A209 (CAD) and A210 (FO)
+  - Creates scenarios with proper cross-location training format
+  - Sets appropriate FTE values (240 for all trainer types)
+
+### 🐛 Bug Fixes
+- Fixed scenario auto-load timing issues
+- Fixed Excel import data parsing
+- Corrected cross-location training format conversion
+
+### ⚡ Performance
+- Reduced initial load time by deferring scenario loading
+- Optimized Excel data processing
+
+---
+
+## [1.5.1] - 2025-01-27
+
+### ✨ Major Cross-Location Enhancements
+- **Dashboard V2** - Complete redesign with enhanced metrics and trends
+  - Real-time metrics cards with period-over-period changes
+  - 12-month demand forecast chart
+  - Training distribution pie chart
+  - Enhanced pipeline visualization
+  - Smart alerts system
+- **Cross-Location Improvements**
+  - Fixed NZ cohorts display in AU Gantt cross-location section
+  - Legacy scenario format migration
+  - Better visual indicators
+
+### 🐛 Bug Fixes
+- Fixed decimal display issues throughout application
+- Corrected cross-location demand calculations
+- Fixed Gantt chart rendering for cross-location cohorts
+
+### 🔧 Technical Improvements
+- Project cleanup and organization
+- Moved completed features to archive folder
+- Updated documentation
+
+---
+
+## [1.5.0] - 2025-01-26
+
+### ✨ Enhanced Cross-Location Visibility
+- **Split View Toggle** - Separate local vs cross-location demand in tables
+- **Cross-Location Section** - Gantt chart now shows dedicated section for cross-location cohorts
+- **Visual Improvements** - Removed decimal points for cleaner display
+- **Dynamic Layout** - Tables adjust height based on split view mode
+
+### 🐛 Bug Fixes
+- Fixed demand table calculations for cross-location training
+- Improved table synchronization
+- Better handling of empty data states
+
+---
+
+## [1.4.0] - 2025-01-26
+
+### ✨ Cross-Location Training Implementation
+- **Multi-Location Support** - Full AU/NZ location management
+- **Fortnight-Level Assignments** - Granular cross-location trainer allocation
+- **Visual Indicators** - Flags, striped patterns, and footnotes for cross-location training
+- **Two-Pass Algorithm** - Sophisticated cross-location demand calculation
+
+### 🔧 Technical Improvements
+- Location-aware data structures
+- Improved state management
+- Better separation of location data
+
+---
+
+## [1.3.0] - 2025-01-25
+
+### ✨ Major UI/UX Improvements
+- **Executive Dashboard** - New dashboard with real-time metrics
+- **Dark Mode** - Full dark mode support throughout application
+- **Enhanced Scenarios** - Improved scenario management interface
+
+### 🐛 Bug Fixes
+- Fixed UI consistency issues
+- Improved modal behavior
+- Better error handling
+
+---
+
 ## [1.0.0] - 2025-01-26
 
 ### 🎉 Major Release - Production Ready
