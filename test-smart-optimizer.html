@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Optimizer & Deficit Resolution Tests</title>
+    <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            padding: 20px; 
+            background: #f5f5f5; 
+        }
+        .test-section { 
+            background: white; 
+            margin: 20px 0; 
+            padding: 20px; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1); 
+        }
+        .test-case { 
+            margin: 15px 0; 
+            padding: 15px; 
+            border-left: 4px solid #007bff; 
+            background: #f8f9fa; 
+        }
+        .test-case.passed { border-left-color: #28a745; }
+        .test-case.failed { border-left-color: #dc3545; }
+        .test-case.pending { border-left-color: #ffc107; }
+        .test-title { font-weight: bold; margin-bottom: 10px; }
+        .test-steps { margin-left: 20px; }
+        .test-steps li { margin: 5px 0; }
+        .expected-result { 
+            background: #e7f3ff; 
+            padding: 10px; 
+            border-radius: 4px; 
+            margin-top: 10px; 
+        }
+        .priority { 
+            display: inline-block; 
+            padding: 2px 8px; 
+            border-radius: 12px; 
+            font-size: 12px; 
+            font-weight: bold; 
+        }
+        .priority.high { background: #dc3545; color: white; }
+        .priority.medium { background: #ffc107; color: black; }
+        .priority.low { background: #6c757d; color: white; }
+        .btn { 
+            background: #007bff; 
+            color: white; 
+            border: none; 
+            padding: 8px 16px; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            margin: 5px; 
+        }
+        .btn:hover { background: #0056b3; }
+        .btn.success { background: #28a745; }
+        .btn.warning { background: #ffc107; color: black; }
+        .btn.danger { background: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>🧪 Smart Optimizer & Deficit Resolution Test Suite</h1>
+    <p>Comprehensive tests for the enhanced Training Planner features</p>
+
+    <div class="test-section">
+        <h2>📋 Test Overview</h2>
+        <p><strong>Features Under Test:</strong></p>
+        <ul>
+            <li>Smart Optimizer Tab (partial achievement analysis)</li>
+            <li>Deficit Resolution Assistant (header button integration)</li>
+            <li>Cross-location training suggestions (NZ→AU only)</li>
+            <li>UI/UX improvements (modal styling, responsiveness)</li>
+        </ul>
+        
+        <p><strong>Test Environment:</strong></p>
+        <ul>
+            <li>Browser: Chrome/Firefox/Safari/Edge</li>
+            <li>Screen sizes: Desktop (1400x900), Tablet (768x1024), Mobile (375x667)</li>
+            <li>Modes: Light mode, Dark mode</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🚀 Core Functionality Tests</h2>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority high">HIGH</span>
+                Test 1: Smart Optimizer Tab Visibility and Interaction
+            </div>
+            <ol class="test-steps">
+                <li>Open application in browser</li>
+                <li>Navigate to Planner view</li>
+                <li>Click "Training Planner" button</li>
+                <li>Click "Smart Optimizer" tab</li>
+                <li>Enter target values: CP=20, FO=30, CAD=15</li>
+                <li>Set target date to 6 months from now</li>
+                <li>Click "Analyze Feasibility"</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Smart Optimizer tab appears and is clickable</li>
+                    <li>Input fields accept numeric values</li>
+                    <li>Date picker works correctly</li>
+                    <li>Analyze button triggers calculation</li>
+                    <li>Results phase appears with partial achievement analysis</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority high">HIGH</span>
+                Test 2: Deficit Resolution Button Integration
+            </div>
+            <ol class="test-steps">
+                <li>Load application with demo data (use addDemoDashboardData())</li>
+                <li>Navigate to Planner view</li>
+                <li>Scroll to "Surplus/Deficit Analysis" section</li>
+                <li>Look for "Resolve Deficits" button next to "Show Detailed View"</li>
+                <li>Verify button shows deficit count badge</li>
+                <li>Click "Resolve Deficits" button</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Button appears next to existing controls when deficits exist</li>
+                    <li>Button shows count badge (e.g., "3" in red circle)</li>
+                    <li>Button text shows "Resolve X Deficits"</li>
+                    <li>Clicking opens centered, condensed modal</li>
+                    <li>No floating pulsing button appears</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority high">HIGH</span>
+                Test 3: Deficit Resolution Modal Functionality
+            </div>
+            <ol class="test-steps">
+                <li>Open deficit resolution modal (from Test 2)</li>
+                <li>Verify modal is centered and well-proportioned</li>
+                <li>Check "Priority Deficits" section shows specific deficit periods</li>
+                <li>Check "Quick Fixes Available" section shows actionable solutions</li>
+                <li>Select one or more solution checkboxes</li>
+                <li>Click "Preview Impact" button</li>
+                <li>Try clicking X button to close</li>
+                <li>Try clicking "Cancel" button</li>
+                <li>Try clicking outside modal (backdrop)</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Modal is centered, max-width 600px, condensed layout</li>
+                    <li>Red header with white close button</li>
+                    <li>Deficits listed by fortnight with clear descriptions</li>
+                    <li>Solutions show impact (e.g., "Resolves 6 trainee deficit")</li>
+                    <li>All close methods work (X, Cancel, backdrop click)</li>
+                    <li>Preview shows before/after comparison</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🌐 Cross-Location Features Tests</h2>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority high">HIGH</span>
+                Test 4: NZ→AU Cross-Location Suggestions
+            </div>
+            <ol class="test-steps">
+                <li>Switch to NZ location (click NZ toggle)</li>
+                <li>Add cohorts that exceed NZ capacity</li>
+                <li>Open Smart Optimizer</li>
+                <li>Set ambitious targets that require cross-location training</li>
+                <li>Analyze feasibility</li>
+                <li>Check options phase for cross-location suggestions</li>
+                <li>Verify only NZ→AU suggestions appear (not AU→NZ)</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Smart Optimizer suggests using AU trainers for NZ cohorts</li>
+                    <li>No suggestions to use NZ trainers for AU cohorts</li>
+                    <li>Clear indication of which fortnights can use AU capacity</li>
+                    <li>Proper cost/benefit analysis of cross-location training</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority medium">MEDIUM</span>
+                Test 5: Location-Specific Deficit Detection
+            </div>
+            <ol class="test-steps">
+                <li>Create deficits in AU location</li>
+                <li>Switch to NZ location</li>
+                <li>Verify deficit button behavior changes</li>
+                <li>Switch back to AU</li>
+                <li>Verify deficit button shows AU deficits again</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Deficit detection is location-specific</li>
+                    <li>Button appears/disappears based on current location's deficits</li>
+                    <li>Deficit counts update when switching locations</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎨 UI/UX Tests</h2>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority medium">MEDIUM</span>
+                Test 6: Dark Mode Compatibility
+            </div>
+            <ol class="test-steps">
+                <li>Toggle dark mode (moon icon in header)</li>
+                <li>Open Smart Optimizer modal</li>
+                <li>Open Deficit Resolution modal</li>
+                <li>Verify all colors and contrasts are appropriate</li>
+                <li>Check button badges and borders adapt to dark theme</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>All new UI elements adapt to dark mode</li>
+                    <li>Text remains readable with good contrast</li>
+                    <li>Button badges have proper dark mode borders</li>
+                    <li>Modal backgrounds use dark theme colors</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority medium">MEDIUM</span>
+                Test 7: Responsive Design
+            </div>
+            <ol class="test-steps">
+                <li>Test on tablet size (768px width)</li>
+                <li>Test on mobile size (375px width)</li>
+                <li>Open modals at different screen sizes</li>
+                <li>Verify button layouts adapt appropriately</li>
+                <li>Check that modal content remains accessible</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Modals remain usable on smaller screens</li>
+                    <li>Button layout adjusts without overlapping</li>
+                    <li>Text remains readable at all sizes</li>
+                    <li>Modal scrolling works on small screens</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>⚡ Edge Cases & Error Handling</h2>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority medium">MEDIUM</span>
+                Test 8: Edge Case Scenarios
+            </div>
+            <ol class="test-steps">
+                <li><strong>Zero FTE:</strong> Set all trainer FTE to 0, test Smart Optimizer</li>
+                <li><strong>Extreme Targets:</strong> Enter 1000 pilots of each type</li>
+                <li><strong>Empty Scenario:</strong> Remove all cohorts, test deficit detection</li>
+                <li><strong>Invalid Dates:</strong> Try past dates or far future dates</li>
+                <li><strong>Negative Values:</strong> Try entering negative target numbers</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Zero FTE shows clear "impossible" messages</li>
+                    <li>Extreme targets show realistic partial achievement</li>
+                    <li>Empty scenarios hide deficit button</li>
+                    <li>Invalid inputs are properly validated</li>
+                    <li>No JavaScript errors in console</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="test-case">
+            <div class="test-title">
+                <span class="priority low">LOW</span>
+                Test 9: Performance & Usability
+            </div>
+            <ol class="test-steps">
+                <li>Load large scenario (50+ cohorts)</li>
+                <li>Test Smart Optimizer response time</li>
+                <li>Test deficit detection refresh rate</li>
+                <li>Check for memory leaks during repeated use</li>
+                <li>Verify smooth animations and transitions</li>
+            </ol>
+            <div class="expected-result">
+                <strong>Expected Result:</strong>
+                <ul>
+                    <li>Smart Optimizer completes analysis in <2 seconds</li>
+                    <li>UI remains responsive during calculations</li>
+                    <li>Deficit detection updates smoothly</li>
+                    <li>No excessive memory usage or leaks</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>✅ Test Execution Checklist</h2>
+        <h3>Pre-Test Setup:</h3>
+        <ul>
+            <li>☐ Clear browser cache and storage</li>
+            <li>☐ Open browser developer tools (Console tab)</li>
+            <li>☐ Load application: <code>file:///path/to/trainer-view/index.html</code></li>
+            <li>☐ Run: <code>window.addDemoDashboardData()</code> in console</li>
+        </ul>
+
+        <h3>Execution Order:</h3>
+        <ol>
+            <li>☐ Run Tests 1-3 (Core Functionality) - these are critical</li>
+            <li>☐ Run Tests 4-5 (Cross-Location) - verify key business logic</li>
+            <li>☐ Run Tests 6-7 (UI/UX) - ensure polish and accessibility</li>
+            <li>☐ Run Tests 8-9 (Edge Cases) - validate robustness</li>
+        </ol>
+
+        <h3>Post-Test Validation:</h3>
+        <ul>
+            <li>☐ No JavaScript errors in console</li>
+            <li>☐ All modals close properly</li>
+            <li>☐ Data persists correctly between actions</li>
+            <li>☐ Performance remains acceptable</li>
+        </ul>
+    </div>
+
+    <div class="test-section">
+        <h2>🐛 Known Issues & Workarounds</h2>
+        <div class="test-case">
+            <div class="test-title">Common Issues</div>
+            <ul>
+                <li><strong>Issue:</strong> Smart Optimizer not showing results
+                    <br><strong>Workaround:</strong> Ensure date is properly set and targets are numeric</li>
+                <li><strong>Issue:</strong> Deficit button not appearing
+                    <br><strong>Workaround:</strong> Refresh page and ensure demo data is loaded</li>
+                <li><strong>Issue:</strong> Modal positioning on small screens
+                    <br><strong>Workaround:</strong> Use browser zoom controls if needed</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>🎯 Success Criteria</h2>
+        <p><strong>All tests pass if:</strong></p>
+        <ul>
+            <li>✅ Smart Optimizer tab functions correctly</li>
+            <li>✅ Deficit Resolution button appears in header (not floating)</li>
+            <li>✅ Modal is centered, condensed, and closes properly</li>
+            <li>✅ Cross-location suggestions are NZ→AU only</li>
+            <li>✅ Dark mode compatibility is maintained</li>
+            <li>✅ No JavaScript console errors</li>
+            <li>✅ Responsive design works on multiple screen sizes</li>
+        </ul>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn success" onclick="window.open('../index.html')">🚀 Start Testing</button>
+            <button class="btn warning" onclick="console.log('Run: window.addDemoDashboardData()')">📊 Load Demo Data</button>
+        </div>
+    </div>
+
+    <script>
+        // Helper function to mark tests as passed/failed
+        function markTest(testNumber, status) {
+            const testCase = document.querySelectorAll('.test-case')[testNumber - 1];
+            if (testCase) {
+                testCase.classList.remove('passed', 'failed', 'pending');
+                testCase.classList.add(status);
+            }
+        }
+
+        // Example usage: markTest(1, 'passed')
+        console.log('Test helper loaded. Use markTest(testNumber, "passed"|"failed"|"pending") to mark test results.');
+    </script>
+</body>
+</html>

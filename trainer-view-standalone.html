@@ -1,4 +1,4 @@
-<\!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -22,36 +22,36 @@
     <style>
         /* Prevent flash - apply immediately */
         html.dark-mode-loading {
-            background-color: #1a1a1a \!important;
-            color: #e0e0e0 \!important;
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
         }
         html.dark-mode-loading body {
-            background-color: #1a1a1a \!important;
-            color: #e0e0e0 \!important;
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
         }
         html.dark-mode-loading .container {
-            background-color: #1a1a1a \!important;
-            color: #e0e0e0 \!important;
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
         }
         html.dark-mode-loading header {
-            background-color: #2a2a2a \!important;
-            color: #e0e0e0 \!important;
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
         }
         html.dark-mode-loading .nav-tab {
-            background-color: #333 \!important;
-            color: #e0e0e0 \!important;
+            background-color: #333 !important;
+            color: #e0e0e0 !important;
         }
         html.dark-mode-loading[data-active-tab="dashboard"] .nav-tab[data-view="dashboard"],
         html.dark-mode-loading[data-active-tab="planner"] .nav-tab[data-view="planner"],
         html.dark-mode-loading[data-active-tab="settings"] .nav-tab[data-view="settings"],
         html.dark-mode-loading[data-active-tab="scenarios"] .nav-tab[data-view="scenarios"] {
-            background-color: #0d6efd \!important;
-            color: white \!important;
+            background-color: #0d6efd !important;
+            color: white !important;
         }
         
         /* Regular styles */
         .table-container { min-height: 100px; }
-        .sticky-first-column { left: 0 \!important; }
+        .sticky-first-column { left: 0 !important; }
         html[data-location="AU"] .location-toggle[data-location="AU"],
         html:not([data-location]) .location-toggle[data-location="AU"] {
             background-color: #2196F3; color: white;
@@ -60,14 +60,14 @@
             background-color: #2196F3; color: white;
         }
         html.dark-mode-loading #dark-mode-toggle { 
-            background-color: #444 \!important; 
-            color: #e0e0e0 \!important; 
-            border-color: #666 \!important; 
+            background-color: #444 !important; 
+            color: #e0e0e0 !important; 
+            border-color: #666 !important; 
         }
         html.dark-mode-loading .btn.btn-secondary { 
-            background-color: #444 \!important; 
-            border-color: #666 \!important; 
-            color: #e0e0e0 \!important; 
+            background-color: #444 !important; 
+            border-color: #666 !important; 
+            color: #e0e0e0 !important; 
         }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1528,6 +1528,11 @@ section {
     justify-content: space-between;
     align-items: center;
     margin-bottom: 20px;
+}
+
+.section-header .button-group {
+    display: flex;
+    gap: 0.5rem;
 }
 
 .section-header h2 {
@@ -4558,17 +4563,17 @@ body.dark-mode #pathways-table-container {
 /* Ensure all table cells use the column width variable */
 .data-table td,
 .data-table th:not(.sticky-first-column):not(.gantt-first-column) {
-    min-width: var(--column-width) \!important;
-    width: var(--column-width) \!important;
-    max-width: var(--column-width) \!important;
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
     box-sizing: border-box;
 }
 
 /* Exception for month headers that span multiple columns */
 .data-table th[colspan] {
-    width: auto \!important;
-    min-width: auto \!important;
-    max-width: none \!important;
+    width: auto !important;
+    min-width: auto !important;
+    max-width: none !important;
 }
 
 /* Ensure tables expand to fit content */
@@ -4583,10 +4588,10 @@ body .data-table th.fortnight-header,
 body .gantt-table td.gantt-phase-cell,
 body .gantt-table td.gantt-empty-cell,
 body .gantt-table th.gantt-fortnight-header {
-    min-width: var(--column-width) \!important;
-    width: var(--column-width) \!important;
-    max-width: var(--column-width) \!important;
-    padding: 4px \!important;
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
+    padding: 4px !important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -6991,7 +6996,10 @@ body.dark-mode .category-cell.available {
                         </button>
                         FTE Summary
                     </h2>
-                    <button id="edit-fte-btn" class="btn btn-secondary">Edit FTE</button>
+                    <div class="button-group">
+                        <button id="edit-fte-btn" class="btn btn-secondary">Edit FTE</button>
+                        <button id="save-default-fte-btn" class="btn btn-secondary">💾 Save as Default</button>
+                    </div>
                 </div>
                 <div id="fte-summary-table-container" class="table-container">
                     <!-- FTE Summary table will be generated here -->
@@ -7987,27 +7995,49 @@ let viewState = {
 };
 
 // Dashboard navigation state
-let dashboardViewOffset = 0; // Months offset from current date
+let dashboardViewOffset = { AU: 0, NZ: 0 }; // Months offset from current date per location
 
 // Navigate dashboard view
 function navigateDashboard(months) {
     if (months === 0) {
         // Reset to today
-        dashboardViewOffset = 0;
+        dashboardViewOffset[currentLocation] = 0;
     } else {
-        dashboardViewOffset += months;
+        dashboardViewOffset[currentLocation] += months;
     }
     
     // Update time display
     const currentDate = new Date();
     const viewDate = new Date(currentDate);
-    viewDate.setMonth(viewDate.getMonth() + dashboardViewOffset);
+    viewDate.setMonth(viewDate.getMonth() + dashboardViewOffset[currentLocation]);
     
     const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    document.getElementById('dashboard-time-display').textContent = dashboardViewOffset === 0 ? 'Current View' : monthName;
+    document.getElementById('dashboard-time-display').textContent = dashboardViewOffset[currentLocation] === 0 ? 'Current View' : monthName;
     
-    // Update dashboard
-    updateDashboardV2();
+    // Only update time-sensitive components for smooth navigation
+    updateDashboardForNavigation();
+}
+
+// Lightweight dashboard update for navigation (no full reset)
+function updateDashboardForNavigation() {
+    // Only update metrics that change with time
+    updateMetricsV2();
+    
+    // Update charts smoothly (they already have update logic)
+    updateChartsV2();
+    
+    // Update detail cards that show time-based data
+    updateDetailCards();
+    
+    // Update time-sensitive charts
+    updateTrainerHeatmap();
+    updateSupplyDemandChart();
+    
+    // Skip static updates that don't change with navigation:
+    // - updatePipelineV2() 
+    // - updateAlertsV2()
+    // - updatePhaseBreakdown()
+    // - updateWorkloadChart()
 }
 
 // Scenarios storage - lazy loaded
@@ -8040,7 +8070,7 @@ function ensureScenarios() {
 
 // DOM Elements - will be initialized after DOM loads
 let dashboardView, plannerView, settingsView, scenariosView;
-let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
+let navTabs, addCohortForm, pathwaySelect, editFTEBtn, saveDefaultFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
 let fteModal, pathwayModal, cohortModal, priorityModal, modalCloseButtons, modalCancelButtons;
 
 // Initialize DOM elements after DOMContentLoaded
@@ -8053,6 +8083,7 @@ function initializeDOMElements() {
     addCohortForm = document.getElementById('add-cohort-form');
     pathwaySelect = document.getElementById('pathway');
     editFTEBtn = document.getElementById('edit-fte-btn');
+    saveDefaultFTEBtn = document.getElementById('save-default-fte-btn');
     addPathwayBtn = document.getElementById('add-pathway-btn');
     toggleFTEBtn = document.getElementById('toggle-fte-btn');
     editPriorityBtn = document.getElementById('edit-priority-btn');
@@ -8243,8 +8274,24 @@ function switchLocation(newLocation) {
             if (activeView) {
                 if (activeView.id === 'dashboard-view') {
                     perfMonitor.start('switchLocation.updateDashboard');
-                    updateDashboardV2();
-                    perfMonitor.end('switchLocation.updateDashboard');
+                    // Initialize dashboard view offset if not already set for new location
+                    if (dashboardViewOffset[newLocation] === undefined) {
+                        dashboardViewOffset[newLocation] = 0;
+                    }
+                    // Destroy existing charts to prevent conflicts
+                    if (window.demandChartV2) {
+                        window.demandChartV2.destroy();
+                        window.demandChartV2 = null;
+                    }
+                    if (window.distributionChartV2) {
+                        window.distributionChartV2.destroy();
+                        window.distributionChartV2 = null;
+                    }
+                    // Update dashboard with slight delay to ensure UI is ready
+                    setTimeout(() => {
+                        updateDashboardV2();
+                        perfMonitor.end('switchLocation.updateDashboard');
+                    }, 50);
                 } else if (activeView.id === 'planner-view') {
                     perfMonitor.start('switchLocation.updateTables');
                     updateAllTables();
@@ -8366,7 +8413,7 @@ function initDashboardToggle() {
 
 function calculateMetricTrends() {
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
@@ -8651,6 +8698,14 @@ function init() {
     switchView(lastActiveTab);
     perfMonitor.end('init.switchView');
     
+    // Force dashboard update if we loaded a scenario and we're on dashboard
+    if (scenarioLoaded && lastActiveTab === 'dashboard') {
+        setTimeout(() => {
+            console.log('Force updating dashboard after scenario load');
+            updateDashboardV2();
+        }, 200);
+    }
+    
     // Mark initial load complete
     setTimeout(() => {
         isInitialLoad = false;
@@ -8776,6 +8831,14 @@ function setupEventListeners() {
     // Edit FTE button
     if (editFTEBtn) {
         editFTEBtn.addEventListener('click', openFTEModal);
+    }
+
+    // Save Default FTE button
+    if (saveDefaultFTEBtn) {
+        saveDefaultFTEBtn.addEventListener('click', () => {
+            saveDefaultFTE();
+            showNotification('FTE values saved as default', 'success');
+        });
     }
 
     // Add Pathway button
@@ -10326,8 +10389,12 @@ function renderFTESummaryTable() {
     let currentYear = range.startYear;
     let currentFn = range.startFortnight;
     
+    // Use location-specific FTE if available
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].trainerFTE : trainerFTE;
+    
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-        const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (trainerFTE[currentYear]?.[cat] || 0), 0);
+        const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[currentYear]?.[cat] || 0), 0);
         const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(0);
         html += `<td class="data-cell total-supply-cell">${fortnightlyTotal}</td>`;
         
@@ -10349,7 +10416,7 @@ function renderFTESummaryTable() {
             currentFn = range.startFortnight;
             
             while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-                const fortnightlyFTE = ((trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
+                const fortnightlyFTE = ((locationFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
                 html += `<td class="data-cell category-detail-cell">${fortnightlyFTE}</td>`;
                 
                 currentFn++;
@@ -11571,13 +11638,16 @@ function renderGanttChart() {
                 let crossLocationTo = null;
                 
                 if (cohort.crossLocationTraining && phase.trainerDemandType) {
+                    // Calculate globalFortnight for comparison (same as demand calculation)
+                    const globalFortnight = (tempYear - 2024) * FORTNIGHTS_PER_YEAR + tempFortnight;
+                    
                     Object.entries(cohort.crossLocationTraining).forEach(([location, data]) => {
-                        if (data.phases && data.phases[phase.name] && 
-                            data.phases[phase.name].includes(globalFortnightCounter)) {
+                        if (data.phases && data.phases[phase.trainerDemandType] && 
+                            data.phases[phase.trainerDemandType].includes(globalFortnight)) {
                             usesCrossLocation = true;
                             crossLocationTo = location;
                             if (DEBUG_MODE) {
-                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.name}, Fortnight ${globalFortnightCounter}, To: ${location}`);
+                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.trainerDemandType}, Global Fortnight ${globalFortnight}, To: ${location}`);
                             }
                         }
                     });
@@ -11644,11 +11714,9 @@ function renderGanttChart() {
                 // Add cross-location indicator
                 if (cell.usesCrossLocation) {
                     tooltip += `\n⚡ Using ${cell.crossLocationTo} trainers`;
-                    // Add striped pattern for cross-location
-                    cellStyle += ` background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.2) 5px, rgba(255,255,255,0.2) 10px);`;
                     
-                    // Add white dot indicator with higher z-index
-                    cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
+                    // Add white dot indicator only (smaller size)
+                    cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
@@ -11812,6 +11880,17 @@ function renderGanttChart() {
     
     html += '</tbody>';
     html += '</table></div>';
+    
+    // Add legend for cross-location indicators
+    html += '<div class="gantt-legend" style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; font-size: 13px; color: var(--text-secondary);">';
+    html += '<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">';
+    html += '<span style="font-weight: 600;">Legend:</span>';
+    html += '<div style="display: flex; align-items: center; gap: 5px;">';
+    html += '<span style="width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; display: inline-block;"></span>';
+    html += '<span>Cross-location training (using trainers from other location)</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
     
     container.innerHTML = html;
     
@@ -12261,7 +12340,10 @@ function generateFTEInputFields() {
         html += `<td style="padding: 10px; font-weight: 500; border: 1px solid var(--border-color); background-color: var(--bg-secondary); color: var(--text-primary);">${year}</td>`;
         
         TRAINER_CATEGORIES.forEach(category => {
-            const fortnightlyFTE = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
+            // Use location-specific FTE if available
+            const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+                locationData[currentLocation].trainerFTE : trainerFTE;
+            const fortnightlyFTE = locationFTE[year][category] / FORTNIGHTS_PER_YEAR;
             html += `<td class="fte-cell" style="padding: 8px; text-align: center; border: 1px solid var(--border-color); cursor: cell;">`;
             html += `<input type="number" id="fte-${year}-${category}" name="fte-${year}-${category}" `;
             html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: 1px solid #ccc; background: white; color: inherit; user-select: text; pointer-events: auto;" `;
@@ -12713,17 +12795,32 @@ function handleFTEUpdate(e) {
             if (inputElement) {
                 const fortnightlyValue = parseFloat(inputElement.value) || 0;
                 // Store as yearly total (fortnightly * 24)
-                trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+                // Update location-specific FTE
+                if (locationData && currentLocation && locationData[currentLocation]) {
+                    locationData[currentLocation].trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+                } else {
+                    trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+                }
             }
         });
     }
 
+    // Ensure global trainerFTE is also updated
+    trainerFTE = locationData[currentLocation].trainerFTE;
+    
     // Close modal and refresh all tables
     closeModals();
     updateAllTables();
     
     // Ensure FTE summary is re-rendered with current state
     renderFTESummaryTable();
+    
+    // Update dashboard charts with new FTE values
+    if (document.getElementById('dashboard-view').classList.contains('active')) {
+        updateSupplyDemandChart();
+        updateTrainerHeatmap();
+    }
+    
     markDirty();
 }
 
@@ -15799,8 +15896,13 @@ function handleScenarioSave(event) {
             date: new Date().toISOString(),
             state: getCurrentState(),
             stats: {
-                totalCohorts: activeCohorts.length,
-                totalTrainees: activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0)
+                totalCohorts: (locationData.AU.activeCohorts?.length || 0) + (locationData.NZ.activeCohorts?.length || 0),
+                totalTrainees: (locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0) + 
+                              (locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0),
+                auCohorts: locationData.AU.activeCohorts?.length || 0,
+                nzCohorts: locationData.NZ.activeCohorts?.length || 0,
+                auTrainees: locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0,
+                nzTrainees: locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0
             }
         };
     }
@@ -16053,13 +16155,24 @@ function loadScenarioDataOnly(scenario) {
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
-        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
         pathways = [...scenario.state.pathways];
         priorityConfig = [...scenario.state.priorityConfig];
         
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Keep our saved FTE values, don't use scenario's FTE
+            console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // Don't update trainerFTE or locationData FTE
+        } else {
+            // No saved defaults, use scenario's FTE
+            trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+            locationData.AU.trainerFTE = trainerFTE;
+            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        }
+        
         // Migrate to location format
         locationData.AU.pathways = pathways;
-        locationData.AU.trainerFTE = trainerFTE;
         locationData.AU.priorityConfig = priorityConfig;
         
         // Separate cohorts by location
@@ -16071,7 +16184,6 @@ function loadScenarioDataOnly(scenario) {
         
         // Copy settings to NZ location
         locationData.NZ.pathways = [...pathways];
-        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
         // Don't override the saved location preference
@@ -16133,13 +16245,24 @@ function loadScenarioData(scenario) {
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
-        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
         pathways = [...scenario.state.pathways];
         priorityConfig = [...scenario.state.priorityConfig];
         
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Keep our saved FTE values, don't use scenario's FTE
+            console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // Keep the existing trainerFTE and locationData FTE values
+        } else {
+            // No saved defaults, use scenario's FTE
+            trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+            locationData.AU.trainerFTE = trainerFTE;
+            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        }
+        
         // Migrate to location format
         locationData.AU.pathways = pathways;
-        locationData.AU.trainerFTE = trainerFTE;
         locationData.AU.priorityConfig = priorityConfig;
         
         // Separate cohorts by location
@@ -16158,7 +16281,10 @@ function loadScenarioData(scenario) {
         
         // Copy settings to NZ location
         locationData.NZ.pathways = [...pathways];
-        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        if (!savedDefaultFTE) {
+            // Only copy FTE if we're not preserving defaults
+            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        }
         locationData.NZ.priorityConfig = [...priorityConfig];
         
         // Don't override the saved location preference during scenario load
@@ -16324,10 +16450,16 @@ function renderScenarioList() {
                     <div class="scenario-stat">
                         <span>Cohorts:</span>
                         <strong>${scenario.stats.totalCohorts}</strong>
+                        ${scenario.stats.auCohorts !== undefined ? 
+                            `<div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">AU: ${scenario.stats.auCohorts}, NZ: ${scenario.stats.nzCohorts}</div>` : 
+                            ''}
                     </div>
                     <div class="scenario-stat">
                         <span>Trainees:</span>
                         <strong>${scenario.stats.totalTrainees}</strong>
+                        ${scenario.stats.auTrainees !== undefined ? 
+                            `<div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">AU: ${scenario.stats.auTrainees}, NZ: ${scenario.stats.nzTrainees}</div>` : 
+                            ''}
                     </div>
                 </div>
                 <div class="scenario-actions">
@@ -17562,9 +17694,13 @@ function updateDemandChartV2() {
     const supplyData = [];
     
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
+    
+    // Get location-specific FTE
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].trainerFTE : trainerFTE;
     
     for (let i = 0; i < 12; i++) {
         let month = currentMonth + i;
@@ -17583,14 +17719,25 @@ function updateDemandChartV2() {
                             (demand[year]?.[fn2]?.total || 0)) / 2;
         demandData.push(monthDemand);
         
-        // Calculate supply
+        // Calculate supply using location-specific FTE
         const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-            sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
         supplyData.push(totalSupply);
     }
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (demandChartV2) {
-        demandChartV2.destroy();
+        // Try to update data instead of destroying
+        try {
+            demandChartV2.data.labels = labels;
+            demandChartV2.data.datasets[0].data = demandData;
+            demandChartV2.data.datasets[1].data = supplyData;
+            demandChartV2.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            demandChartV2.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -17701,6 +17848,7 @@ function updateSupplyDemandOverviewV2() {
     
     const { demand, crossLocationDemand } = calculateDemand();
     const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -17734,24 +17882,41 @@ function updateSupplyDemandOverviewV2() {
         // Get demand for current location
         const totalDemand1 = demand[year]?.[fn1]?.total || 0;
         const totalDemand2 = demand[year]?.[fn2]?.total || 0;
+        const totalMonthlyDemand = (totalDemand1 + totalDemand2) / 2;
         
-        // Cross-location demand is demand from other location using current location's trainers
-        const crossDemand1 = crossLocationDemand[year]?.[fn1]?.[currentLocation]?.total || 0;
-        const crossDemand2 = crossLocationDemand[year]?.[fn2]?.[currentLocation]?.total || 0;
+        // Get cross-location demand (trainees from other location using our trainers)
+        const crossLocationPortion1 = demand[year]?.[fn1]?.crossLocation || {};
+        const crossLocationPortion2 = demand[year]?.[fn2]?.crossLocation || {};
         
-        // Local demand is total demand minus cross-location demand
-        // Total demand already includes cross-location, so subtract to get just local
-        const localDemand = ((totalDemand1 - crossDemand1 + totalDemand2 - crossDemand2) / 2);
+        // Sum up cross-location demand across all training types
+        let crossDemand1 = 0;
+        let crossDemand2 = 0;
+        Object.values(crossLocationPortion1).forEach(value => crossDemand1 += value);
+        Object.values(crossLocationPortion2).forEach(value => crossDemand2 += value);
         const crossDemand = (crossDemand1 + crossDemand2) / 2;
+        
+        // Local demand is total minus cross-location
+        const localDemand = totalMonthlyDemand - crossDemand;
         
         supplyData.push(monthlySupply);
         localDemandData.push(localDemand);
         crossLocationData.push(crossDemand); // Just the cross-location portion
-        totalDemandData.push(localDemand + crossDemand); // Total for reference
+        totalDemandData.push(totalMonthlyDemand); // Total for reference
     }
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (supplyDemandOverviewChartV2) {
-        supplyDemandOverviewChartV2.destroy();
+        try {
+            supplyDemandOverviewChartV2.data.labels = labels;
+            supplyDemandOverviewChartV2.data.datasets[0].data = supplyData;
+            supplyDemandOverviewChartV2.data.datasets[1].data = localDemandData;
+            supplyDemandOverviewChartV2.data.datasets[2].data = crossLocationData;
+            supplyDemandOverviewChartV2.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            supplyDemandOverviewChartV2.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -18146,7 +18311,7 @@ function updateTrainerHeatmap() {
     
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     
     // console.log('Heat map data:', {
@@ -18175,23 +18340,38 @@ function updateTrainerHeatmap() {
     // Create heat map grid
     let html = '<div class="heatmap-label"></div>'; // Empty corner cell
     
-    // Month headers
-    MONTHS.forEach(month => {
-        html += `<div class="heatmap-month">${month.substr(0, 3)}</div>`;
-    });
+    // Month headers for the 12-month view window
+    const currentMonth = currentDate.getMonth();
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
+        }
+        html += `<div class="heatmap-month">${MONTHS[month].substr(0, 3)}</div>`;
+    }
     
     // For each trainer category
     TRAINER_CATEGORIES.forEach(category => {
         html += `<div class="heatmap-label">${category}</div>`;
         
-        // For each month
-        for (let month = 0; month < 12; month++) {
+        // For each month in the 12-month view window
+        const currentMonth = currentDate.getMonth();
+        for (let i = 0; i < 12; i++) {
+            let month = currentMonth + i;
+            let year = currentYear;
+            if (month >= 12) {
+                month -= 12;
+                year++;
+            }
+            
             const fn1 = (month * 2) + 1;
             const fn2 = (month * 2) + 2;
             
             // Get demand for this category and month
-            const categoryDemand = getCategoryDemand(demand, currentYear, [fn1, fn2], category);
-            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+            const categoryDemand = getCategoryDemand(demand, year, [fn1, fn2], category);
+            const categorySupply = (trainerFTE[year]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
             const utilization = categorySupply > 0 ? (categoryDemand / categorySupply) * 100 : 0;
             
             // Determine color based on utilization
@@ -18372,7 +18552,7 @@ function updateSupplyDemandChart() {
     
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -18408,6 +18588,17 @@ function updateSupplyDemandChart() {
         supplyData.push(monthlySupply);
         demandData.push(monthlyDemand);
         surplusDeficitData.push(monthlySupply - monthlyDemand);
+        
+        // Debug logging
+        if (i === 0) {  // Log first month only to avoid spam
+            console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
+            console.log(`  Location: ${currentLocation}`);
+            console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
+            console.log(`  Monthly Demand:`, monthlyDemand);
+            console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
+            console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
+        }
     }
     
     // Check if we have any data
@@ -18805,7 +18996,7 @@ function updateWorkloadChart() {
 function updateDetailCards() {
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
     

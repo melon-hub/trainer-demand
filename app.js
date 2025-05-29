@@ -280,28 +280,53 @@ let viewState = {
     showCrossLocationCommencements: false
 };
 
-// Dashboard navigation state
-let dashboardViewOffset = 0; // Months offset from current date
+// Dashboard navigation state - now location-specific
+let dashboardViewOffset = {
+    AU: 0,
+    NZ: 0
+};
 
 // Navigate dashboard view
 function navigateDashboard(months) {
     if (months === 0) {
         // Reset to today
-        dashboardViewOffset = 0;
+        dashboardViewOffset[currentLocation] = 0;
     } else {
-        dashboardViewOffset += months;
+        dashboardViewOffset[currentLocation] += months;
     }
     
     // Update time display
     const currentDate = new Date();
     const viewDate = new Date(currentDate);
-    viewDate.setMonth(viewDate.getMonth() + dashboardViewOffset);
+    viewDate.setMonth(viewDate.getMonth() + dashboardViewOffset[currentLocation]);
     
     const monthName = viewDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    document.getElementById('dashboard-time-display').textContent = dashboardViewOffset === 0 ? 'Current View' : monthName;
+    document.getElementById('dashboard-time-display').textContent = dashboardViewOffset[currentLocation] === 0 ? 'Current View' : monthName;
     
-    // Update dashboard
-    updateDashboardV2();
+    // Only update time-sensitive components for smooth navigation
+    updateDashboardForNavigation();
+}
+
+// Lightweight dashboard update for navigation (no full reset)
+function updateDashboardForNavigation() {
+    // Only update metrics that change with time
+    updateMetricsV2();
+    
+    // Update charts smoothly (they already have update logic)
+    updateChartsV2();
+    
+    // Update detail cards that show time-based data
+    updateDetailCards();
+    
+    // Update time-sensitive charts
+    updateTrainerHeatmap();
+    updateSupplyDemandChart();
+    
+    // Skip static updates that don't change with navigation:
+    // - updatePipelineV2() 
+    // - updateAlertsV2()
+    // - updatePhaseBreakdown()
+    // - updateWorkloadChart()
 }
 
 // Scenarios storage - lazy loaded
@@ -334,7 +359,7 @@ function ensureScenarios() {
 
 // DOM Elements - will be initialized after DOM loads
 let dashboardView, plannerView, settingsView, scenariosView;
-let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
+let navTabs, addCohortForm, pathwaySelect, editFTEBtn, saveDefaultFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
 let fteModal, pathwayModal, cohortModal, priorityModal, modalCloseButtons, modalCancelButtons;
 
 // Initialize DOM elements after DOMContentLoaded
@@ -347,6 +372,7 @@ function initializeDOMElements() {
     addCohortForm = document.getElementById('add-cohort-form');
     pathwaySelect = document.getElementById('pathway');
     editFTEBtn = document.getElementById('edit-fte-btn');
+    saveDefaultFTEBtn = document.getElementById('save-default-fte-btn');
     addPathwayBtn = document.getElementById('add-pathway-btn');
     toggleFTEBtn = document.getElementById('toggle-fte-btn');
     editPriorityBtn = document.getElementById('edit-priority-btn');
@@ -537,8 +563,24 @@ function switchLocation(newLocation) {
             if (activeView) {
                 if (activeView.id === 'dashboard-view') {
                     perfMonitor.start('switchLocation.updateDashboard');
-                    updateDashboardV2();
-                    perfMonitor.end('switchLocation.updateDashboard');
+                    // Initialize dashboard view offset if not already set for new location
+                    if (dashboardViewOffset[newLocation] === undefined) {
+                        dashboardViewOffset[newLocation] = 0;
+                    }
+                    // Destroy existing charts to prevent conflicts
+                    if (window.demandChartV2) {
+                        window.demandChartV2.destroy();
+                        window.demandChartV2 = null;
+                    }
+                    if (window.distributionChartV2) {
+                        window.distributionChartV2.destroy();
+                        window.distributionChartV2 = null;
+                    }
+                    // Update dashboard with slight delay to ensure UI is ready
+                    setTimeout(() => {
+                        updateDashboardV2();
+                        perfMonitor.end('switchLocation.updateDashboard');
+                    }, 50);
                 } else if (activeView.id === 'planner-view') {
                     perfMonitor.start('switchLocation.updateTables');
                     updateAllTables();
@@ -818,6 +860,247 @@ function loadDefaultFTE() {
     return false;
 }
 
+// Migrate old scenarios to include AU/NZ stats
+function migrateScenarioStats() {
+    const scenarios = getScenarios();
+    let migrated = 0;
+    
+    scenarios.forEach(scenario => {
+        // Check if scenario needs migration (missing AU/NZ stats)
+        if (!scenario.stats.auCohorts && !scenario.stats.nzCohorts) {
+            if (scenario.state.locationData) {
+                // New format scenario with locationData
+                scenario.stats.auCohorts = scenario.state.locationData.AU?.activeCohorts?.length || 0;
+                scenario.stats.nzCohorts = scenario.state.locationData.NZ?.activeCohorts?.length || 0;
+                scenario.stats.auTrainees = scenario.state.locationData.AU?.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0;
+                scenario.stats.nzTrainees = scenario.state.locationData.NZ?.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0;
+            } else if (scenario.state.cohorts) {
+                // Legacy format - check cohorts for location property
+                const auCohorts = scenario.state.cohorts.filter(c => !c.location || c.location === 'AU');
+                const nzCohorts = scenario.state.cohorts.filter(c => c.location === 'NZ');
+                
+                scenario.stats.auCohorts = auCohorts.length;
+                scenario.stats.nzCohorts = nzCohorts.length;
+                scenario.stats.auTrainees = auCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+                scenario.stats.nzTrainees = nzCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+            } else {
+                // Fallback - all cohorts go to AU
+                scenario.stats.auCohorts = scenario.stats.totalCohorts || 0;
+                scenario.stats.nzCohorts = 0;
+                scenario.stats.auTrainees = scenario.stats.totalTrainees || 0;
+                scenario.stats.nzTrainees = 0;
+            }
+            migrated++;
+        }
+    });
+    
+    if (migrated > 0) {
+        // Save the migrated scenarios
+        localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+        console.log(`Migrated ${migrated} scenarios to include AU/NZ stats`);
+    }
+}
+
+// Setup keyboard shortcuts for navigation
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        // Only work in planner view
+        if (!document.getElementById('planner-view').classList.contains('active')) {
+            return;
+        }
+        
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                document.getElementById('nav-left')?.click();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                document.getElementById('nav-right')?.click();
+                break;
+            case 'Home':
+                e.preventDefault();
+                document.getElementById('today-btn')?.click();
+                break;
+        }
+    });
+}
+
+// Setup column highlighting system
+let highlightedColumns = new Set();
+
+function setupColumnHighlighting() {
+    // Clear highlights when clicking outside of headers
+    document.addEventListener('click', (e) => {
+        // Check if click is on a header cell
+        const isHeaderClick = e.target.closest('.month-header, .fortnight-header');
+        const isWithinTable = e.target.closest('.table-container, .gantt-container');
+        
+        if (!isHeaderClick && isWithinTable) {
+            clearAllHighlights();
+        }
+    });
+    
+    // Escape key to clear
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            clearAllHighlights();
+        }
+    });
+}
+
+function handleColumnClick(e, year, fortnight) {
+    e.stopPropagation();
+    
+    const columnId = `${year}-${fortnight}`;
+    console.log('handleColumnClick called:', { year, fortnight, columnId });
+    console.log('Event target:', e.target);
+    
+    // Show hint on first use
+    if (highlightedColumns.size === 0 && !localStorage.getItem('columnHighlightHintShown')) {
+        showNotification('💡 Tip: Ctrl+Click for multi-select, Shift+Click for range select', 'info', 5000);
+        localStorage.setItem('columnHighlightHintShown', 'true');
+    }
+    
+    if (e.ctrlKey || e.metaKey) {
+        // Multi-select mode
+        if (highlightedColumns.has(columnId)) {
+            highlightedColumns.delete(columnId);
+        } else {
+            highlightedColumns.add(columnId);
+        }
+    } else if (e.shiftKey && highlightedColumns.size > 0) {
+        // Range select
+        const lastColumn = Array.from(highlightedColumns).pop();
+        selectRange(lastColumn, columnId);
+    } else {
+        // Single select - clear others first
+        highlightedColumns.clear();
+        highlightedColumns.add(columnId);
+    }
+    
+    applyHighlights();
+}
+
+function selectRange(startCol, endCol) {
+    const [startYear, startFn] = startCol.split('-').map(Number);
+    const [endYear, endFn] = endCol.split('-').map(Number);
+    
+    let currentYear = startYear;
+    let currentFn = startFn;
+    
+    // Clear existing highlights for clean range
+    highlightedColumns.clear();
+    
+    // Determine direction
+    const goingForward = (endYear > startYear) || (endYear === startYear && endFn >= startFn);
+    
+    while (true) {
+        highlightedColumns.add(`${currentYear}-${currentFn}`);
+        
+        if (currentYear === endYear && currentFn === endFn) break;
+        
+        if (goingForward) {
+            currentFn++;
+            if (currentFn > FORTNIGHTS_PER_YEAR) {
+                currentFn = 1;
+                currentYear++;
+            }
+        } else {
+            currentFn--;
+            if (currentFn < 1) {
+                currentFn = FORTNIGHTS_PER_YEAR;
+                currentYear--;
+            }
+        }
+        
+        // Safety check
+        if (currentYear < START_YEAR || currentYear > END_YEAR) break;
+    }
+}
+
+function applyHighlights() {
+    console.log('applyHighlights called, highlightedColumns:', highlightedColumns);
+    
+    // Remove all existing highlights
+    const existingHighlights = document.querySelectorAll('.column-highlighted');
+    console.log('Removing highlights from', existingHighlights.length, 'elements');
+    existingHighlights.forEach(el => {
+        el.classList.remove('column-highlighted');
+    });
+    
+    // Apply new highlights
+    highlightedColumns.forEach(columnId => {
+        console.log('Highlighting column:', columnId);
+        // Highlight all cells with matching data-column attribute
+        const matchingElements = document.querySelectorAll(`[data-column="${columnId}"]`);
+        console.log('Found', matchingElements.length, 'elements with data-column="' + columnId + '"');
+        matchingElements.forEach(el => {
+            el.classList.add('column-highlighted');
+            console.log('Added highlight to:', el.tagName, el.textContent?.substring(0, 20));
+        });
+    });
+    
+    // Show/hide clear button
+    updateClearHighlightsButton();
+}
+
+function clearAllHighlights() {
+    highlightedColumns.clear();
+    document.querySelectorAll('.column-highlighted').forEach(el => {
+        el.classList.remove('column-highlighted');
+    });
+    updateClearHighlightsButton();
+}
+
+function updateClearHighlightsButton() {
+    const button = document.getElementById('clear-highlights-btn');
+    const countSpan = document.getElementById('highlight-count');
+    
+    if (button) {
+        const hasHighlights = highlightedColumns.size > 0;
+        button.classList.toggle('visible', hasHighlights);
+        
+        if (countSpan) {
+            countSpan.textContent = highlightedColumns.size;
+        }
+    }
+}
+
+// Setup sticky navigation shadow effect
+function setupStickyNavigation() {
+    const viewControlsSection = document.querySelector('.view-controls-section');
+    if (!viewControlsSection) return;
+    
+    let ticking = false;
+    
+    function updateStickyClass() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        if (scrollTop > 10) {
+            viewControlsSection.classList.add('sticky');
+        } else {
+            viewControlsSection.classList.remove('sticky');
+        }
+        
+        ticking = false;
+    }
+    
+    function requestTick() {
+        if (!ticking) {
+            window.requestAnimationFrame(updateStickyClass);
+            ticking = true;
+        }
+    }
+    
+    window.addEventListener('scroll', requestTick);
+}
+
 // Initialize the application
 function init() {
     perfMonitor.start('init');
@@ -828,12 +1111,17 @@ function init() {
     
     perfMonitor.start('init.migrate');
     migrateDataToLocations(); // Migrate data first
+    migrateScenarioStats(); // Migrate scenario stats to include AU/NZ split
     perfMonitor.end('init.migrate');
     
     perfMonitor.start('init.loadDefaults');
     // Load default FTE if available
     if (loadDefaultFTE()) {
-        // console.log('Loaded default FTE from localStorage');
+        console.log('Loaded default FTE from localStorage');
+        console.log('AU FTE after loading defaults:', locationData.AU.trainerFTE);
+        console.log('NZ FTE after loading defaults:', locationData.NZ.trainerFTE);
+    } else {
+        console.log('No default FTE found in localStorage');
     }
     perfMonitor.end('init.loadDefaults');
     
@@ -851,6 +1139,9 @@ function init() {
         trainerFTE = locationData[currentLocation].trainerFTE;
         priorityConfig = locationData[currentLocation].priorityConfig;
         activeCohorts = locationData[currentLocation].activeCohorts;
+        console.log('Setting global trainerFTE from location data:');
+        console.log('Current location:', currentLocation);
+        console.log('Global trainerFTE now:', trainerFTE);
     }
     
     // Update UI to reflect saved location
@@ -888,6 +1179,9 @@ function init() {
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
+            console.log('After loading scenario:');
+            console.log('AU FTE after scenario:', locationData.AU.trainerFTE);
+            console.log('Global trainerFTE after scenario:', trainerFTE);
             // Delay notification until after UI is ready
             setTimeout(() => {
                 showNotification(`Loaded: ${scenario.name}`, 'info');
@@ -945,6 +1239,16 @@ function init() {
     switchView(lastActiveTab);
     perfMonitor.end('init.switchView');
     
+    // Force dashboard update if we loaded a scenario and we're on dashboard
+    if (scenarioLoaded && lastActiveTab === 'dashboard') {
+        setTimeout(() => {
+            console.log('Force updating dashboard after scenario load');
+            console.log('Global trainerFTE at dashboard update:', trainerFTE);
+            console.log('Location FTE at dashboard update:', locationData[currentLocation].trainerFTE);
+            updateDashboardV2();
+        }, 200);
+    }
+    
     // Mark initial load complete
     setTimeout(() => {
         isInitialLoad = false;
@@ -963,6 +1267,15 @@ function init() {
         }, 500);
     });
     
+    // Setup sticky navigation shadow
+    setupStickyNavigation();
+    
+    // Setup keyboard shortcuts for navigation
+    setupKeyboardShortcuts();
+    
+    // Setup column highlighting
+    setupColumnHighlighting();
+    
     // Show refresh notification if page was reloaded
     if (performance.navigation && performance.navigation.type === 1) {
         // Type 1 is reload
@@ -978,6 +1291,13 @@ function init() {
             }, 100);
         }
     }
+}
+
+// Helper function to generate data cell with column tracking
+function generateDataCell(year, fortnight, content, additionalClasses = '', additionalStyles = '') {
+    return `<td class="data-cell ${additionalClasses}" 
+               data-column="${year}-${fortnight}" 
+               ${additionalStyles ? `style="${additionalStyles}"` : ''}>${content}</td>`;
 }
 
 // Generate table headers with months and fortnights
@@ -1032,8 +1352,10 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         }
         monthSpan++;
         
-        // Add fortnight header
-        fortnightHeaders += `<th class="fortnight-header">FN${String(currentFn).padStart(2, '0')}</th>`;
+        // Add fortnight header with click handler and data attribute
+        fortnightHeaders += `<th class="fortnight-header" data-column="${currentYear}-${currentFn}" 
+                                 onclick="handleColumnClick(event, ${currentYear}, ${currentFn})"
+                                 style="cursor: pointer;">FN${String(currentFn).padStart(2, '0')}</th>`;
         
         currentFn++;
         if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -1070,6 +1392,14 @@ function setupEventListeners() {
     // Edit FTE button
     if (editFTEBtn) {
         editFTEBtn.addEventListener('click', openFTEModal);
+    }
+
+    // Save Default FTE button
+    if (saveDefaultFTEBtn) {
+        saveDefaultFTEBtn.addEventListener('click', () => {
+            saveDefaultFTE();
+            showNotification('FTE values saved as default', 'success');
+        });
     }
 
     // Add Pathway button
@@ -1258,10 +1588,15 @@ function setupEventListeners() {
     }
     
     // Export/Import buttons
+    const newScenarioBtn = document.getElementById('new-scenario');
     const exportAllBtn = document.getElementById('export-all-scenarios');
     const importBtn = document.getElementById('import-scenarios');
     const importFileInput = document.getElementById('import-file-input');
     const compareBtn = document.getElementById('compare-scenarios');
+    
+    if (newScenarioBtn) {
+        newScenarioBtn.addEventListener('click', createNewScenario);
+    }
     
     if (exportAllBtn) {
         exportAllBtn.addEventListener('click', exportAllScenarios);
@@ -2451,7 +2786,7 @@ function renderCommencementSummary() {
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        html += `<td class="data-cell">${data.CP || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, data.CP || '-');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -2471,7 +2806,7 @@ function renderCommencementSummary() {
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        html += `<td class="data-cell">${data.FO || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, data.FO || '-');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -2491,7 +2826,7 @@ function renderCommencementSummary() {
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        html += `<td class="data-cell">${data.CAD || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, data.CAD || '-');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -2539,7 +2874,7 @@ function renderCommencementSummary() {
             const key = `${currentYear}-${currentFortnight}`;
             const data = nzCommencements[key] || { FO: 0, CAD: 0 };
             const nzTotal = data.FO + data.CAD;
-            html += `<td class="data-cell" style="font-style: italic; color: #3498db; background: rgba(52, 152, 219, 0.05);">${nzTotal || '-'}</td>`;
+            html += generateDataCell(currentYear, currentFortnight, nzTotal || '-', '', 'font-style: italic; color: #3498db; background: rgba(52, 152, 219, 0.05);');
             
             currentFortnight++;
             if (currentFortnight > 24) {
@@ -2561,7 +2896,7 @@ function renderCommencementSummary() {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
         const foAndCad = data.FO + data.CAD;
-        html += `<td class="data-cell" style="font-style: italic; color: var(--text-secondary);">${foAndCad || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, foAndCad || '-', '', 'font-style: italic; color: var(--text-secondary);');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -2620,10 +2955,18 @@ function renderFTESummaryTable() {
     let currentYear = range.startYear;
     let currentFn = range.startFortnight;
     
+    // Debug log FTE values
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].trainerFTE : trainerFTE;
+    console.log('FTE Summary Table Debug:');
+    console.log('  Current Location:', currentLocation);
+    console.log('  Using locationData FTE:', !!(locationData && currentLocation && locationData[currentLocation]));
+    console.log('  Sample FTE values for', currentYear + ':', locationFTE[currentYear]);
+    
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-        const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (trainerFTE[currentYear]?.[cat] || 0), 0);
+        const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[currentYear]?.[cat] || 0), 0);
         const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(0);
-        html += `<td class="data-cell total-supply-cell">${fortnightlyTotal}</td>`;
+        html += generateDataCell(currentYear, currentFn, fortnightlyTotal, 'total-supply-cell');
         
         currentFn++;
         if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2643,8 +2986,10 @@ function renderFTESummaryTable() {
             currentFn = range.startFortnight;
             
             while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-                const fortnightlyFTE = ((trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
-                html += `<td class="data-cell category-detail-cell">${fortnightlyFTE}</td>`;
+                const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+                    locationData[currentLocation].trainerFTE : trainerFTE;
+                const fortnightlyFTE = ((locationFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
+                html += generateDataCell(currentYear, currentFn, fortnightlyFTE, 'category-detail-cell');
                 
                 currentFn++;
                 if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2699,7 +3044,7 @@ function renderDemandTable() {
                 // Local demand is total minus cross-location
                 const localValue = totalValue - crossLocValue;
                 
-                html += `<td class="data-cell" style="background: rgba(0, 123, 255, 0.05);">${localValue.toFixed(0)}</td>`;
+                html += generateDataCell(currentYear, currentFn, localValue.toFixed(0), '', 'background: rgba(0, 123, 255, 0.05);');
                 
                 currentFn++;
                 if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2724,9 +3069,11 @@ function renderDemandTable() {
                 }
                 
                 if (crossLocValue > 0) {
-                    html += `<td class="data-cell" style="background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;">${crossLocValue.toFixed(0)}</td>`;
+                    html += generateDataCell(currentYear, currentFn, crossLocValue.toFixed(0), '', 
+                        'background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;');
                 } else {
-                    html += `<td class="data-cell" style="background: rgba(52, 152, 219, 0.05); color: #999;">-</td>`;
+                    html += generateDataCell(currentYear, currentFn, '-', '', 
+                        'background: rgba(52, 152, 219, 0.05); color: #999;');
                 }
                 
                 currentFn++;
@@ -2768,7 +3115,13 @@ function renderDemandTable() {
                 cellContent = value.toFixed(0);
             }
             
-            html += `<td class="data-cell" style="position: relative;" ${tooltip}>${cellContent}</td>`;
+            // Use a temporary wrapper to add tooltip
+            const cell = generateDataCell(currentYear, currentFn, cellContent, '', 'position: relative;');
+            if (tooltip) {
+                html += cell.replace('<td', `<td ${tooltip}`);
+            } else {
+                html += cell;
+            }
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -2799,7 +3152,7 @@ function renderDemandTable() {
             }
             
             const localTotal = demandData.total - crossLocTotal;
-            html += `<td class="data-cell total-row" style="background: rgba(0, 123, 255, 0.05);">${localTotal.toFixed(0)}</td>`;
+            html += generateDataCell(totalYear, totalFn, localTotal.toFixed(0), 'total-row', 'background: rgba(0, 123, 255, 0.05);');
             
             totalFn++;
             if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -2824,9 +3177,11 @@ function renderDemandTable() {
             }
             
             if (crossLocTotal > 0) {
-                html += `<td class="data-cell total-row" style="background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;">${crossLocTotal.toFixed(0)}</td>`;
+                html += generateDataCell(totalYear, totalFn, crossLocTotal.toFixed(0), 'total-row', 
+                    'background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;');
             } else {
-                html += `<td class="data-cell total-row" style="background: rgba(52, 152, 219, 0.05); color: #999;">-</td>`;
+                html += generateDataCell(totalYear, totalFn, '-', 'total-row', 
+                    'background: rgba(52, 152, 219, 0.05); color: #999;');
             }
             
             totalFn++;
@@ -2846,7 +3201,7 @@ function renderDemandTable() {
         
         while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
             const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
-            html += `<td class="data-cell total-row" style="font-weight: bold;">${demandData.total.toFixed(0)}</td>`;
+            html += generateDataCell(totalYear, totalFn, demandData.total.toFixed(0), 'total-row', 'font-weight: bold;');
             
             totalFn++;
             if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -2879,7 +3234,12 @@ function renderDemandTable() {
                 cellTooltip = `title="Total: ${demandData.total.toFixed(0)} (Local: ${localTotal.toFixed(0)} + Cross-location: ${crossLocTotal.toFixed(0)})"`;
             }
             
-            html += `<td class="data-cell total-row" ${cellTooltip}>${cellContent}</td>`;
+            const cell = generateDataCell(totalYear, totalFn, cellContent, 'total-row');
+            if (cellTooltip) {
+                html += cell.replace('<td', `<td ${cellTooltip}`);
+            } else {
+                html += cell;
+            }
             
             totalFn++;
             if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -3082,7 +3442,7 @@ function renderSurplusDeficitTableDetailed() {
             const isDeficit = surplusDeficit < 0;
             const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
             
-            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
+            html += generateDataCell(currentYear, currentFn, surplusDeficit.toFixed(0), cellClass);
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -3131,7 +3491,7 @@ function renderSurplusDeficitTableDetailed() {
                 }
                 
                 const cellClass = contribution > 0 ? 'available' : '';
-                html += `<td class="data-cell category-cell ${cellClass}">${contribution > 0 ? contribution.toFixed(0) : '-'}</td>`;
+                html += generateDataCell(catYear, catFn, contribution > 0 ? contribution.toFixed(0) : '-', `category-cell ${cellClass}`);
                 
                 catFn++;
                 if (catFn > FORTNIGHTS_PER_YEAR) {
@@ -3170,7 +3530,7 @@ function renderSurplusDeficitTableDetailed() {
         
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
-        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
+        html += generateDataCell(netYear, netFn, totalNetSD.toFixed(0), `total-row ${isDeficit ? 'deficit' : 'surplus'}`);
         
         netFn++;
         if (netFn > FORTNIGHTS_PER_YEAR) {
@@ -3252,7 +3612,7 @@ function renderSurplusDeficitTableSimple() {
             const isDeficit = surplusDeficit < 0;
             const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
             
-            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
+            html += generateDataCell(currentYear, currentFn, surplusDeficit.toFixed(0), cellClass);
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -3285,7 +3645,7 @@ function renderSurplusDeficitTableSimple() {
         
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
-        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
+        html += generateDataCell(netYear, netFn, totalNetSD.toFixed(0), `total-row ${isDeficit ? 'deficit' : 'surplus'}`);
         
         netFn++;
         if (netFn > FORTNIGHTS_PER_YEAR) {
@@ -3767,7 +4127,10 @@ function renderGanttChart() {
     let fnNum = range.startFortnight;
     
     while (fnYear < range.endYear || (fnYear === range.endYear && fnNum <= range.endFortnight)) {
-        html += `<th class="fortnight-header gantt-fortnight-header">FN${String(fnNum).padStart(2, '0')}</th>`;
+        html += `<th class="fortnight-header gantt-fortnight-header" 
+                     data-column="${fnYear}-${fnNum}" 
+                     onclick="handleColumnClick(event, ${fnYear}, ${fnNum})"
+                     style="cursor: pointer;">FN${String(fnNum).padStart(2, '0')}</th>`;
         
         fnNum++;
         if (fnNum > FORTNIGHTS_PER_YEAR) {
@@ -3865,13 +4228,16 @@ function renderGanttChart() {
                 let crossLocationTo = null;
                 
                 if (cohort.crossLocationTraining && phase.trainerDemandType) {
+                    // Calculate globalFortnight for comparison (same as demand calculation)
+                    const globalFortnight = (tempYear - 2024) * FORTNIGHTS_PER_YEAR + tempFortnight;
+                    
                     Object.entries(cohort.crossLocationTraining).forEach(([location, data]) => {
-                        if (data.phases && data.phases[phase.name] && 
-                            data.phases[phase.name].includes(globalFortnightCounter)) {
+                        if (data.phases && data.phases[phase.trainerDemandType] && 
+                            data.phases[phase.trainerDemandType].includes(globalFortnight)) {
                             usesCrossLocation = true;
                             crossLocationTo = location;
                             if (DEBUG_MODE) {
-                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.name}, Fortnight ${globalFortnightCounter}, To: ${location}`);
+                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.trainerDemandType}, Global Fortnight ${globalFortnight}, To: ${location}`);
                             }
                         }
                     });
@@ -3938,21 +4304,19 @@ function renderGanttChart() {
                 // Add cross-location indicator
                 if (cell.usesCrossLocation) {
                     tooltip += `\n⚡ Using ${cell.crossLocationTo} trainers`;
-                    // Add striped pattern for cross-location
-                    cellStyle += ` background-image: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,255,255,0.2) 5px, rgba(255,255,255,0.2) 10px);`;
                     
-                    // Add white dot indicator with higher z-index
-                    cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 8px; height: 8px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
+                    // Add white dot indicator only (smaller size)
+                    cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative; overflow: visible;" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} data-column="${renderYear}-${renderFn}" style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative; overflow: visible;" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
-                html += '<td class="gantt-empty-cell data-cell"></td>';
+                html += `<td class="gantt-empty-cell data-cell" data-column="${renderYear}-${renderFn}"></td>`;
             }
             
             renderFn++;
@@ -4086,11 +4450,11 @@ function renderGanttChart() {
                     // Show the training type abbreviation
                     const abbreviation = cell.phase.name.replace('LT-', '');
                     
-                    html += `<td class="gantt-phase-cell data-cell" style="background-color: ${backgroundColor} !important; position: relative;" title="${tooltip}">`;
+                    html += `<td class="gantt-phase-cell data-cell" data-column="${renderYear}-${renderFn}" style="background-color: ${backgroundColor} !important; position: relative;" title="${tooltip}">`;
                     html += `<span style="font-size: 9px; color: white; font-weight: 500;">${abbreviation}</span>`;
                     html += `</td>`;
                 } else {
-                    html += '<td class="gantt-empty-cell data-cell"></td>';
+                    html += `<td class="gantt-empty-cell data-cell" data-column="${renderYear}-${renderFn}"></td>`;
                 }
                 
                 renderFn++;
@@ -4106,6 +4470,17 @@ function renderGanttChart() {
     
     html += '</tbody>';
     html += '</table></div>';
+    
+    // Add legend for cross-location indicators
+    html += '<div class="gantt-legend" style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; font-size: 13px; color: var(--text-secondary);">';
+    html += '<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">';
+    html += '<span style="font-weight: 600;">Legend:</span>';
+    html += '<div style="display: flex; align-items: center; gap: 5px;">';
+    html += '<span style="width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; display: inline-block;"></span>';
+    html += '<span>Cross-location training (using trainers from other location)</span>';
+    html += '</div>';
+    html += '</div>';
+    html += '</div>';
     
     container.innerHTML = html;
     
@@ -4555,7 +4930,10 @@ function generateFTEInputFields() {
         html += `<td style="padding: 10px; font-weight: 500; border: 1px solid var(--border-color); background-color: var(--bg-secondary); color: var(--text-primary);">${year}</td>`;
         
         TRAINER_CATEGORIES.forEach(category => {
-            const fortnightlyFTE = trainerFTE[year][category] / FORTNIGHTS_PER_YEAR;
+            // Use location-specific FTE if available
+            const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+                locationData[currentLocation].trainerFTE : trainerFTE;
+            const fortnightlyFTE = locationFTE[year][category] / FORTNIGHTS_PER_YEAR;
             html += `<td class="fte-cell" style="padding: 8px; text-align: center; border: 1px solid var(--border-color); cursor: cell;">`;
             html += `<input type="number" id="fte-${year}-${category}" name="fte-${year}-${category}" `;
             html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: 1px solid #ccc; background: white; color: inherit; user-select: text; pointer-events: auto;" `;
@@ -5007,17 +5385,36 @@ function handleFTEUpdate(e) {
             if (inputElement) {
                 const fortnightlyValue = parseFloat(inputElement.value) || 0;
                 // Store as yearly total (fortnightly * 24)
-                trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+                // Update location-specific FTE
+                if (locationData && currentLocation && locationData[currentLocation]) {
+                    locationData[currentLocation].trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+                } else {
+                    trainerFTE[year][category] = fortnightlyValue * FORTNIGHTS_PER_YEAR;
+                }
             }
         });
     }
 
+    // Ensure global trainerFTE is also updated
+    trainerFTE = locationData[currentLocation].trainerFTE;
+    
     // Close modal and refresh all tables
     closeModals();
     updateAllTables();
     
     // Ensure FTE summary is re-rendered with current state
     renderFTESummaryTable();
+    
+    // Update dashboard charts with new FTE values
+    if (document.getElementById('dashboard-view').classList.contains('active')) {
+        updateSupplyDemandChart();
+        updateTrainerHeatmap();
+    }
+    
+    // Save FTE as default whenever it's edited
+    saveDefaultFTE();
+    console.log('Saved FTE as default after edit');
+    
     markDirty();
 }
 
@@ -8093,8 +8490,13 @@ function handleScenarioSave(event) {
             date: new Date().toISOString(),
             state: getCurrentState(),
             stats: {
-                totalCohorts: activeCohorts.length,
-                totalTrainees: activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0)
+                totalCohorts: (locationData.AU.activeCohorts?.length || 0) + (locationData.NZ.activeCohorts?.length || 0),
+                totalTrainees: (locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0) + 
+                              (locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0),
+                auCohorts: locationData.AU.activeCohorts?.length || 0,
+                nzCohorts: locationData.NZ.activeCohorts?.length || 0,
+                auTrainees: locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0,
+                nzTrainees: locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0
             }
         };
     }
@@ -8118,6 +8520,12 @@ function handleScenarioSave(event) {
     const message = isDuplicate ? 
         'Scenario duplicated successfully!' : 'Scenario saved successfully!';
     showNotification(message, 'success');
+    
+    // Check if we need to create a new scenario after save
+    if (window.pendingNewScenario) {
+        window.pendingNewScenario = false;
+        setTimeout(() => createNewScenario(), 100);
+    }
 }
 
 function closeScenarioModal() {
@@ -8126,6 +8534,7 @@ function closeScenarioModal() {
     
     // Clear any pending duplicate
     window.pendingDuplicateScenario = null;
+    window.pendingNewScenario = false;
 }
 
 function showNotification(message, type = 'info', duration = 5000) {
@@ -8293,8 +8702,13 @@ function updateCurrentScenario() {
         date: new Date().toISOString(),
         state: getCurrentState(),
         stats: {
-            totalCohorts: activeCohorts.length,
-            totalTrainees: activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0)
+            totalCohorts: (locationData.AU.activeCohorts?.length || 0) + (locationData.NZ.activeCohorts?.length || 0),
+            totalTrainees: (locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0) + 
+                          (locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0),
+            auCohorts: locationData.AU.activeCohorts?.length || 0,
+            nzCohorts: locationData.NZ.activeCohorts?.length || 0,
+            auTrainees: locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0,
+            nzTrainees: locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0
         }
     };
     
@@ -8331,7 +8745,29 @@ function loadScenarioDataOnly(scenario) {
     // Load the scenario state
     if (scenario.state.locationData) {
         // New format with location data
-        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Preserve saved FTE instead of using scenario's FTE
+            console.log('Preserving saved default FTE values for new format scenario');
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+            // Override scenario FTE with saved defaults
+            try {
+                const parsed = JSON.parse(savedDefaultFTE);
+                if (parsed.AU) {
+                    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
+                }
+                if (parsed.NZ) {
+                    locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
+                }
+            } catch (e) {
+                console.error('Error applying saved FTE to scenario:', e);
+            }
+        } else {
+            // No saved defaults, use scenario's data as-is
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        }
+        
         // Only use scenario's location if we don't have a saved preference
         const savedLocation = localStorage.getItem('currentLocation');
         if (!savedLocation) {
@@ -8347,13 +8783,26 @@ function loadScenarioDataOnly(scenario) {
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
-        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
         pathways = [...scenario.state.pathways];
         priorityConfig = [...scenario.state.priorityConfig];
         
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Keep our saved FTE values, don't use scenario's FTE
+            console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // LocationData FTE should already be set from loadDefaultFTE()
+            // Update global trainerFTE from the preserved locationData
+            trainerFTE = locationData[currentLocation].trainerFTE;
+        } else {
+            // No saved defaults, use scenario's FTE
+            trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+            locationData.AU.trainerFTE = trainerFTE;
+            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        }
+        
         // Migrate to location format
         locationData.AU.pathways = pathways;
-        locationData.AU.trainerFTE = trainerFTE;
         locationData.AU.priorityConfig = priorityConfig;
         
         // Separate cohorts by location
@@ -8365,7 +8814,6 @@ function loadScenarioDataOnly(scenario) {
         
         // Copy settings to NZ location
         locationData.NZ.pathways = [...pathways];
-        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
         // Don't override the saved location preference
@@ -8411,7 +8859,29 @@ function loadScenarioData(scenario) {
     // Load the scenario state
     if (scenario.state.locationData) {
         // New format with location data
-        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Preserve saved FTE instead of using scenario's FTE
+            console.log('Preserving saved default FTE values for new format scenario');
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+            // Override scenario FTE with saved defaults
+            try {
+                const parsed = JSON.parse(savedDefaultFTE);
+                if (parsed.AU) {
+                    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
+                }
+                if (parsed.NZ) {
+                    locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
+                }
+            } catch (e) {
+                console.error('Error applying saved FTE to scenario:', e);
+            }
+        } else {
+            // No saved defaults, use scenario's data as-is
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        }
+        
         // Only use scenario's location if we don't have a saved preference
         const savedLocation = localStorage.getItem('currentLocation');
         if (!savedLocation) {
@@ -8427,13 +8897,26 @@ function loadScenarioData(scenario) {
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
-        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
         pathways = [...scenario.state.pathways];
         priorityConfig = [...scenario.state.priorityConfig];
         
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Keep our saved FTE values, don't use scenario's FTE
+            console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // LocationData FTE should already be set from loadDefaultFTE()
+            // Update global trainerFTE from the preserved locationData
+            trainerFTE = locationData[currentLocation].trainerFTE;
+        } else {
+            // No saved defaults, use scenario's FTE
+            trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+            locationData.AU.trainerFTE = trainerFTE;
+            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        }
+        
         // Migrate to location format
         locationData.AU.pathways = pathways;
-        locationData.AU.trainerFTE = trainerFTE;
         locationData.AU.priorityConfig = priorityConfig;
         
         // Separate cohorts by location
@@ -8452,7 +8935,10 @@ function loadScenarioData(scenario) {
         
         // Copy settings to NZ location
         locationData.NZ.pathways = [...pathways];
-        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        if (!savedDefaultFTE) {
+            // Only copy FTE if we're not preserving defaults
+            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        }
         locationData.NZ.priorityConfig = [...priorityConfig];
         
         // Don't override the saved location preference during scenario load
@@ -8564,6 +9050,56 @@ function duplicateScenario(scenarioId) {
     nameInput.select();
 }
 
+function createNewScenario() {
+    // Check if there are unsaved changes
+    if (viewState.isDirty) {
+        const choice = confirm('You have unsaved changes. Would you like to save the current scenario first?\n\nClick OK to save first, or Cancel to discard changes.');
+        
+        if (choice) {
+            // User wants to save first
+            showScenarioSaveModal();
+            // Set a flag to create new scenario after save
+            window.pendingNewScenario = true;
+            return;
+        }
+    }
+    
+    // Reset to default state
+    // Clear all cohorts
+    activeCohorts = [];
+    locationData.AU.activeCohorts = [];
+    locationData.NZ.activeCohorts = [];
+    
+    // Reset FTE to defaults if no saved defaults exist
+    const savedDefaultFTE = localStorage.getItem('defaultFTE');
+    if (!savedDefaultFTE) {
+        // Reset to system defaults
+        for (let year = START_YEAR; year <= END_YEAR; year++) {
+            if (!trainerFTE[year]) trainerFTE[year] = {};
+            TRAINER_CATEGORIES.forEach(category => {
+                trainerFTE[year][category] = 240; // Default FTE
+            });
+        }
+        // Copy to location data
+        locationData.AU.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+    }
+    
+    // Clear scenario tracking
+    viewState.currentScenarioId = null;
+    viewState.isDirty = false;
+    
+    // Update UI
+    updateAllTables();
+    renderGanttChart();
+    updateCurrentScenarioDisplay();
+    
+    // Switch to planner view to start building
+    switchView('planner');
+    
+    showNotification('New scenario created. Start adding cohorts!', 'success');
+}
+
 function renderScenarioList() {
     const container = document.getElementById('scenario-list');
     
@@ -8618,10 +9154,16 @@ function renderScenarioList() {
                     <div class="scenario-stat">
                         <span>Cohorts:</span>
                         <strong>${scenario.stats.totalCohorts}</strong>
+                        ${scenario.stats.auCohorts !== undefined ? 
+                            `<div class="location-split">AU: ${scenario.stats.auCohorts} &nbsp;|&nbsp; NZ: ${scenario.stats.nzCohorts}</div>` : 
+                            ''}
                     </div>
                     <div class="scenario-stat">
                         <span>Trainees:</span>
                         <strong>${scenario.stats.totalTrainees}</strong>
+                        ${scenario.stats.auTrainees !== undefined ? 
+                            `<div class="location-split">AU: ${scenario.stats.auTrainees} &nbsp;|&nbsp; NZ: ${scenario.stats.nzTrainees}</div>` : 
+                            ''}
                     </div>
                 </div>
                 <div class="scenario-actions">
@@ -9608,9 +10150,13 @@ function updateSupplyDemandOverview() {
                 tooltip: {
                     callbacks: {
                         footer: function(tooltipItems) {
-                            const supply = supplyData[tooltipItems[0].dataIndex];
-                            const totalDemand = localDemandData[tooltipItems[0].dataIndex] + 
-                                              crossLocationData[tooltipItems[0].dataIndex];
+                            const dataIndex = tooltipItems[0].dataIndex;
+                            // Get data from the chart's datasets
+                            const chart = tooltipItems[0].chart;
+                            const supply = chart.data.datasets[2].data[dataIndex] || 0; // Trainer Supply
+                            const localDemand = chart.data.datasets[0].data[dataIndex] || 0; // AU Demand
+                            const crossDemand = chart.data.datasets[1].data[dataIndex] || 0; // NZ Training in AU
+                            const totalDemand = localDemand + crossDemand;
                             const balance = supply - totalDemand;
                             
                             return [
@@ -9856,9 +10402,13 @@ function updateDemandChartV2() {
     const supplyData = [];
     
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
+    
+    // Get location-specific FTE
+    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+        locationData[currentLocation].trainerFTE : trainerFTE;
     
     for (let i = 0; i < 12; i++) {
         let month = currentMonth + i;
@@ -9877,14 +10427,25 @@ function updateDemandChartV2() {
                             (demand[year]?.[fn2]?.total || 0)) / 2;
         demandData.push(monthDemand);
         
-        // Calculate supply
+        // Calculate supply using location-specific FTE
         const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-            sum + (trainerFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
         supplyData.push(totalSupply);
     }
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (demandChartV2) {
-        demandChartV2.destroy();
+        // Try to update data instead of destroying
+        try {
+            demandChartV2.data.labels = labels;
+            demandChartV2.data.datasets[0].data = demandData;
+            demandChartV2.data.datasets[1].data = supplyData;
+            demandChartV2.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            demandChartV2.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -9995,6 +10556,7 @@ function updateSupplyDemandOverviewV2() {
     
     const { demand, crossLocationDemand } = calculateDemand();
     const currentDate = new Date();
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -10028,24 +10590,76 @@ function updateSupplyDemandOverviewV2() {
         // Get demand for current location
         const totalDemand1 = demand[year]?.[fn1]?.total || 0;
         const totalDemand2 = demand[year]?.[fn2]?.total || 0;
+        const totalMonthlyDemand = (totalDemand1 + totalDemand2) / 2;
         
-        // Cross-location demand is demand from other location using current location's trainers
-        const crossDemand1 = crossLocationDemand[year]?.[fn1]?.[currentLocation]?.total || 0;
-        const crossDemand2 = crossLocationDemand[year]?.[fn2]?.[currentLocation]?.total || 0;
+        // Get cross-location demand (trainees from other location using our trainers)
+        const crossLocationPortion1 = demand[year]?.[fn1]?.crossLocation || {};
+        const crossLocationPortion2 = demand[year]?.[fn2]?.crossLocation || {};
         
-        // Local demand is total demand minus cross-location demand
-        // Total demand already includes cross-location, so subtract to get just local
-        const localDemand = ((totalDemand1 - crossDemand1 + totalDemand2 - crossDemand2) / 2);
+        // Sum up cross-location demand across all training types
+        let crossDemand1 = 0;
+        let crossDemand2 = 0;
+        Object.values(crossLocationPortion1).forEach(value => crossDemand1 += value);
+        Object.values(crossLocationPortion2).forEach(value => crossDemand2 += value);
         const crossDemand = (crossDemand1 + crossDemand2) / 2;
+        
+        // Local demand is total minus cross-location
+        const localDemand = totalMonthlyDemand - crossDemand;
+        
+        // Debug cross-location calculation
+        if (i === 0 && (crossDemand1 > 0 || crossDemand2 > 0)) {
+            console.log(`Cross-location debug for ${labels[i]}:`);
+            console.log(`  crossLocationPortion1:`, crossLocationPortion1);
+            console.log(`  crossLocationPortion2:`, crossLocationPortion2);
+            console.log(`  crossDemand1:`, crossDemand1);
+            console.log(`  crossDemand2:`, crossDemand2);
+            console.log(`  Average crossDemand:`, crossDemand);
+        }
         
         supplyData.push(monthlySupply);
         localDemandData.push(localDemand);
         crossLocationData.push(crossDemand); // Just the cross-location portion
-        totalDemandData.push(localDemand + crossDemand); // Total for reference
+        totalDemandData.push(totalMonthlyDemand); // Total for reference
+        
+        // Debug logging for first month
+        if (i === 0) {
+            console.log(`Supply/Demand Overview Debug for ${labels[i]}:`);
+            console.log(`  Year:`, year);
+            console.log(`  Location FTE for year:`, locationFTE[year]);
+            console.log(`  Annual FTE total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            console.log(`  Monthly Supply (fortnightly average):`, monthlySupply);
+            console.log(`  Local Demand:`, localDemand);
+            console.log(`  Cross-location Demand:`, crossDemand);
+            console.log(`  Total Demand:`, localDemand + crossDemand);
+            console.log(`  Raw demand data fn1:`, demand[year]?.[fn1]);
+            console.log(`  Raw demand data fn2:`, demand[year]?.[fn2]);
+        }
     }
     
+    // Debug the data arrays
+    console.log('Chart Data Debug:');
+    console.log('  Supply data:', supplyData.slice(0, 3));
+    console.log('  Local demand data:', localDemandData.slice(0, 3));
+    console.log('  Cross-location data:', crossLocationData.slice(0, 3));
+    console.log('  Labels:', labels.slice(0, 3));
+    
+    // Update existing chart if possible, otherwise destroy and recreate
     if (supplyDemandOverviewChartV2) {
-        supplyDemandOverviewChartV2.destroy();
+        try {
+            supplyDemandOverviewChartV2.data.labels = labels;
+            // Dataset order must match the order when chart was created:
+            // 0: localDemandData (AU Demand)
+            // 1: crossLocationData (NZ Training in AU)  
+            // 2: supplyData (Trainer Supply)
+            supplyDemandOverviewChartV2.data.datasets[0].data = localDemandData;
+            supplyDemandOverviewChartV2.data.datasets[1].data = crossLocationData;
+            supplyDemandOverviewChartV2.data.datasets[2].data = supplyData;
+            supplyDemandOverviewChartV2.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            supplyDemandOverviewChartV2.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -10109,9 +10723,13 @@ function updateSupplyDemandOverviewV2() {
                 tooltip: {
                     callbacks: {
                         footer: function(tooltipItems) {
-                            const supply = supplyData[tooltipItems[0].dataIndex];
-                            const totalDemand = localDemandData[tooltipItems[0].dataIndex] + 
-                                              crossLocationData[tooltipItems[0].dataIndex];
+                            const dataIndex = tooltipItems[0].dataIndex;
+                            // Get data from the chart's datasets
+                            const chart = tooltipItems[0].chart;
+                            const supply = chart.data.datasets[2].data[dataIndex] || 0; // Trainer Supply
+                            const localDemand = chart.data.datasets[0].data[dataIndex] || 0; // AU Demand
+                            const crossDemand = chart.data.datasets[1].data[dataIndex] || 0; // NZ Training in AU
+                            const totalDemand = localDemand + crossDemand;
                             const balance = supply - totalDemand;
                             
                             return [
@@ -10440,7 +11058,7 @@ function updateTrainerHeatmap() {
     
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     
     // console.log('Heat map data:', {
@@ -10469,23 +11087,38 @@ function updateTrainerHeatmap() {
     // Create heat map grid
     let html = '<div class="heatmap-label"></div>'; // Empty corner cell
     
-    // Month headers
-    MONTHS.forEach(month => {
-        html += `<div class="heatmap-month">${month.substr(0, 3)}</div>`;
-    });
+    // Month headers for the 12-month view window
+    const currentMonth = currentDate.getMonth();
+    for (let i = 0; i < 12; i++) {
+        let month = currentMonth + i;
+        let year = currentYear;
+        if (month >= 12) {
+            month -= 12;
+            year++;
+        }
+        html += `<div class="heatmap-month">${MONTHS[month].substr(0, 3)}</div>`;
+    }
     
     // For each trainer category
     TRAINER_CATEGORIES.forEach(category => {
         html += `<div class="heatmap-label">${category}</div>`;
         
-        // For each month
-        for (let month = 0; month < 12; month++) {
+        // For each month in the 12-month view window
+        const currentMonth = currentDate.getMonth();
+        for (let i = 0; i < 12; i++) {
+            let month = currentMonth + i;
+            let year = currentYear;
+            if (month >= 12) {
+                month -= 12;
+                year++;
+            }
+            
             const fn1 = (month * 2) + 1;
             const fn2 = (month * 2) + 2;
             
             // Get demand for this category and month
-            const categoryDemand = getCategoryDemand(demand, currentYear, [fn1, fn2], category);
-            const categorySupply = (trainerFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+            const categoryDemand = getCategoryDemand(demand, year, [fn1, fn2], category);
+            const categorySupply = (trainerFTE[year]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
             const utilization = categorySupply > 0 ? (categoryDemand / categorySupply) * 100 : 0;
             
             // Determine color based on utilization
@@ -10666,7 +11299,7 @@ function updateSupplyDemandChart() {
     
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     
@@ -10702,6 +11335,17 @@ function updateSupplyDemandChart() {
         supplyData.push(monthlySupply);
         demandData.push(monthlyDemand);
         surplusDeficitData.push(monthlySupply - monthlyDemand);
+        
+        // Debug logging
+        if (i === 0) {  // Log first month only to avoid spam
+            console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
+            console.log(`  Location: ${currentLocation}`);
+            console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
+            console.log(`  Monthly Demand:`, monthlyDemand);
+            console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
+            console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
+        }
     }
     
     // Check if we have any data
@@ -10938,8 +11582,17 @@ function updatePhaseBreakdown() {
         }
     });
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (phaseBreakdownChart) {
-        phaseBreakdownChart.destroy();
+        try {
+            phaseBreakdownChart.data.labels = Object.keys(phaseData);
+            phaseBreakdownChart.data.datasets[0].data = Object.values(phaseData);
+            phaseBreakdownChart.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            phaseBreakdownChart.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -11052,8 +11705,17 @@ function updateWorkloadChart() {
         });
     }
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (workloadChart) {
-        workloadChart.destroy();
+        try {
+            workloadChart.data.labels = labels;
+            workloadChart.data.datasets[0].data = data;
+            workloadChart.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            workloadChart.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -11099,7 +11761,7 @@ function updateWorkloadChart() {
 function updateDetailCards() {
     const { demand } = calculateDemand();
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
+    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
     const currentYear = currentDate.getFullYear();
     const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
     
@@ -13204,90 +13866,242 @@ function showDeficitResolution() {
     
     modal.style.display = 'block';
     
-    const deficitAnalysis = document.getElementById('deficit-analysis');
-    const deficitSolutions = document.getElementById('deficit-solutions');
+    // Display deficit analysis with detailed information
+    displayDetailedDeficitAnalysis();
     
-    // Display deficit analysis
-    let analysisHTML = '<h3>Priority Deficits:</h3><div class="deficit-analysis-section">';
+    // Generate cohort-specific rescheduling solutions
+    const cohortSolutions = generateCohortReschedulingSolutions(window.currentDeficits);
+    console.log('Generated cohort solutions:', cohortSolutions);
+    displayCohortReschedulingUI(cohortSolutions);
     
-    window.currentDeficits.slice(0, 5).forEach(deficit => {
-        const monthYear = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year}`;
-        
-        analysisHTML += `
-            <div class="deficit-period">
-                <div class="deficit-period-header">${monthYear} (Fortnight ${deficit.fortnight}):</div>
-                <div class="deficit-details">
-        `;
-        
-        Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
-            const trainingName = type.replace('LT-', '') + ' Training';
-            analysisHTML += `• ${data.deficit.toFixed(0)} ${trainingName} deficit (${data.reason})<br>`;
-        });
-        
-        analysisHTML += '</div></div>';
-    });
-    
-    analysisHTML += '</div>';
-    deficitAnalysis.innerHTML = analysisHTML;
-    
-    // Generate solutions
-    const solutions = generateDeficitSolutions(window.currentDeficits);
-    displayDeficitSolutions(solutions);
+    // Initialize preview functionality
+    initializeDeficitPreview();
 }
 
-function generateDeficitSolutions(deficits) {
-    const solutions = [];
+function displayDetailedDeficitAnalysis() {
+    const deficitSummaryContent = document.getElementById('deficit-summary-content');
+    
+    // Create a calendar-style view showing current surplus/deficit for affected periods
+    let summaryHTML = `
+        <table class="deficit-calendar-table">
+            <thead>
+                <tr>
+    `;
+    
+    // Show 12 fortnights starting from the first deficit
+    const startFortnight = Math.min(...window.currentDeficits.map(d => d.fortnight));
+    const startYear = Math.min(...window.currentDeficits.map(d => d.year));
+    
+    for (let i = 0; i < 12; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        if (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        const monthName = MONTHS[Math.floor((fortnight - 1) / 2)];
+        summaryHTML += `<th>FN${fortnight}<br><small>${monthName.substr(0, 3)} ${year}</small></th>`;
+    }
+    
+    summaryHTML += `
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="current-deficit-row">
+                    <td colspan="12" style="text-align: center; font-weight: 500; background: #f8f9fa;">Current Deficit/Surplus</td>
+                </tr>
+                <tr id="current-values-row">
+    `;
+    
+    // Add current values
+    for (let i = 0; i < 12; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        if (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        const deficit = window.currentDeficits.find(d => d.year === year && d.fortnight === fortnight);
+        let value = 0;
+        
+        if (deficit) {
+            Object.values(deficit.deficitsByType).forEach(data => {
+                value += data.deficit;
+            });
+            value = -value; // Convert to deficit display (negative = deficit)
+        }
+        
+        const cellClass = value < 0 ? 'deficit-cell' : value > 0 ? 'surplus-cell' : '';
+        summaryHTML += `<td class="${cellClass}" data-fortnight="${fortnight}" data-year="${year}">${value}</td>`;
+    }
+    
+    summaryHTML += `
+                </tr>
+            </tbody>
+        </table>
+    `;
+    
+    deficitSummaryContent.innerHTML = summaryHTML;
+}
+
+function getReadableCohortName(cohort) {
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    const pathwayName = pathway ? pathway.name : cohort.pathwayId;
+    const cohortName = cohort.name || `${pathwayName} Cohort ${cohort.id}`;
+    return cohortName;
+}
+
+function generateEnhancedDeficitSolutions(deficits) {
     const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
-    // Solution 1: Temporal adjustments
-    deficits.forEach(deficit => {
-        const affectedCohorts = findCohortsInPeriod(deficit.year, deficit.fortnight);
-        affectedCohorts.forEach(cohort => {
-            if (cohort.numTrainees <= 6) { // Only suggest moving smaller cohorts
+    // Group deficits by month for strategic solutions
+    const deficitsByMonth = {};
+    const surplusByMonth = {};
+    
+    // First, analyze all periods to find deficits AND surpluses
+    const startYear = Math.min(...deficits.map(d => d.year));
+    const endYear = Math.max(...deficits.map(d => d.year));
+    
+    for (let year = startYear; year <= endYear; year++) {
+        for (let fortnight = 1; fortnight <= FORTNIGHTS_PER_YEAR; fortnight++) {
+            const result = calculateSupplyDeficit(year, fortnight);
+            const monthKey = `${year}-${Math.floor((fortnight - 1) / 2)}`;
+            const displayKey = `${MONTHS[Math.floor((fortnight - 1) / 2)]} ${year}`;
+            
+            if (!deficitsByMonth[monthKey]) {
+                deficitsByMonth[monthKey] = {
+                    displayName: displayKey,
+                    year,
+                    month: Math.floor((fortnight - 1) / 2),
+                    totalDeficit: 0,
+                    cohorts: [],
+                    fortnights: []
+                };
+            }
+            
+            if (!surplusByMonth[monthKey]) {
+                surplusByMonth[monthKey] = {
+                    displayName: displayKey,
+                    year,
+                    month: Math.floor((fortnight - 1) / 2),
+                    totalSurplus: 0
+                };
+            }
+            
+            // Sum up deficits/surpluses
+            const totalDeficit = result.totalDeficitDetail.reduce((sum, d) => sum + Math.max(0, d.deficit), 0);
+            const totalSurplus = result.totalDeficitDetail.reduce((sum, d) => sum + Math.max(0, -d.deficit), 0);
+            
+            if (totalDeficit > 0) {
+                deficitsByMonth[monthKey].totalDeficit += totalDeficit;
+                deficitsByMonth[monthKey].fortnights.push(fortnight);
+                const cohorts = findCohortsInPeriod(year, fortnight);
+                cohorts.forEach(c => {
+                    if (!deficitsByMonth[monthKey].cohorts.find(existing => existing.id === c.id)) {
+                        deficitsByMonth[monthKey].cohorts.push(c);
+                    }
+                });
+            }
+            
+            if (totalSurplus > 0) {
+                surplusByMonth[monthKey].totalSurplus += totalSurplus;
+            }
+        }
+    }
+    
+    // Generate month-based strategic solutions
+    const solutions = [];
+    
+    Object.entries(deficitsByMonth).forEach(([monthKey, deficitData]) => {
+        if (deficitData.totalDeficit === 0) return;
+        
+        // Find months with surplus capacity
+        const availableMonths = Object.entries(surplusByMonth)
+            .filter(([key, data]) => data.totalSurplus > 0)
+            .sort((a, b) => {
+                // Prefer nearby months
+                const aDistance = Math.abs(parseInt(a[0].split('-')[0]) * 12 + parseInt(a[0].split('-')[1]) - 
+                                         (deficitData.year * 12 + deficitData.month));
+                const bDistance = Math.abs(parseInt(b[0].split('-')[0]) * 12 + parseInt(b[0].split('-')[1]) - 
+                                         (deficitData.year * 12 + deficitData.month));
+                return aDistance - bDistance;
+            })
+            .slice(0, 3); // Top 3 nearby months with capacity
+        
+        // Group cohorts by size for solution bundling
+        const smallCohorts = deficitData.cohorts.filter(c => c.numTrainees <= 6);
+        const mediumCohorts = deficitData.cohorts.filter(c => c.numTrainees > 6 && c.numTrainees <= 12);
+        const largeCohorts = deficitData.cohorts.filter(c => c.numTrainees > 12);
+        
+        // Solution 1: Move multiple small cohorts together
+        if (smallCohorts.length > 0 && availableMonths.length > 0) {
+            const targetMonth = availableMonths[0];
+            const cohortsToMove = smallCohorts.slice(0, Math.min(3, smallCohorts.length));
+            const totalTrainees = cohortsToMove.reduce((sum, c) => sum + c.numTrainees, 0);
+            
+            solutions.push({
+                type: 'move-multiple',
+                title: `Reschedule ${cohortsToMove.length} small cohorts from ${deficitData.displayName}`,
+                description: `Move ${cohortsToMove.map(c => getReadableCohortName(c)).join(', ')} to ${targetMonth[1].displayName}`,
+                impact: `Resolves ${Math.round((totalTrainees / deficitData.totalDeficit) * 100)}% of ${deficitData.displayName} deficit`,
+                monthlyImpact: {
+                    [deficitData.displayName]: -totalTrainees,
+                    [targetMonth[1].displayName]: +totalTrainees
+                },
+                cohortIds: cohortsToMove.map(c => c.id),
+                fromMonth: deficitData.displayName,
+                toMonth: targetMonth[1].displayName,
+                totalTrainees,
+                deficitReduction: totalTrainees
+            });
+        }
+        
+        // Solution 2: Split large cohorts across months
+        if (largeCohorts.length > 0) {
+            largeCohorts.forEach(cohort => {
+                const halfSize = Math.floor(cohort.numTrainees / 2);
                 solutions.push({
-                    type: 'move',
-                    description: `Move ${cohort.name || 'Cohort ' + cohort.id} by 2 weeks`,
-                    impact: `Resolves ${cohort.numTrainees} trainee deficit`,
+                    type: 'split-cohort',
+                    title: `Split ${getReadableCohortName(cohort)} across two months`,
+                    description: `Keep ${halfSize} trainees in ${deficitData.displayName}, move ${cohort.numTrainees - halfSize} to next month`,
+                    impact: `Reduces ${deficitData.displayName} deficit by ${cohort.numTrainees - halfSize} trainees`,
+                    monthlyImpact: {
+                        [deficitData.displayName]: -(cohort.numTrainees - halfSize),
+                        'Next Month': +(cohort.numTrainees - halfSize)
+                    },
                     cohortId: cohort.id,
-                    newStartFortnight: deficit.fortnight + 2
+                    splitSize: halfSize,
+                    deficitReduction: cohort.numTrainees - halfSize
+                });
+            });
+        }
+    });
+    
+    // Solution 3: Cross-location training (NZ→AU only)
+    if (currentLocation === 'NZ') {
+        Object.entries(deficitsByMonth).forEach(([monthKey, deficitData]) => {
+            if (deficitData.totalDeficit > 0) {
+                solutions.push({
+                    type: 'cross-location',
+                    title: `Use AU trainers for ${deficitData.displayName}`,
+                    description: `Send ${Math.round(deficitData.totalDeficit)} NZ trainees to AU for training`,
+                    impact: `Completely resolves ${deficitData.displayName} deficit`,
+                    monthlyImpact: {
+                        [`${deficitData.displayName} (NZ)`]: -deficitData.totalDeficit,
+                        [`${deficitData.displayName} (AU)`]: +deficitData.totalDeficit
+                    },
+                    deficitReduction: deficitData.totalDeficit
                 });
             }
         });
-    });
-    
-    // Solution 2: Cross-location (NZ only)
-    if (currentLocation === 'NZ') {
-        deficits.forEach(deficit => {
-            Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
-                solutions.push({
-                    type: 'cross-location',
-                    description: `Send ${data.deficit.toFixed(0)} ${type.replace('LT-', '')} trainees to AU`,
-                    impact: 'Leverages AU trainer capacity',
-                    deficitType: type,
-                    traineeCount: data.deficit,
-                    period: { year: deficit.year, fortnight: deficit.fortnight }
-                });
-            });
-        });
     }
     
-    // Solution 3: Cohort splitting
-    deficits.forEach(deficit => {
-        const largeCohorts = findCohortsInPeriod(deficit.year, deficit.fortnight)
-            .filter(c => c.numTrainees > 10);
-        
-        largeCohorts.forEach(cohort => {
-            solutions.push({
-                type: 'split',
-                description: `Split ${cohort.name || 'Cohort ' + cohort.id} into 2 smaller groups`,
-                impact: 'Distributes trainer load',
-                cohortId: cohort.id,
-                splitSize: Math.ceil(cohort.numTrainees / 2)
-            });
-        });
-    });
-    
-    return solutions.slice(0, 10); // Limit to top 10 solutions
+    // Sort solutions by impact and return top ones
+    return solutions.sort((a, b) => b.deficitReduction - a.deficitReduction).slice(0, 6);
 }
 
 function findCohortsInPeriod(year, fortnight) {
@@ -13367,28 +14181,31 @@ function previewDeficitChanges() {
 }
 
 function applyDeficitSolutions() {
-    const selectedIndices = Array.from(document.querySelectorAll('.solution-checkbox:checked'))
-        .map(cb => parseInt(cb.dataset.solutionIndex));
+    const selectedMoves = [];
     
-    if (selectedIndices.length === 0) return;
-    
-    selectedIndices.forEach(index => {
-        const solution = window.currentDeficitSolutions[index];
+    // Collect all selected cohort moves
+    document.querySelectorAll('.cohort-move-checkbox:checked').forEach(checkbox => {
+        const cohortId = checkbox.id.replace('cohort-', '');
+        const dateSelect = document.querySelector(`.new-date-select[data-cohort-id="${cohortId}"]`);
         
-        switch (solution.type) {
-            case 'move':
-                // Move cohort to new start time
-                moveCohort(solution.cohortId, solution.newStartFortnight);
-                break;
-            case 'cross-location':
-                // Add cross-location training
-                showNotification('Cross-location implementation coming soon', 'info');
-                break;
-            case 'split':
-                // Split cohort
-                showNotification('Cohort splitting coming soon', 'info');
-                break;
+        if (dateSelect.value) {
+            const [year, fortnight] = dateSelect.value.split('-').map(Number);
+            selectedMoves.push({
+                cohortId: cohortId,
+                newYear: year,
+                newFortnight: fortnight
+            });
         }
+    });
+    
+    if (selectedMoves.length === 0) {
+        showNotification('Please select cohorts and new dates', 'warning');
+        return;
+    }
+    
+    // Apply all moves
+    selectedMoves.forEach(move => {
+        moveCohortToDate(move.cohortId, move.newYear, move.newFortnight);
     });
     
     // Close modal and refresh
@@ -13396,7 +14213,17 @@ function applyDeficitSolutions() {
     renderAll();
     checkForDeficits();
     
-    showNotification('Solutions applied successfully', 'success');
+    showNotification(`Successfully rescheduled ${selectedMoves.length} cohort${selectedMoves.length > 1 ? 's' : ''}`, 'success');
+}
+
+function moveCohortToDate(cohortId, newYear, newFortnight) {
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const cohort = cohorts.find(c => c.id == cohortId);
+    
+    if (cohort) {
+        cohort.startYear = newYear;
+        cohort.startFortnight = newFortnight;
+    }
 }
 
 function moveCohort(cohortId, newStartFortnight) {
@@ -13410,6 +14237,569 @@ function moveCohort(cohortId, newStartFortnight) {
             cohort.startYear++;
         }
     }
+}
+
+function displayEnhancedDeficitSolutions(solutions) {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    
+    if (solutions.length === 0) {
+        deficitSolutions.innerHTML = `
+            <div class="no-solutions">
+                <p>No automatic solutions available for the current deficits.</p>
+                <p>Consider manual adjustments or increasing trainer capacity.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="solutions-header">
+            <strong>Recommended Actions:</strong>
+            <small style="color: #6c757d; display: block; margin-top: 4px;">
+                Select solutions to apply. Preview shows combined impact.
+            </small>
+        </div>
+    `;
+    
+    solutions.forEach((solution, index) => {
+        const badgeColor = solution.type === 'cross-location' ? 'badge-info' : 
+                          solution.type === 'move-multiple' ? 'badge-success' : 'badge-warning';
+        
+        html += `
+            <div class="solution-item" data-solution-index="${index}">
+                <div class="solution-header">
+                    <input type="checkbox" class="solution-checkbox" id="solution-${index}" data-solution-index="${index}">
+                    <div class="solution-content">
+                        <div class="solution-title-row">
+                            <span class="solution-title">${solution.title}</span>
+                            <span class="solution-badge ${badgeColor}">${solution.impact}</span>
+                        </div>
+                        <div class="solution-description">${solution.description}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    deficitSolutions.innerHTML = html;
+    
+    // Store solutions for later use
+    window.currentSolutions = solutions;
+    
+    // Add event listeners for solution selection
+    const checkboxes = document.querySelectorAll('.solution-checkbox');
+    const solutionItems = document.querySelectorAll('.solution-item');
+    
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.addEventListener('change', function() {
+            const applyBtn = document.getElementById('apply-deficit-solutions');
+            const selectedSolutions = Array.from(checkboxes).filter(cb => cb.checked);
+            applyBtn.disabled = selectedSolutions.length === 0;
+            
+            // Update solution item styling
+            solutionItems[index].classList.toggle('selected', checkbox.checked);
+            
+            // Update preview
+            updateDeficitPreview();
+        });
+    });
+    
+    // Add click handlers to solution items (clicking anywhere selects)
+    solutionItems.forEach((item, index) => {
+        item.addEventListener('click', function(e) {
+            if (e.target.type !== 'checkbox') {
+                const checkbox = checkboxes[index];
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+}
+
+function calculateReschedulingImpact(selectedMoves) {
+    const impactByPeriod = {};
+    
+    // Get all deficit periods from the current deficits
+    if (window.currentDeficits) {
+        window.currentDeficits.forEach(deficit => {
+            const key = `${deficit.year}-${deficit.fortnight}`;
+            impactByPeriod[key] = {
+                year: deficit.year,
+                fortnight: deficit.fortnight,
+                before: deficit.deficit,
+                after: deficit.deficit,
+                change: 0
+            };
+        });
+    }
+    
+    // Calculate the impact of moving cohorts
+    selectedMoves.forEach(move => {
+        // Find the cohort
+        const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+        const cohort = cohorts.find(c => c.id == move.cohortId);
+        if (!cohort) return;
+        
+        const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Calculate demand for original and new positions
+        pathway.phases.forEach((phase, phaseIndex) => {
+            if (phase.trainerDemandType) {
+                const demand = Math.ceil(cohort.numTrainees / phase.ratio);
+                
+                // Remove demand from original fortnights
+                let startFortnight = move.originalFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    startFortnight += pathway.phases[i].duration;
+                }
+                
+                for (let i = 0; i < phase.duration; i++) {
+                    const fortnight = startFortnight + i;
+                    const year = move.originalYear + Math.floor((fortnight - 1) / FORTNIGHTS_PER_YEAR);
+                    const adjustedFortnight = ((fortnight - 1) % FORTNIGHTS_PER_YEAR) + 1;
+                    const key = `${year}-${adjustedFortnight}`;
+                    
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = {
+                            year,
+                            fortnight: adjustedFortnight,
+                            before: 0,
+                            after: 0,
+                            change: 0
+                        };
+                    }
+                    impactByPeriod[key].after += demand; // Reducing deficit
+                    impactByPeriod[key].change += demand;
+                }
+                
+                // Add demand to new fortnights
+                startFortnight = move.newFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    startFortnight += pathway.phases[i].duration;
+                }
+                
+                for (let i = 0; i < phase.duration; i++) {
+                    const fortnight = startFortnight + i;
+                    const year = move.newYear + Math.floor((fortnight - 1) / FORTNIGHTS_PER_YEAR);
+                    const adjustedFortnight = ((fortnight - 1) % FORTNIGHTS_PER_YEAR) + 1;
+                    const key = `${year}-${adjustedFortnight}`;
+                    
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = {
+                            year,
+                            fortnight: adjustedFortnight,
+                            before: 0,
+                            after: 0,
+                            change: 0
+                        };
+                    }
+                    impactByPeriod[key].after -= demand; // Increasing deficit
+                    impactByPeriod[key].change -= demand;
+                }
+            }
+        });
+    });
+    
+    return impactByPeriod;
+}
+
+function updateDeficitPreview() {
+    const previewContent = document.getElementById('preview-content');
+    if (!previewContent) return;
+    
+    // Get selected cohorts and their new dates
+    const selectedMoves = [];
+    document.querySelectorAll('.cohort-move-checkbox:checked').forEach(checkbox => {
+        const cohortId = checkbox.dataset.cohortId;
+        const dateSelect = document.querySelector(`.new-date-select[data-cohort-id="${cohortId}"]`);
+        
+        if (dateSelect && dateSelect.value) {
+            const [year, fortnight] = dateSelect.value.split('-').map(Number);
+            const cohortElement = checkbox.closest('.cohort-reschedule-item');
+            const cohortName = cohortElement.querySelector('.cohort-info strong').textContent;
+            
+            selectedMoves.push({
+                cohortId,
+                cohortName,
+                newYear: year,
+                newFortnight: fortnight,
+                originalYear: parseInt(checkbox.dataset.originalYear),
+                originalFortnight: parseInt(checkbox.dataset.originalFortnight)
+            });
+        }
+    });
+    
+    if (selectedMoves.length === 0) {
+        previewContent.innerHTML = '<div class="preview-placeholder">Select cohorts to see impact</div>';
+        updateDeficitSummaryTable(null);
+        return;
+    }
+    
+    // Show moves summary
+    let html = '<div class="moves-summary">';
+    selectedMoves.forEach(move => {
+        html += `<div class="move-item">Moving ${move.cohortName}: FN${move.originalFortnight} → FN${move.newFortnight}</div>`;
+    });
+    html += '</div>';
+    
+    previewContent.innerHTML = html;
+    
+    // Update the summary table with adjusted values
+    updateDeficitSummaryTable(selectedMoves);
+    
+    // Enable/disable apply button based on selection
+    const applyButton = document.getElementById('apply-deficit-solutions');
+    if (applyButton) {
+        applyButton.disabled = selectedMoves.length === 0;
+    }
+}
+
+function updateDeficitSummaryTable(selectedMoves) {
+    const summaryTable = document.querySelector('.deficit-calendar-table tbody');
+    if (!summaryTable) return;
+    
+    // Remove existing adjustment rows
+    const existingAdjustmentRows = summaryTable.querySelectorAll('[id*="adjustment"], [id*="adjusted"]');
+    existingAdjustmentRows.forEach(row => row.remove());
+    
+    if (!selectedMoves || selectedMoves.length === 0) {
+        return;
+    }
+    
+    // Calculate impact of moves
+    const impactByPeriod = calculateSimpleReschedulingImpact(selectedMoves);
+    
+    // Get the start fortnight and year for the table
+    const startFortnight = Math.min(...window.currentDeficits.map(d => d.fortnight));
+    const startYear = Math.min(...window.currentDeficits.map(d => d.year));
+    
+    // Add adjustment row
+    let adjustmentHTML = `<tr id="adjustment-row"><td colspan="12" style="text-align: center; font-weight: 500; background: #fff3cd;">Impact of Moves</td></tr><tr id="adjustment-values-row">`;
+    
+    for (let i = 0; i < 12; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        if (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        const key = `${year}-${fortnight}`;
+        const impact = impactByPeriod[key] ? impactByPeriod[key].change : 0;
+        const cellClass = impact > 0 ? 'improvement-cell' : impact < 0 ? 'worsening-cell' : '';
+        const displayValue = impact > 0 ? `+${impact}` : `${impact}`;
+        adjustmentHTML += `<td class="${cellClass}">${impact === 0 ? '-' : displayValue}</td>`;
+    }
+    adjustmentHTML += '</tr>';
+    
+    // Add adjusted values row
+    adjustmentHTML += `<tr id="adjusted-row"><td colspan="12" style="text-align: center; font-weight: 500; background: #d4edda;">After Rescheduling</td></tr><tr id="adjusted-values-row">`;
+    
+    for (let i = 0; i < 12; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        if (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        // Get current value
+        const currentCell = summaryTable.querySelector(`[data-fortnight="${fortnight}"][data-year="${year}"]`);
+        const currentValue = currentCell ? parseInt(currentCell.textContent) || 0 : 0;
+        
+        // Calculate adjusted value
+        const key = `${year}-${fortnight}`;
+        const impact = impactByPeriod[key] ? impactByPeriod[key].change : 0;
+        const adjustedValue = currentValue + impact;
+        
+        const cellClass = adjustedValue < 0 ? 'deficit-cell' : adjustedValue > 0 ? 'surplus-cell' : '';
+        adjustmentHTML += `<td class="${cellClass}">${adjustedValue}</td>`;
+    }
+    adjustmentHTML += '</tr>';
+    
+    summaryTable.insertAdjacentHTML('beforeend', adjustmentHTML);
+}
+
+function calculateSimpleReschedulingImpact(selectedMoves) {
+    const impactByPeriod = {};
+    
+    selectedMoves.forEach(move => {
+        // Find the cohort
+        const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+        const cohort = cohorts.find(c => c.id == move.cohortId);
+        if (!cohort) return;
+        
+        const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Simple impact calculation - assume cohort affects deficit directly
+        const trainerDemand = Math.ceil(cohort.numTrainees / 2); // Simplified ratio
+        
+        // Remove demand from original fortnight
+        const originalKey = `${move.originalYear}-${move.originalFortnight}`;
+        if (!impactByPeriod[originalKey]) {
+            impactByPeriod[originalKey] = { change: 0 };
+        }
+        impactByPeriod[originalKey].change += trainerDemand; // Reducing deficit (positive change)
+        
+        // Add demand to new fortnight
+        const newKey = `${move.newYear}-${move.newFortnight}`;
+        if (!impactByPeriod[newKey]) {
+            impactByPeriod[newKey] = { change: 0 };
+        }
+        impactByPeriod[newKey].change -= trainerDemand; // Increasing deficit (negative change)
+    });
+    
+    return impactByPeriod;
+}
+
+function initializeDeficitPreview() {
+    // Add event listeners for cohort selection changes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('cohort-move-checkbox') || 
+            e.target.classList.contains('new-date-select')) {
+            updateDeficitPreview();
+        }
+    });
+    
+    // Initialize preview with current state
+    updateDeficitPreview();
+}
+
+function updateCohortMovePreview(selectedMoves) {
+    const previewContent = document.getElementById('preview-content');
+    
+    if (!previewContent) return;
+    
+    if (!selectedMoves || selectedMoves.length === 0) {
+        previewContent.innerHTML = '<div class="preview-placeholder">Select cohorts to reschedule to see the impact preview</div>';
+        return;
+    }
+    
+    // Calculate fortnight-by-fortnight impact
+    const fortnightImpact = {};
+    
+    // Initialize with current deficits at fortnight level
+    window.currentDeficits.forEach(deficit => {
+        const fortnightKey = `${deficit.year}-${deficit.fortnight}`;
+        const totalDeficit = Object.values(deficit.deficitsByType).reduce((sum, data) => sum + data.deficit, 0);
+        fortnightImpact[fortnightKey] = {
+            year: deficit.year,
+            fortnight: deficit.fortnight,
+            currentDeficit: totalDeficit,
+            changes: 0
+        };
+    });
+    
+    // Apply cohort move impacts
+    selectedMoves.forEach(move => {
+        // For each move, calculate which fortnights are affected
+        const pathway = move.cohort.pathway || pathways.find(p => p.id === move.cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Calculate line training periods for original schedule
+        let phases = calculateLineTrainingPeriods(move.cohort, pathway, move.from.year, move.from.fortnight);
+        phases.forEach(period => {
+            const key = `${period.year}-${period.fortnight}`;
+            if (!fortnightImpact[key]) {
+                fortnightImpact[key] = { year: period.year, fortnight: period.fortnight, currentDeficit: 0, changes: 0 };
+            }
+            fortnightImpact[key].changes -= move.impact; // Remove demand from original periods
+        });
+        
+        // Calculate line training periods for new schedule
+        phases = calculateLineTrainingPeriods(move.cohort, pathway, move.to.year, move.to.fortnight);
+        phases.forEach(period => {
+            const key = `${period.year}-${period.fortnight}`;
+            if (!fortnightImpact[key]) {
+                fortnightImpact[key] = { year: period.year, fortnight: period.fortnight, currentDeficit: 0, changes: 0 };
+            }
+            fortnightImpact[key].changes += move.impact; // Add demand to new periods
+        });
+    });
+    
+    let html = `
+        <div class="preview-summary">
+            <strong>Impact of moving ${selectedMoves.length} cohort${selectedMoves.length > 1 ? 's' : ''}:</strong>
+        </div>
+        
+        <table class="impact-summary-table">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th>Current</th>
+                    <th>After Moves</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    // Sort by year and fortnight
+    const sortedPeriods = Object.entries(fortnightImpact)
+        .sort((a, b) => {
+            const aYear = a[1].year;
+            const bYear = b[1].year;
+            if (aYear !== bYear) return aYear - bYear;
+            return a[1].fortnight - b[1].fortnight;
+        })
+        .filter(([_, data]) => data.currentDeficit !== 0 || data.changes !== 0);
+    
+    sortedPeriods.forEach(([key, data]) => {
+        const periodLabel = formatCohortDate(data.year, data.fortnight);
+        const current = Math.round(data.currentDeficit);
+        const afterChanges = Math.round(data.currentDeficit + data.changes);
+        let status, statusColor;
+        
+        if (current > 0) { // Was deficit
+            if (afterChanges <= 0) {
+                status = 'RESOLVED ✓';
+                statusColor = '#28a745';
+            } else if (afterChanges < current) {
+                status = `IMPROVED (${Math.round((current - afterChanges) / current * 100)}%)`;
+                statusColor = '#ffc107';
+            } else {
+                status = 'WORSENED';
+                statusColor = '#dc3545';
+            }
+        } else { // Was surplus
+            if (afterChanges >= 0) {
+                status = 'Still OK';
+                statusColor = '#28a745';
+            } else {
+                status = 'NEW DEFICIT';
+                statusColor = '#dc3545';
+            }
+        }
+        
+        html += `
+            <tr>
+                <td><strong>${periodLabel}</strong></td>
+                <td class="${current > 0 ? 'deficit' : 'surplus'}">${current > 0 ? '-' : '+'}${Math.abs(current)}</td>
+                <td class="${afterChanges > 0 ? 'deficit' : 'surplus'}">${afterChanges > 0 ? '-' : '+'}${Math.abs(afterChanges)}</td>
+                <td style="color: ${statusColor}; font-weight: 500;">${status}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+        
+        <div class="preview-notes">
+            <strong>Cohorts being moved:</strong>
+            <ul style="margin: 8px 0; padding-left: 20px;">
+                ${selectedMoves.map(move => {
+                    const cohortName = getReadableCohortName(move.cohort);
+                    const fromDate = formatCohortDate(move.from.year, move.from.fortnight);
+                    const toDate = formatCohortDate(move.to.year, move.to.fortnight);
+                    return `<li>${cohortName} (${move.impact} trainees): ${fromDate} → ${toDate}</li>`;
+                }).join('')}
+            </ul>
+        </div>
+    `;
+    
+    previewContent.innerHTML = html;
+}
+
+function calculateLineTrainingPeriods(cohort, pathway, startYear, startFortnight) {
+    const periods = [];
+    let currentYear = startYear;
+    let currentFortnight = startFortnight;
+    
+    // Go through each phase and find line training periods
+    for (const phase of pathway.phases) {
+        if (phase.trainerDemandType) {
+            // This phase requires trainers
+            for (let i = 0; i < phase.duration; i++) {
+                periods.push({
+                    year: currentYear,
+                    fortnight: currentFortnight,
+                    type: phase.trainerDemandType
+                });
+                
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+        } else {
+            // Skip non-trainer phases
+            for (let i = 0; i < phase.duration; i++) {
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+        }
+    }
+    
+    return periods;
+}
+
+function calculateCombinedImpact(selectedSolutions) {
+    const impactByPeriod = {};
+    
+    // Get current deficits
+    window.currentDeficits.forEach(deficit => {
+        const periodKey = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year} F${deficit.fortnight}`;
+        const totalDeficit = Object.values(deficit.deficitsByType).reduce((sum, data) => sum + data.deficit, 0);
+        impactByPeriod[periodKey] = {
+            period: periodKey,
+            currentDeficit: Math.round(totalDeficit),
+            changes: 0
+        };
+    });
+    
+    // Apply solution impacts
+    selectedSolutions.forEach(solution => {
+        if (solution.detailedImpact) {
+            if (solution.type === 'move') {
+                // Moving reduces demand in 'from' period and increases in 'to' period
+                const fromKey = `${MONTHS[Math.floor((solution.detailedImpact.from.fortnight - 1) / 2)]} ${solution.detailedImpact.from.year} F${solution.detailedImpact.from.fortnight}`;
+                const toKey = `${MONTHS[Math.floor((solution.detailedImpact.to.fortnight - 1) / 2)]} ${solution.detailedImpact.to.year} F${solution.detailedImpact.to.fortnight}`;
+                
+                if (impactByPeriod[fromKey]) {
+                    impactByPeriod[fromKey].changes -= solution.detailedImpact.from.reduction;
+                }
+                
+                // Initialize 'to' period if it doesn't exist
+                if (!impactByPeriod[toKey]) {
+                    impactByPeriod[toKey] = {
+                        period: toKey,
+                        currentDeficit: 0,
+                        changes: 0
+                    };
+                }
+                impactByPeriod[toKey].changes += solution.detailedImpact.to.increase;
+            } else if (solution.type === 'cross-location') {
+                const periodKey = `${MONTHS[Math.floor((solution.period.fortnight - 1) / 2)]} ${solution.period.year} F${solution.period.fortnight}`;
+                if (impactByPeriod[periodKey]) {
+                    impactByPeriod[periodKey].changes -= solution.detailedImpact.nzReduction;
+                }
+            } else if (solution.type === 'split') {
+                const period1Key = `${MONTHS[Math.floor((solution.detailedImpact.period1.fortnight - 1) / 2)]} ${deficit.year} F${solution.detailedImpact.period1.fortnight}`;
+                if (impactByPeriod[period1Key]) {
+                    impactByPeriod[period1Key].changes -= solution.detailedImpact.totalReduction;
+                }
+            }
+        }
+    });
+    
+    // Calculate final results
+    return Object.values(impactByPeriod).map(period => ({
+        period: period.period,
+        currentDeficit: period.currentDeficit,
+        afterChanges: period.currentDeficit + period.changes,
+        improvement: -period.changes // Negative change = improvement (deficit reduction)
+    }));
 }
 
 // Initialize deficit detection when DOM is ready
@@ -13460,4 +14850,506 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize deficit detection after a delay
     setTimeout(initializeDeficitDetection, 2000);
 });
+
+// New cohort-specific rescheduling functions
+function generateCohortReschedulingSolutions(deficits) {
+    const solutions = {};
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Get all cohorts that contribute to deficits
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    
+    console.log('Analyzing deficits:', deficits.length, 'periods');
+    console.log('Total cohorts to check:', cohorts.length);
+    
+    // For each cohort, check if it contributes to any deficit period
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId) || 
+                       pathways.find(p => p.name === cohort.pathwayId); // Sometimes pathwayId is the name
+        if (!pathway) {
+            console.log('No pathway found for cohort:', cohort.name || cohort.id, 'pathwayId:', cohort.pathwayId);
+            return;
+        }
+        
+        // Check if cohort is moveable (hasn't started overall training yet)
+        if (!isCohortMoveable(cohort)) {
+            console.log('Cohort not moveable:', cohort.name || cohort.id, 'starts:', cohort.startYear, cohort.startFortnight);
+            return;
+        }
+        
+        // Check if this cohort has line training during any deficit period
+        let contributeToDeficit = false;
+        let deficitPeriods = [];
+        
+        deficits.forEach(deficit => {
+            if (cohortHasLineTrainingInPeriod(cohort, pathway, deficit.year, deficit.fortnight)) {
+                contributeToDeficit = true;
+                deficitPeriods.push(deficit);
+            }
+        });
+        
+        if (contributeToDeficit) {
+            console.log('Cohort', cohort.name || cohort.id, 'contributes to deficit');
+            
+            // Calculate possible move dates
+            const possibleMoves = calculatePossibleMoveDates(cohort, pathway, deficitPeriods[0]);
+            console.log('Possible moves for cohort:', possibleMoves.length);
+            
+            if (possibleMoves.length > 0) {
+                solutions[cohort.id] = {
+                    cohort: cohort,
+                    pathway: pathway,
+                    currentStart: formatCohortDate(cohort.startYear, cohort.startFortnight),
+                    possibleMoves: possibleMoves,
+                    deficitImpact: cohort.numTrainees,
+                    flexible: pathway.type !== 'CP', // CP has month-start restrictions
+                    deficitPeriods: deficitPeriods
+                };
+            }
+        }
+    });
+    
+    return solutions;
+}
+
+function cohortHasLineTrainingInPeriod(cohort, pathway, targetYear, targetFortnight) {
+    let currentYear = cohort.startYear;
+    let currentFortnight = cohort.startFortnight;
+    
+    for (const phase of pathway.phases) {
+        for (let i = 0; i < phase.duration; i++) {
+            // Check if this is a line training phase in the target period
+            if (currentYear === targetYear && 
+                currentFortnight === targetFortnight && 
+                phase.trainerDemandType) {
+                return true;
+            }
+            
+            currentFortnight++;
+            if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                currentFortnight = 1;
+                currentYear++;
+            }
+        }
+    }
+    
+    return false;
+}
+
+function isCohortMoveable(cohort) {
+    // Can't move cohorts that have already started
+    const today = new Date();
+    const cohortStart = getDateFromYearFortnight(cohort.startYear, cohort.startFortnight);
+    
+    // For testing/demo purposes, allow moving cohorts in 2026 even if we're in 2025
+    // This is because the deficits shown are in 2026
+    if (cohort.startYear >= 2026) {
+        return true;
+    }
+    
+    return cohortStart > today;
+}
+
+function getDateFromYearFortnight(year, fortnight) {
+    const month = Math.floor((fortnight - 1) / 2);
+    const day = fortnight % 2 === 1 ? 1 : 15;
+    return new Date(year, month, day);
+}
+
+function formatCohortDate(year, fortnight) {
+    const month = MONTHS[Math.floor((fortnight - 1) / 2)];
+    const day = fortnight % 2 === 1 ? '1st' : '15th';
+    return `${month} ${day}, ${year}`;
+}
+
+function calculatePossibleMoveDates(cohort, pathway, currentDeficit) {
+    const moves = [];
+    const isCPPathway = pathway.type === 'CP';
+    
+    // For fortnight-level moves, check nearby fortnights (+/- 4 fortnights)
+    // This allows moving by just 1 fortnight to potentially resolve deficits
+    for (let fnOffset = -4; fnOffset <= 4; fnOffset++) {
+        if (fnOffset === 0) continue; // Skip current position
+        
+        let targetFortnight = cohort.startFortnight + fnOffset;
+        let targetYear = cohort.startYear;
+        
+        // Handle year boundaries
+        while (targetFortnight > FORTNIGHTS_PER_YEAR) {
+            targetFortnight -= FORTNIGHTS_PER_YEAR;
+            targetYear++;
+        }
+        while (targetFortnight < 1) {
+            targetFortnight += FORTNIGHTS_PER_YEAR;
+            targetYear--;
+        }
+        
+        // Skip if too far in the past
+        if (targetYear < new Date().getFullYear()) continue;
+        
+        if (isCPPathway) {
+            // CP can only start on 1st of month (odd fortnights: 1, 3, 5...)
+            // Only check if this is a valid month start
+            if (targetFortnight % 2 === 1) {
+                const capacity = checkPeriodCapacity(targetYear, targetFortnight, cohort.numTrainees);
+                if (capacity.canAccommodate) {
+                    moves.push({
+                        year: targetYear,
+                        fortnight: targetFortnight,
+                        display: formatCohortDate(targetYear, targetFortnight),
+                        capacityAfter: capacity.remainingCapacity,
+                        impact: fnOffset < 0 ? 'Earlier' : 'Later'
+                    });
+                }
+            }
+        } else {
+            // FO/CAD can start any fortnight
+            const capacity = checkPeriodCapacity(targetYear, targetFortnight, cohort.numTrainees);
+            if (capacity.canAccommodate) {
+                moves.push({
+                    year: targetYear,
+                    fortnight: targetFortnight,
+                    display: formatCohortDate(targetYear, targetFortnight),
+                    capacityAfter: capacity.remainingCapacity,
+                    impact: fnOffset < 0 ? 'Earlier' : 'Later'
+                });
+            }
+        }
+    }
+    
+    // Sort by best capacity fit
+    return moves.sort((a, b) => b.capacityAfter - a.capacityAfter).slice(0, 5);
+}
+
+function checkPeriodCapacity(year, fortnight, additionalTrainees) {
+    // Calculate demand for the specific period
+    const { demand } = calculateDemand();
+    
+    // Check if this period exists in demand
+    if (!demand[year] || !demand[year][fortnight]) {
+        // No demand data means full capacity available
+        const totalSupply = calculateTotalSupplyForPeriod(year, fortnight);
+        return {
+            canAccommodate: totalSupply >= additionalTrainees,
+            remainingCapacity: totalSupply - additionalTrainees,
+            currentSurplus: totalSupply
+        };
+    }
+    
+    const periodDemand = demand[year][fortnight];
+    const totalUnallocated = periodDemand.unallocated ? 
+        Object.values(periodDemand.unallocated).reduce((sum, val) => sum + val, 0) : 0;
+    
+    // If there's unallocated demand, this period has a deficit
+    if (totalUnallocated > 0) {
+        return {
+            canAccommodate: false,
+            remainingCapacity: -totalUnallocated,
+            currentSurplus: -totalUnallocated
+        };
+    }
+    
+    // Calculate remaining capacity
+    const totalSupply = calculateTotalSupplyForPeriod(year, fortnight);
+    const totalAllocated = periodDemand.allocated ? 
+        Object.values(periodDemand.allocated).reduce((sum, val) => sum + val, 0) : 0;
+    const remainingCapacity = totalSupply - totalAllocated;
+    
+    return {
+        canAccommodate: remainingCapacity >= additionalTrainees,
+        remainingCapacity: remainingCapacity - additionalTrainees,
+        currentSurplus: remainingCapacity
+    };
+}
+
+function calculateTotalSupplyForPeriod(year, fortnight) {
+    // Get total FTE for the year
+    const yearFTE = trainerFTE[year] || trainerFTE[Object.keys(trainerFTE).sort().pop()]; // Use latest year if not found
+    if (!yearFTE) return 0;
+    
+    // Sum all trainer types and divide by fortnights per year
+    const totalFTE = Object.values(yearFTE).reduce((sum, val) => sum + val, 0);
+    return totalFTE / FORTNIGHTS_PER_YEAR;
+}
+
+function calculateSupplyDeficit(year, fortnight) {
+    // Calculate demand for the specific period
+    const { demand } = calculateDemand();
+    
+    const totalSupply = calculateTotalSupplyForPeriod(year, fortnight);
+    
+    // Check if this period exists in demand
+    if (!demand[year] || !demand[year][fortnight]) {
+        // No demand data means full surplus
+        return {
+            surplus: totalSupply,
+            deficit: 0,
+            totalSupply,
+            totalDemand: 0
+        };
+    }
+    
+    const periodDemand = demand[year][fortnight];
+    
+    // Calculate total allocated demand
+    const totalAllocated = periodDemand.allocated ? 
+        Object.values(periodDemand.allocated).reduce((sum, val) => sum + val, 0) : 0;
+    
+    // Calculate total unallocated demand (this represents deficit)
+    const totalUnallocated = periodDemand.unallocated ? 
+        Object.values(periodDemand.unallocated).reduce((sum, val) => sum + val, 0) : 0;
+    
+    const totalDemand = totalAllocated + totalUnallocated;
+    const netBalance = totalSupply - totalDemand;
+    
+    return {
+        surplus: Math.max(0, netBalance),
+        deficit: Math.max(0, -netBalance),
+        totalSupply,
+        totalDemand,
+        unallocated: totalUnallocated
+    };
+}
+
+function displayCohortReschedulingUI(cohortSolutions) {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    
+    const cohortArray = Object.values(cohortSolutions);
+    if (cohortArray.length === 0) {
+        // If no specific cohorts found, show general recommendations
+        displayGeneralDeficitRecommendations();
+        return;
+    }
+    
+    // Group by flexibility
+    const flexible = cohortArray.filter(s => s.flexible);
+    const restricted = cohortArray.filter(s => !s.flexible);
+    
+    let html = `
+        <div class="cohort-reschedule-header">
+            <strong>Select cohorts to reschedule:</strong>
+            <small>Move cohorts to periods with available capacity</small>
+        </div>
+    `;
+    
+    // Flexible cohorts section
+    if (flexible.length > 0) {
+        html += `
+            <div class="cohort-section">
+                <h4>FLEXIBLE COHORTS (FO/CAD - any fortnight)</h4>
+                ${flexible.map(sol => createCohortRescheduleItem(sol)).join('')}
+            </div>
+        `;
+    }
+    
+    // Restricted cohorts section  
+    if (restricted.length > 0) {
+        html += `
+            <div class="cohort-section">
+                <h4>RESTRICTED COHORTS (CP - 1st of month only)</h4>
+                ${restricted.map(sol => createCohortRescheduleItem(sol)).join('')}
+            </div>
+        `;
+    }
+    
+    // Add summary
+    html += `
+        <div class="reschedule-summary">
+            <div class="tip">💡 <strong>Tips:</strong></div>
+            <ul>
+                <li>Green numbers show remaining capacity after move</li>
+                <li>CP cohorts can only start on the 1st of each month</li>
+                <li>Consider moving smaller cohorts first for flexibility</li>
+            </ul>
+        </div>
+    `;
+    
+    deficitSolutions.innerHTML = html;
+    
+    // Store for later use
+    window.cohortRescheduleSolutions = cohortSolutions;
+    
+    // Add event handlers
+    setupCohortRescheduleHandlers();
+}
+
+function createCohortRescheduleItem(solution) {
+    const cohortName = getReadableCohortName(solution.cohort);
+    const moveOptions = solution.possibleMoves.map(move => 
+        `<option value="${move.year}-${move.fortnight}" data-capacity="${move.capacityAfter}">
+            ${move.display} (${move.capacityAfter > 0 ? '+' + move.capacityAfter : move.capacityAfter} capacity after)
+        </option>`
+    ).join('');
+    
+    return `
+        <div class="cohort-reschedule-item" data-cohort-id="${solution.cohort.id}">
+            <div class="cohort-checkbox-wrapper">
+                <input type="checkbox" class="cohort-move-checkbox" id="cohort-${solution.cohort.id}" 
+                    data-cohort-id="${solution.cohort.id}"
+                    data-original-year="${solution.cohort.startYear}"
+                    data-original-fortnight="${solution.cohort.startFortnight}">
+            </div>
+            <div class="cohort-info">
+                <label for="cohort-${solution.cohort.id}">
+                    <strong>${cohortName}</strong>
+                    <span class="cohort-meta">${solution.pathway.type} • ${solution.cohort.numTrainees}</span>
+                </label>
+            </div>
+            <div class="move-selector">
+                <span class="current-date">${solution.currentStart}</span>
+                <span class="arrow">→</span>
+                <select class="new-date-select" data-cohort-id="${solution.cohort.id}">
+                    <option value="">Select new date...</option>
+                    ${moveOptions}
+                </select>
+            </div>
+        </div>
+    `;
+}
+
+function setupCohortRescheduleHandlers() {
+    // Handle checkbox changes
+    document.querySelectorAll('.cohort-move-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateDeficitPreview);
+    });
+    
+    // Handle date selection changes
+    document.querySelectorAll('.new-date-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const cohortId = this.dataset.cohortId;
+            const checkbox = document.getElementById(`cohort-${cohortId}`);
+            if (this.value && !checkbox.checked) {
+                checkbox.checked = true;
+            }
+            updateDeficitPreview();
+        });
+    });
+    
+    // Update apply button state
+    updateDeficitPreview();
+}
+
+function updateReschedulePreview() {
+    // This function is no longer needed as we're using updateDeficitPreview directly
+    updateDeficitPreview();
+}
+
+function displayGeneralDeficitRecommendations() {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Analyze deficit patterns
+    const deficitSummary = {};
+    let totalDeficitTrainees = 0;
+    
+    window.currentDeficits.forEach(deficit => {
+        const monthKey = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year}`;
+        if (!deficitSummary[monthKey]) {
+            deficitSummary[monthKey] = {
+                totalDeficit: 0,
+                fortnights: [],
+                types: {}
+            };
+        }
+        
+        const total = Object.values(deficit.deficitsByType).reduce((sum, d) => sum + d.deficit, 0);
+        deficitSummary[monthKey].totalDeficit += total;
+        deficitSummary[monthKey].fortnights.push(deficit.fortnight);
+        totalDeficitTrainees += total;
+        
+        Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
+            const typeName = type.replace('LT-', '');
+            deficitSummary[monthKey].types[typeName] = (deficitSummary[monthKey].types[typeName] || 0) + data.deficit;
+        });
+    });
+    
+    let html = `
+        <div class="general-recommendations">
+            <h3>Recommended Actions to Resolve ${Math.round(totalDeficitTrainees)} Trainer Deficit:</h3>
+            
+            <div class="recommendation-section">
+                <h4>1. Add New Cohorts in Available Periods</h4>
+                <p>Schedule new cohorts in periods with surplus capacity:</p>
+                <ul>
+    `;
+    
+    // Find periods with capacity in the same year as deficits
+    const deficitYear = window.currentDeficits[0]?.year || new Date().getFullYear();
+    let foundSurplus = false;
+    
+    // Get demand data
+    const { demand } = calculateDemand();
+    
+    for (let fn = 1; fn <= 24; fn++) {
+        const capacity = checkPeriodCapacity(deficitYear, fn, 0);
+        if (capacity.currentSurplus > 5) {
+            foundSurplus = true;
+            html += `<li>${MONTHS[Math.floor((fn - 1) / 2)]} ${deficitYear} FN${fn}: <span style="color: green;">+${Math.round(capacity.currentSurplus)} trainer capacity</span></li>`;
+        }
+    }
+    
+    if (!foundSurplus) {
+        html += `<li>Limited surplus capacity in ${deficitYear} - consider cross-location training</li>`;
+    }
+    
+    html += `
+                </ul>
+            </div>
+            
+            <div class="recommendation-section">
+                <h4>2. Reschedule Existing Cohorts</h4>
+                <p>If you have cohorts scheduled, move them from deficit periods:</p>
+                <ul>
+    `;
+    
+    Object.entries(deficitSummary).slice(0, 3).forEach(([month, data]) => {
+        const fnList = data.fortnights.map(fn => `FN${fn}`).join(', ');
+        html += `<li>${month} (${fnList}): Move ${Math.round(data.totalDeficit)} trainees to other periods</li>`;
+    });
+    
+    html += `
+                </ul>
+            </div>
+            
+            <div class="recommendation-section">
+                <h4>3. Training Type Considerations</h4>
+                <ul>
+    `;
+    
+    // Type-specific recommendations
+    Object.entries(deficitSummary).forEach(([month, data]) => {
+        if (data.types.CAD > 0) {
+            html += `<li><strong>CAD deficit in ${month}:</strong> Requires CATB/CATA/STP trainers only</li>`;
+        }
+        if (data.types.CP > 0) {
+            html += `<li><strong>CP deficit in ${month}:</strong> CP must start FN1, FN3, FN5, etc.</li>`;
+        }
+        if (data.types.FO > 0) {
+            html += `<li><strong>FO deficit in ${month}:</strong> Most flexible - any fortnight start</li>`;
+        }
+    });
+    
+    html += `
+                </ul>
+            </div>
+            
+            <div class="recommendation-section">
+                <h4>4. Immediate Actions</h4>
+                <ul>
+                    <li>Go to Planner tab and add cohorts in surplus periods</li>
+                    <li>Use Training Planner modal to optimize schedule</li>
+                    ${currentLocation === 'NZ' ? '<li>Consider AU cross-location for peak periods</li>' : ''}
+                    <li>Split large cohorts into smaller groups</li>
+                </ul>
+            </div>
+            
+            <div class="tip-box" style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin-top: 20px; border-left: 4px solid #007bff;">
+                <strong>💡 No cohorts found for rescheduling</strong><br>
+                Add cohorts in the Planner tab that overlap with deficit periods to see specific rescheduling options.
+            </div>
+        </div>
+    `;
+    
+    deficitSolutions.innerHTML = html;
+}
 

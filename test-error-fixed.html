@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Deficit Resolution Error Fixed</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; max-width: 1000px; margin: 0 auto; }
+        .success { background: #d4edda; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .code { background: #f8f9fa; padding: 15px; border: 1px solid #dee2e6; border-radius: 5px; margin: 10px 0; }
+        code { background: #e9ecef; padding: 2px 6px; border-radius: 3px; }
+    </style>
+</head>
+<body>
+    <h1>✅ Fixed: calculateSupplyDeficit Error</h1>
+    
+    <div class="success">
+        <h3>What Was Wrong:</h3>
+        <ul>
+            <li>The code was calling <code>calculateSupplyDeficit()</code> which didn't exist</li>
+            <li>This caused the error: "Uncaught ReferenceError: calculateSupplyDeficit is not defined"</li>
+        </ul>
+        
+        <h3>How It's Fixed:</h3>
+        <ul>
+            <li>Created <code>checkPeriodCapacity()</code> that uses the existing <code>calculateDemand()</code> function</li>
+            <li>Added <code>calculateTotalSupplyForPeriod()</code> to get trainer capacity</li>
+            <li>Updated general recommendations to use the new function</li>
+        </ul>
+    </div>
+
+    <div class="code">
+        <h4>New Implementation:</h4>
+        <pre>
+function checkPeriodCapacity(year, fortnight, additionalTrainees) {
+    // Uses existing calculateDemand() function
+    const { demand } = calculateDemand();
+    
+    // Checks if period has deficit or surplus
+    // Returns capacity information
+    
+    return {
+        canAccommodate: boolean,
+        remainingCapacity: number,
+        currentSurplus: number
+    };
+}
+        </pre>
+    </div>
+
+    <div class="success">
+        <h3>Testing:</h3>
+        <ol>
+            <li>Open the app and create deficits</li>
+            <li>Click "Resolve X Deficits" button</li>
+            <li>Check browser console - no more errors!</li>
+            <li>You should see either:
+                <ul>
+                    <li>Specific cohort rescheduling options (if cohorts exist)</li>
+                    <li>General recommendations with available capacity periods</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="code">
+        <h4>What You'll See Now:</h4>
+        <ul>
+            <li><strong>Left Column:</strong> Deficits shown as "Jan 2026 - FN1" format</li>
+            <li><strong>Right Column:</strong> Either specific cohort moves OR general recommendations</li>
+            <li><strong>General Recommendations Include:</strong>
+                <ul>
+                    <li>Periods with available capacity (e.g., "Apr 2026 FN7: +25 trainer capacity")</li>
+                    <li>Suggestions for each deficit month</li>
+                    <li>Training type considerations</li>
+                    <li>Immediate action items</li>
+                </ul>
+            </li>
+        </ul>
+    </div>
+</body>
+</html>
