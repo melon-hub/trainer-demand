@@ -958,8 +958,6 @@ function handleColumnClick(e, year, fortnight) {
     e.stopPropagation();
     
     const columnId = `${year}-${fortnight}`;
-    console.log('handleColumnClick called:', { year, fortnight, columnId });
-    console.log('Event target:', e.target);
     
     // Show hint on first use
     if (highlightedColumns.size === 0 && !localStorage.getItem('columnHighlightHintShown')) {
@@ -1025,24 +1023,32 @@ function selectRange(startCol, endCol) {
 }
 
 function applyHighlights() {
-    console.log('applyHighlights called, highlightedColumns:', highlightedColumns);
-    
-    // Remove all existing highlights
-    const existingHighlights = document.querySelectorAll('.column-highlighted');
-    console.log('Removing highlights from', existingHighlights.length, 'elements');
-    existingHighlights.forEach(el => {
-        el.classList.remove('column-highlighted');
+    // Remove all existing highlights and edge classes
+    document.querySelectorAll('.column-highlighted, .column-left-edge, .column-right-edge').forEach(el => {
+        el.classList.remove('column-highlighted', 'column-left-edge', 'column-right-edge');
     });
     
-    // Apply new highlights
-    highlightedColumns.forEach(columnId => {
-        console.log('Highlighting column:', columnId);
+    // Convert Set to sorted array to find edges
+    const sortedColumns = Array.from(highlightedColumns).sort((a, b) => {
+        const [yearA, fnA] = a.split('-').map(Number);
+        const [yearB, fnB] = b.split('-').map(Number);
+        return yearA !== yearB ? yearA - yearB : fnA - fnB;
+    });
+    
+    // Apply new highlights with edge detection
+    sortedColumns.forEach((columnId, index) => {
+        const prevId = index > 0 ? sortedColumns[index - 1] : null;
+        const nextId = index < sortedColumns.length - 1 ? sortedColumns[index + 1] : null;
+        
+        // Check if this column is adjacent to previous/next
+        const isLeftEdge = !prevId || !isAdjacent(prevId, columnId);
+        const isRightEdge = !nextId || !isAdjacent(columnId, nextId);
+        
         // Highlight all cells with matching data-column attribute
-        const matchingElements = document.querySelectorAll(`[data-column="${columnId}"]`);
-        console.log('Found', matchingElements.length, 'elements with data-column="' + columnId + '"');
-        matchingElements.forEach(el => {
+        document.querySelectorAll(`[data-column="${columnId}"]`).forEach(el => {
             el.classList.add('column-highlighted');
-            console.log('Added highlight to:', el.tagName, el.textContent?.substring(0, 20));
+            if (isLeftEdge) el.classList.add('column-left-edge');
+            if (isRightEdge) el.classList.add('column-right-edge');
         });
     });
     
@@ -1050,10 +1056,23 @@ function applyHighlights() {
     updateClearHighlightsButton();
 }
 
+// Helper function to check if two columns are adjacent
+function isAdjacent(col1, col2) {
+    const [year1, fn1] = col1.split('-').map(Number);
+    const [year2, fn2] = col2.split('-').map(Number);
+    
+    if (year1 === year2) {
+        return fn2 === fn1 + 1;
+    } else if (year2 === year1 + 1) {
+        return fn1 === FORTNIGHTS_PER_YEAR && fn2 === 1;
+    }
+    return false;
+}
+
 function clearAllHighlights() {
     highlightedColumns.clear();
-    document.querySelectorAll('.column-highlighted').forEach(el => {
-        el.classList.remove('column-highlighted');
+    document.querySelectorAll('.column-highlighted, .column-left-edge, .column-right-edge').forEach(el => {
+        el.classList.remove('column-highlighted', 'column-left-edge', 'column-right-edge');
     });
     updateClearHighlightsButton();
 }
@@ -13910,7 +13929,7 @@ function displayDetailedDeficitAnalysis() {
             </thead>
             <tbody>
                 <tr id="current-deficit-row">
-                    <td colspan="12" style="text-align: center; font-weight: 500; background: #f8f9fa;">Current Deficit/Surplus</td>
+                    <td colspan="12" class="deficit-header-row">Current Deficit/Surplus</td>
                 </tr>
                 <tr id="current-values-row">
     `;
@@ -14476,7 +14495,7 @@ function updateDeficitSummaryTable(selectedMoves) {
     const startYear = Math.min(...window.currentDeficits.map(d => d.year));
     
     // Add adjustment row
-    let adjustmentHTML = `<tr id="adjustment-row"><td colspan="12" style="text-align: center; font-weight: 500; background: #fff3cd;">Impact of Moves</td></tr><tr id="adjustment-values-row">`;
+    let adjustmentHTML = `<tr id="adjustment-row"><td colspan="12" class="deficit-header-row impact-header">Impact of Moves</td></tr><tr id="adjustment-values-row">`;
     
     for (let i = 0; i < 12; i++) {
         let fortnight = startFortnight + i;
@@ -14496,7 +14515,7 @@ function updateDeficitSummaryTable(selectedMoves) {
     adjustmentHTML += '</tr>';
     
     // Add adjusted values row
-    adjustmentHTML += `<tr id="adjusted-row"><td colspan="12" style="text-align: center; font-weight: 500; background: #d4edda;">After Rescheduling</td></tr><tr id="adjusted-values-row">`;
+    adjustmentHTML += `<tr id="adjusted-row"><td colspan="12" class="deficit-header-row adjusted-header">After Rescheduling</td></tr><tr id="adjusted-values-row">`;
     
     for (let i = 0; i < 12; i++) {
         let fortnight = startFortnight + i;
@@ -15125,18 +15144,13 @@ function displayCohortReschedulingUI(cohortSolutions) {
     const flexible = cohortArray.filter(s => s.flexible);
     const restricted = cohortArray.filter(s => !s.flexible);
     
-    let html = `
-        <div class="cohort-reschedule-header">
-            <strong>Select cohorts to reschedule:</strong>
-            <small>Move cohorts to periods with available capacity</small>
-        </div>
-    `;
+    let html = '';
     
     // Flexible cohorts section
     if (flexible.length > 0) {
         html += `
             <div class="cohort-section">
-                <h4>FLEXIBLE COHORTS (FO/CAD - any fortnight)</h4>
+                <h4>FO/CAD Cohorts</h4>
                 ${flexible.map(sol => createCohortRescheduleItem(sol)).join('')}
             </div>
         `;
@@ -15146,7 +15160,7 @@ function displayCohortReschedulingUI(cohortSolutions) {
     if (restricted.length > 0) {
         html += `
             <div class="cohort-section">
-                <h4>RESTRICTED COHORTS (CP - 1st of month only)</h4>
+                <h4>CP Cohorts (odd fortnights only)</h4>
                 ${restricted.map(sol => createCohortRescheduleItem(sol)).join('')}
             </div>
         `;
