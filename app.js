@@ -586,6 +586,9 @@ function switchLocation(newLocation) {
                     updateAllTables();
                     perfMonitor.end('switchLocation.updateTables');
                     
+                    // Check for deficits after location switch
+                    checkForDeficits();
+                    
                     perfMonitor.start('switchLocation.renderGantt');
                     renderGanttChart();
                     perfMonitor.end('switchLocation.renderGantt');
@@ -1136,11 +1139,11 @@ function init() {
     perfMonitor.start('init.loadDefaults');
     // Load default FTE if available
     if (loadDefaultFTE()) {
-        console.log('Loaded default FTE from localStorage');
-        console.log('AU FTE after loading defaults:', locationData.AU.trainerFTE);
-        console.log('NZ FTE after loading defaults:', locationData.NZ.trainerFTE);
+        // console.log('Loaded default FTE from localStorage');
+        // console.log('AU FTE after loading defaults:', locationData.AU.trainerFTE);
+        // console.log('NZ FTE after loading defaults:', locationData.NZ.trainerFTE);
     } else {
-        console.log('No default FTE found in localStorage');
+        // console.log('No default FTE found in localStorage');
     }
     perfMonitor.end('init.loadDefaults');
     
@@ -1158,9 +1161,9 @@ function init() {
         trainerFTE = locationData[currentLocation].trainerFTE;
         priorityConfig = locationData[currentLocation].priorityConfig;
         activeCohorts = locationData[currentLocation].activeCohorts;
-        console.log('Setting global trainerFTE from location data:');
-        console.log('Current location:', currentLocation);
-        console.log('Global trainerFTE now:', trainerFTE);
+        // console.log('Setting global trainerFTE from location data:');
+        // console.log('Current location:', currentLocation);
+        // console.log('Global trainerFTE now:', trainerFTE);
     }
     
     // Update UI to reflect saved location
@@ -1198,9 +1201,9 @@ function init() {
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
-            console.log('After loading scenario:');
-            console.log('AU FTE after scenario:', locationData.AU.trainerFTE);
-            console.log('Global trainerFTE after scenario:', trainerFTE);
+            // console.log('After loading scenario:');
+            // console.log('AU FTE after scenario:', locationData.AU.trainerFTE);
+            // console.log('Global trainerFTE after scenario:', trainerFTE);
             // Delay notification until after UI is ready
             setTimeout(() => {
                 showNotification(`Loaded: ${scenario.name}`, 'info');
@@ -1261,9 +1264,9 @@ function init() {
     // Force dashboard update if we loaded a scenario and we're on dashboard
     if (scenarioLoaded && lastActiveTab === 'dashboard') {
         setTimeout(() => {
-            console.log('Force updating dashboard after scenario load');
-            console.log('Global trainerFTE at dashboard update:', trainerFTE);
-            console.log('Location FTE at dashboard update:', locationData[currentLocation].trainerFTE);
+            // console.log('Force updating dashboard after scenario load');
+            // console.log('Global trainerFTE at dashboard update:', trainerFTE);
+            // console.log('Location FTE at dashboard update:', locationData[currentLocation].trainerFTE);
             updateDashboardV2();
         }, 200);
     }
@@ -1294,6 +1297,9 @@ function init() {
     
     // Setup column highlighting
     setupColumnHighlighting();
+    
+    // Initialize deficit detection
+    initializeDeficitDetection();
     
     // Show refresh notification if page was reloaded
     if (performance.navigation && performance.navigation.type === 1) {
@@ -1923,7 +1929,7 @@ function setupEventListeners() {
                 // Extra timeout for ALL view to ensure everything is rendered
                 setTimeout(() => {
                     setupSynchronizedScrolling();
-                    console.log('Extra sync setup for ALL view');
+                    // console.log('Extra sync setup for ALL view');
                 }, 200);
             }
         });
@@ -2332,7 +2338,7 @@ function scrollToToday() {
     const isFirstHalf = currentDay <= 15;
     const currentFortnight = (currentMonth - 1) * 2 + (isFirstHalf ? 1 : 2);
     
-    console.log(`Today: ${currentYear}-${currentMonth}-${currentDay}, Fortnight: ${currentFortnight}`);
+    // console.log(`Today: ${currentYear}-${currentMonth}-${currentDay}, Fortnight: ${currentFortnight}`);
     
     // Get the current time range
     const range = getTimeRangeForView();
@@ -2344,7 +2350,7 @@ function scrollToToday() {
                         (currentYear === range.endYear && currentFortnight <= range.endFortnight));
     
     if (!todayInView) {
-        console.log('Today is not within the current view range');
+        // console.log('Today is not within the current view range');
         return;
     }
     
@@ -2373,9 +2379,9 @@ function scrollToToday() {
         }
     }
     
-    console.log(`Today is Year ${currentYear} FN${currentFortnight}`);
-    console.log(`View starts at Year ${range.startYear} FN${range.startFortnight}`);
-    console.log(`Column index (0-based): ${columnIndex}`);
+    // console.log(`Today is Year ${currentYear} FN${currentFortnight}`);
+    // console.log(`View starts at Year ${range.startYear} FN${range.startFortnight}`);
+    // console.log(`Column index (0-based): ${columnIndex}`);
     
     // Apply -3 month offset (6 fortnights) to center the view
     const scrollColumn = Math.max(0, columnIndex - 6);
@@ -2429,7 +2435,7 @@ function switchView(viewName) {
             // Setup sync when switching to planner
             setTimeout(() => {
                 setupSynchronizedScrolling();
-                console.log('Sync setup after switching to planner view');
+                // console.log('Sync setup after switching to planner view');
                 // Scroll to today and update view buttons
                 scrollToToday();
                 updateViewButtons();
@@ -2596,6 +2602,9 @@ function updateAllTables() {
         updateDashboardV2();
     }
     
+    // Check for deficits after updating tables
+    checkForDeficits();
+    
     perfMonitor.end('updateAllTables');
 }
 
@@ -2653,12 +2662,12 @@ function adjustColumnWidths() {
     document.documentElement.style.setProperty('--column-width', `${columnWidth}px`);
     
     // Debug log
-    console.log('Column width adjusted:', {
-        view: viewState.currentView,
-        totalColumns,
-        viewportWidth: window.innerWidth,
-        calculatedWidth: columnWidth
-    });
+    // console.log('Column width adjusted:', {
+    //     view: viewState.currentView,
+    //     totalColumns,
+    //     viewportWidth: window.innerWidth,
+    //     calculatedWidth: columnWidth
+    // });
 }
 
 // Global variable to store scroll handlers
@@ -2707,7 +2716,7 @@ function setupSynchronizedScrolling() {
         }
     });
     
-    console.log(`Sync established for ${containers.filter(c => c).length} containers`);
+    // console.log(`Sync established for ${containers.filter(c => c).length} containers`);
 }
 
 // Toggle FTE Summary
@@ -2977,10 +2986,10 @@ function renderFTESummaryTable() {
     // Debug log FTE values
     const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
         locationData[currentLocation].trainerFTE : trainerFTE;
-    console.log('FTE Summary Table Debug:');
-    console.log('  Current Location:', currentLocation);
-    console.log('  Using locationData FTE:', !!(locationData && currentLocation && locationData[currentLocation]));
-    console.log('  Sample FTE values for', currentYear + ':', locationFTE[currentYear]);
+    // console.log('FTE Summary Table Debug:');
+    // console.log('  Current Location:', currentLocation);
+    // console.log('  Using locationData FTE:', !!(locationData && currentLocation && locationData[currentLocation]));
+    // console.log('  Sample FTE values for', currentYear + ':', locationFTE[currentYear]);
     
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
         const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[currentYear]?.[cat] || 0), 0);
@@ -3803,19 +3812,19 @@ function calculateDemand() {
                     let usesCrossLocation = false;
                     let crossLocationFrom = null;
                     
-                    console.log(`Checking cross-location for ${cohortName}, ${phase.name}, fortnight ${globalFortnight}`);
-                    console.log('Cross-location config:', JSON.stringify(cohort.crossLocationTraining, null, 2));
-                    console.log('Cohort location:', cohort.location, 'Current viewing location:', viewingLocation);
+                    // console.log(`Checking cross-location for ${cohortName}, ${phase.name}, fortnight ${globalFortnight}`);
+                    // console.log('Cross-location config:', JSON.stringify(cohort.crossLocationTraining, null, 2));
+                    // console.log('Cohort location:', cohort.location, 'Current viewing location:', viewingLocation);
                     
                     if (cohort.crossLocationTraining) {
                         Object.entries(cohort.crossLocationTraining).forEach(([location, data]) => {
-                            console.log(`  Checking location ${location}, phases:`, data.phases);
+                            // console.log(`  Checking location ${location}, phases:`, data.phases);
                             if (data.phases && data.phases[phase.name]) {
-                                console.log(`  Phase ${phase.name} fortnights:`, data.phases[phase.name]);
+                                // console.log(`  Phase ${phase.name} fortnights:`, data.phases[phase.name]);
                                 if (data.phases[phase.name].includes(globalFortnight)) {
                                     usesCrossLocation = true;
                                     crossLocationFrom = location;
-                                    console.log(`  ✓ Found cross-location: using ${location} trainers for fortnight ${globalFortnight}`);
+                                    // console.log(`  ✓ Found cross-location: using ${location} trainers for fortnight ${globalFortnight}`);
                                 }
                             }
                         });
@@ -3824,7 +3833,7 @@ function calculateDemand() {
                     if (usesCrossLocation && crossLocationFrom) {
                         // This cohort is using trainers from another location
                         // Don't add demand to current location - it's using the other location's trainers
-                        console.log(`Cross-location: Cohort ${cohort.name} (${cohort.location}) using ${crossLocationFrom} trainers for ${phase.name} in ${currentYear} FN${currentFortnight} - NO demand in ${viewingLocation}`);
+                        // console.log(`Cross-location: Cohort ${cohort.name} (${cohort.location}) using ${crossLocationFrom} trainers for ${phase.name} in ${currentYear} FN${currentFortnight} - NO demand in ${viewingLocation}`);
                         
                         // Track this in crossLocationDemand for the OTHER location to pick up
                         if (!crossLocationDemand[currentYear][currentFortnight][crossLocationFrom]) {
@@ -3938,15 +3947,15 @@ function calculateDemand() {
     const activeLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
     const viewingLocation2 = document.querySelector('.location-toggle.active')?.textContent || 'AU';
-    console.log(`\n=== SECOND PASS: Looking for cohorts using ${activeLocation} trainers (viewing: ${viewingLocation2}) ===`);
-    console.log(`Total cohorts to check: ${activeCohorts.length}`);
+    // console.log(`\n=== SECOND PASS: Looking for cohorts using ${activeLocation} trainers (viewing: ${viewingLocation2}) ===`);
+    // console.log(`Total cohorts to check: ${activeCohorts.length}`);
     
     // We need to check ALL location's cohorts, not just the current view
     const allCohorts = [
         ...locationData.AU.activeCohorts,
         ...locationData.NZ.activeCohorts
     ];
-    console.log(`Checking ALL cohorts from both locations: ${allCohorts.length} total`);
+    // console.log(`Checking ALL cohorts from both locations: ${allCohorts.length} total`);
     
     allCohorts.forEach(cohort => {
         // Need to find the pathway from the correct location's data
@@ -3955,21 +3964,21 @@ function calculateDemand() {
         if (!pathway) return;
         
         const cohortName = cohort.name || `Cohort ${cohort.id}`;
-        console.log(`Checking cohort ${cohortName} from ${cohort.location}`);
+        // console.log(`Checking cohort ${cohortName} from ${cohort.location}`);
         
         // Skip if this cohort is from the current location (already processed above)
         if (cohort.location === activeLocation) {
-            console.log(`- Skipping ${cohortName} - already processed in first pass`);
+            // console.log(`- Skipping ${cohortName} - already processed in first pass`);
             return;
         }
         
         // Check if this cohort uses trainers from the current location
         if (!cohort.crossLocationTraining || !cohort.crossLocationTraining[activeLocation]) {
-            console.log(`- Skipping ${cohortName} - no cross-location config for ${activeLocation}`);
+            // console.log(`- Skipping ${cohortName} - no cross-location config for ${activeLocation}`);
             return;
         }
         
-        console.log(`- ${cohortName} HAS cross-location config for ${activeLocation}:`, cohort.crossLocationTraining[activeLocation]);
+        // console.log(`- ${cohortName} HAS cross-location config for ${activeLocation}:`, cohort.crossLocationTraining[activeLocation]);
         
         let currentYear = cohort.startYear;
         let currentFortnight = cohort.startFortnight;
@@ -3987,7 +3996,7 @@ function calculateDemand() {
                     if (cohort.crossLocationTraining[activeLocation].phases?.[phase.name]?.includes(globalFortnight)) {
                         const phaseDemand = cohort.numTrainees;
                         
-                        console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${activeLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
+                        // console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${activeLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
                         
                         // Add this demand to the current location
                         demand[currentYear][currentFortnight].total += phaseDemand;
@@ -4350,9 +4359,9 @@ function renderGanttChart() {
     });
     
     // Add cross-location cohorts section
-    console.log('=== Starting cross-location cohorts section ===');
-    console.log('Global currentLocation:', currentLocation);
-    console.log('locationData:', locationData);
+    // console.log('=== Starting cross-location cohorts section ===');
+    // console.log('Global currentLocation:', currentLocation);
+    // console.log('locationData:', locationData);
     
     // Use the global currentLocation variable instead of querying DOM
     const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
@@ -4360,22 +4369,22 @@ function renderGanttChart() {
     
     // Find cohorts from other locations that use current location's trainers
     const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
-    console.log(`Checking for cross-location cohorts: currentLocation=${currentLocation}, otherLocation=${otherLocation}`);
-    console.log(`Other location cohorts count: ${otherLocationCohorts.length}`);
+    // console.log(`Checking for cross-location cohorts: currentLocation=${currentLocation}, otherLocation=${otherLocation}`);
+    // console.log(`Other location cohorts count: ${otherLocationCohorts.length}`);
     
     otherLocationCohorts.forEach(cohort => {
         if (cohort.crossLocationTraining && cohort.crossLocationTraining[currentLocation]) {
-            console.log(`Cohort ${cohort.id} has cross-location training to ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
+            // console.log(`Cohort ${cohort.id} has cross-location training to ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
             // Check if any phases have cross-location training
             const hasRelevantTraining = Object.values(cohort.crossLocationTraining[currentLocation].phases || {}).some(fortnights => fortnights.length > 0);
             if (hasRelevantTraining) {
-                console.log(`Adding cohort ${cohort.id} to cross-location display`);
+                // console.log(`Adding cohort ${cohort.id} to cross-location display`);
                 crossLocationCohorts.push(cohort);
             }
         }
     });
     
-    console.log(`Total cross-location cohorts found: ${crossLocationCohorts.length}`);
+    // console.log(`Total cross-location cohorts found: ${crossLocationCohorts.length}`);
     
     // Render cross-location cohorts if any exist
     if (crossLocationCohorts.length > 0) {
@@ -4437,7 +4446,7 @@ function renderGanttChart() {
                             progress: i + 1,
                             totalDuration: phase.duration
                         };
-                        console.log(`Cross-location cell added for cohort ${cohort.id}: ${key}, phase: ${phase.trainerDemandType}`);
+                        // console.log(`Cross-location cell added for cohort ${cohort.id}: ${key}, phase: ${phase.trainerDemandType}`);
                     }
                     
                     tempFortnight++;
@@ -4510,7 +4519,7 @@ function renderGanttChart() {
     const timeout = viewState.currentView === 'all' ? 150 : 100;
     setTimeout(() => {
         setupSynchronizedScrolling();
-        console.log('Sync re-established after Gantt chart render');
+        // console.log('Sync re-established after Gantt chart render');
     }, timeout);
 }
 
@@ -4867,7 +4876,7 @@ function renderPathwaysTable() {
 let fteYearOffset = 0; // Year offset for FTE editor
 
 function openFTEModal() {
-    console.log('Opening FTE modal...');
+    // console.log('Opening FTE modal...');
     const container = document.getElementById('fte-edit-container');
     
     let html = '<div style="max-height: 500px; overflow-y: auto;">';
@@ -4908,9 +4917,9 @@ function openFTEModal() {
     // Debug: Check if inputs are created and accessible
     setTimeout(() => {
         const inputs = container.querySelectorAll('input[type="number"]');
-        console.log('FTE inputs created:', inputs.length);
+        // console.log('FTE inputs created:', inputs.length);
         if (inputs.length > 0) {
-            console.log('First input:', inputs[0], 'disabled:', inputs[0].disabled, 'readonly:', inputs[0].readOnly);
+            // console.log('First input:', inputs[0], 'disabled:', inputs[0].disabled, 'readonly:', inputs[0].readOnly);
         }
     }, 100);
 }
@@ -4958,7 +4967,7 @@ function generateFTEInputFields() {
             html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: 1px solid #ccc; background: white; color: inherit; user-select: text; pointer-events: auto;" `;
             html += `data-year="${year}" data-category="${category}" `;
             html += `onpaste="handleFTEPaste(event, ${year}, '${category}')" onkeydown="handleFTEKeyDown(event, ${year}, '${category}')" `;
-            html += `onfocus="this.select(); console.log('FTE input focused:', this.id)" onclick="console.log('FTE input clicked:', this.id)" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
+            // html += `onfocus="this.select(); console.log('FTE input focused:', this.id)" onclick="console.log('FTE input clicked:', this.id)" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
             html += `></td>`;
         });
         html += '</tr>';
@@ -5018,7 +5027,7 @@ function navigateFTEYears(direction) {
 function handleFTEMouseDown(event, year, category) {
     // Don't prevent default for input elements - they need to focus
     if (event.target.tagName === 'INPUT') {
-        console.log('Allowing input focus for:', event.target.id);
+        // console.log('Allowing input focus for:', event.target.id);
         return;
     }
     
@@ -5432,7 +5441,7 @@ function handleFTEUpdate(e) {
     
     // Save FTE as default whenever it's edited
     saveDefaultFTE();
-    console.log('Saved FTE as default after edit');
+    // console.log('Saved FTE as default after edit');
     
     markDirty();
 }
@@ -6004,11 +6013,11 @@ function handleCohortUpdate(e) {
         
         // Process cross-location training data
         let crossLocationTraining = {};
-        console.log('enableCrossLocation checkbox value:', formData.get('enableCrossLocation'));
+        // console.log('enableCrossLocation checkbox value:', formData.get('enableCrossLocation'));
         if (formData.get('enableCrossLocation')) {
-            console.log('Cross-location enabled, processing radio buttons...');
+            // console.log('Cross-location enabled, processing radio buttons...');
             const radioButtons = document.querySelectorAll('#cross-location-config input[type="radio"]:checked');
-            console.log(`Found ${radioButtons.length} checked radio buttons`);
+            // console.log(`Found ${radioButtons.length} checked radio buttons`);
             
             radioButtons.forEach(radio => {
                 const location = radio.value;
@@ -6016,11 +6025,11 @@ function handleCohortUpdate(e) {
                 const fortnight = parseInt(radio.dataset.fortnight);
                 const cohortLocation = formData.get('location');
                 
-                console.log(`Radio: location=${location}, phase=${phase}, fortnight=${fortnight}, cohortLocation=${cohortLocation}`);
+                // console.log(`Radio: location=${location}, phase=${phase}, fortnight=${fortnight}, cohortLocation=${cohortLocation}`);
                 
                 // Only save if using different location than cohort's home
                 if (location !== cohortLocation) {
-                    console.log(`Adding cross-location: ${phase} fortnight ${fortnight} uses ${location} trainers`);
+                    // console.log(`Adding cross-location: ${phase} fortnight ${fortnight} uses ${location} trainers`);
                     if (!crossLocationTraining[location]) {
                         crossLocationTraining[location] = { phases: {} };
                     }
@@ -6031,9 +6040,9 @@ function handleCohortUpdate(e) {
                 }
             });
             
-            console.log('Final crossLocationTraining:', JSON.stringify(crossLocationTraining, null, 2));
+            // console.log('Final crossLocationTraining:', JSON.stringify(crossLocationTraining, null, 2));
         } else {
-            console.log('Cross-location NOT enabled');
+            // console.log('Cross-location NOT enabled');
         }
         
         activeCohorts[cohortIndex] = {
@@ -6046,17 +6055,17 @@ function handleCohortUpdate(e) {
             crossLocationTraining: crossLocationTraining
         };
         
-        console.log('Updated cohort:', activeCohorts[cohortIndex]);
-        console.log('Cohort cross-location config:', JSON.stringify(activeCohorts[cohortIndex].crossLocationTraining, null, 2));
+        // console.log('Updated cohort:', activeCohorts[cohortIndex]);
+        // console.log('Cohort cross-location config:', JSON.stringify(activeCohorts[cohortIndex].crossLocationTraining, null, 2));
         
         // Debug: Check what's actually stored
         if (activeCohorts[cohortIndex].crossLocationTraining && Object.keys(activeCohorts[cohortIndex].crossLocationTraining).length > 0) {
-            console.log('Cross-location details:');
+            // console.log('Cross-location details:');
             Object.entries(activeCohorts[cohortIndex].crossLocationTraining).forEach(([loc, data]) => {
-                console.log(`  Location ${loc}:`, data);
+                // console.log(`  Location ${loc}:`, data);
                 if (data.phases) {
                     Object.entries(data.phases).forEach(([phase, fortnights]) => {
-                        console.log(`    Phase ${phase}: fortnights`, fortnights);
+                        // console.log(`    Phase ${phase}: fortnights`, fortnights);
                     });
                 }
             });
@@ -6946,7 +6955,7 @@ function optimizeForTarget(e) {
     const dateInput = document.getElementById('target-date');
     
     // Debug logging
-    console.log('CP Input:', cpInput.value, 'Parsed:', parseInt(cpInput.value) || 0);
+    // console.log('CP Input:', cpInput.value, 'Parsed:', parseInt(cpInput.value) || 0);
     
     const targetCP = parseInt(cpInput.value) || 0;
     const targetFO = parseInt(foInput.value) || 0;
@@ -6954,7 +6963,7 @@ function optimizeForTarget(e) {
     const targetDate = new Date(dateInput.value);
     const considerExisting = document.getElementById('consider-existing')?.checked ?? true;
     const smoothSchedule = document.getElementById('smooth-schedule')?.checked ?? false;
-    console.log('Optimizer starting with smoothSchedule =', smoothSchedule);
+    // console.log('Optimizer starting with smoothSchedule =', smoothSchedule);
     
     if (targetCP + targetFO + targetCAD === 0) {
         showNotification('Please enter at least one target', 'warning');
@@ -6970,7 +6979,7 @@ function optimizeForTarget(e) {
     const schedule = calculateOptimalSchedule(targets, targetDate, considerExisting, smoothSchedule);
     
     // Debug logging
-    console.log('Optimization result:', schedule);
+    // console.log('Optimization result:', schedule);
     
     // Display results
     const resultsDiv = document.getElementById('optimization-results');
@@ -7818,12 +7827,12 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true, 
                 
                 // If trainer deficit detected
                 if (hasTrainerDeficit) {
-                    console.log(`Deficit detected for ${type} ${cohortSize} trainees at ${startYear}-${startFn}, smoothSchedule=${smoothSchedule}`);
-                    console.log('Deficit details:', deficitDetails);
+                    // console.log(`Deficit detected for ${type} ${cohortSize} trainees at ${startYear}-${startFn}, smoothSchedule=${smoothSchedule}`);
+                    // console.log('Deficit details:', deficitDetails);
                     
                     if (smoothSchedule) {
                         // With smoothing, we MUST skip this slot to prevent negative capacity
-                        console.log(`Smoothing: Skipping ${type} cohort at ${startYear}-${startFn} to prevent deficit`);
+                        // console.log(`Smoothing: Skipping ${type} cohort at ${startYear}-${startFn} to prevent deficit`);
                         
                         capacityAnalysis.conflicts.push({
                             type: 'Trainer',
@@ -8768,7 +8777,7 @@ function loadScenarioDataOnly(scenario) {
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Preserve saved FTE instead of using scenario's FTE
-            console.log('Preserving saved default FTE values for new format scenario');
+            // console.log('Preserving saved default FTE values for new format scenario');
             locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
             // Override scenario FTE with saved defaults
             try {
@@ -8809,7 +8818,7 @@ function loadScenarioDataOnly(scenario) {
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Keep our saved FTE values, don't use scenario's FTE
-            console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // console.log('Preserving saved default FTE values instead of using scenario FTE');
             // LocationData FTE should already be set from loadDefaultFTE()
             // Update global trainerFTE from the preserved locationData
             trainerFTE = locationData[currentLocation].trainerFTE;
@@ -8882,7 +8891,7 @@ function loadScenarioData(scenario) {
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Preserve saved FTE instead of using scenario's FTE
-            console.log('Preserving saved default FTE values for new format scenario');
+            // console.log('Preserving saved default FTE values for new format scenario');
             locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
             // Override scenario FTE with saved defaults
             try {
@@ -8923,7 +8932,7 @@ function loadScenarioData(scenario) {
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Keep our saved FTE values, don't use scenario's FTE
-            console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // console.log('Preserving saved default FTE values instead of using scenario FTE');
             // LocationData FTE should already be set from loadDefaultFTE()
             // Update global trainerFTE from the preserved locationData
             trainerFTE = locationData[currentLocation].trainerFTE;
@@ -8943,10 +8952,10 @@ function loadScenarioData(scenario) {
         const nzCohorts = activeCohorts.filter(c => c.location === 'NZ');
         
         console.log('Legacy format migration:');
-        console.log('Total cohorts:', activeCohorts.length);
-        console.log('AU cohorts:', auCohorts.length);
-        console.log('NZ cohorts:', nzCohorts.length);
-        console.log('NZ cohorts with cross-location training:', 
+        // console.log('Total cohorts:', activeCohorts.length);
+        // console.log('AU cohorts:', auCohorts.length);
+        // console.log('NZ cohorts:', nzCohorts.length);
+        // console.log('NZ cohorts with cross-location training:',
             nzCohorts.filter(c => c.crossLocationTraining && c.crossLocationTraining.AU).length);
         
         locationData.AU.activeCohorts = auCohorts;
@@ -9001,7 +9010,7 @@ function loadScenarioData(scenario) {
                 c.crossLocationTraining.AU && 
                 Object.keys(c.crossLocationTraining.AU.phases || {}).length > 0
             ).length;
-            console.log(`Cross-location cohorts from NZ using AU trainers: ${crossLocCount}`);
+            // console.log(`Cross-location cohorts from NZ using AU trainers: ${crossLocCount}`);
         }
     }, 150);
     
@@ -9357,7 +9366,7 @@ function importScenarios(event) {
                                     if (cohort.crossLocationTraining && cohort.location === 'NZ') {
                                         const keys = Object.keys(cohort.crossLocationTraining);
                                         if (keys.length > 0 && !isNaN(keys[0])) {
-                                            console.log('Converting legacy cross-location format in locationData for cohort:', cohort);
+                                            // console.log('Converting legacy cross-location format in locationData for cohort:', cohort);
                                             cohort.crossLocationTraining = convertLegacyCrossLocation(
                                                 cohort, 
                                                 scenario.state.locationData[location].pathways
@@ -9453,7 +9462,7 @@ function convertLegacyCrossLocation(cohort, pathways) {
         });
     });
     
-    console.log('Converted cross-location format:', oldFormat, '->', newFormat);
+    // console.log('Converted cross-location format:', oldFormat, '->', newFormat);
     return newFormat;
 }
 
@@ -10627,12 +10636,12 @@ function updateSupplyDemandOverviewV2() {
         
         // Debug cross-location calculation
         if (i === 0 && (crossDemand1 > 0 || crossDemand2 > 0)) {
-            console.log(`Cross-location debug for ${labels[i]}:`);
-            console.log(`  crossLocationPortion1:`, crossLocationPortion1);
-            console.log(`  crossLocationPortion2:`, crossLocationPortion2);
-            console.log(`  crossDemand1:`, crossDemand1);
-            console.log(`  crossDemand2:`, crossDemand2);
-            console.log(`  Average crossDemand:`, crossDemand);
+            // console.log(`Cross-location debug for ${labels[i]}:`);
+            // console.log(`  crossLocationPortion1:`, crossLocationPortion1);
+            // console.log(`  crossLocationPortion2:`, crossLocationPortion2);
+            // console.log(`  crossDemand1:`, crossDemand1);
+            // console.log(`  crossDemand2:`, crossDemand2);
+            // console.log(`  Average crossDemand:`, crossDemand);
         }
         
         supplyData.push(monthlySupply);
@@ -10642,25 +10651,25 @@ function updateSupplyDemandOverviewV2() {
         
         // Debug logging for first month
         if (i === 0) {
-            console.log(`Supply/Demand Overview Debug for ${labels[i]}:`);
-            console.log(`  Year:`, year);
-            console.log(`  Location FTE for year:`, locationFTE[year]);
-            console.log(`  Annual FTE total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
-            console.log(`  Monthly Supply (fortnightly average):`, monthlySupply);
-            console.log(`  Local Demand:`, localDemand);
-            console.log(`  Cross-location Demand:`, crossDemand);
-            console.log(`  Total Demand:`, localDemand + crossDemand);
-            console.log(`  Raw demand data fn1:`, demand[year]?.[fn1]);
-            console.log(`  Raw demand data fn2:`, demand[year]?.[fn2]);
+            // console.log(`Supply/Demand Overview Debug for ${labels[i]}:`);
+            // console.log(`  Year:`, year);
+            // console.log(`  Location FTE for year:`, locationFTE[year]);
+            // console.log(`  Annual FTE total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            // console.log(`  Monthly Supply (fortnightly average):`, monthlySupply);
+            // console.log(`  Local Demand:`, localDemand);
+            // console.log(`  Cross-location Demand:`, crossDemand);
+            // console.log(`  Total Demand:`, localDemand + crossDemand);
+            // console.log(`  Raw demand data fn1:`, demand[year]?.[fn1]);
+            // console.log(`  Raw demand data fn2:`, demand[year]?.[fn2]);
         }
     }
     
     // Debug the data arrays
-    console.log('Chart Data Debug:');
-    console.log('  Supply data:', supplyData.slice(0, 3));
-    console.log('  Local demand data:', localDemandData.slice(0, 3));
-    console.log('  Cross-location data:', crossLocationData.slice(0, 3));
-    console.log('  Labels:', labels.slice(0, 3));
+    // console.log('Chart Data Debug:');
+    // console.log('  Supply data:', supplyData.slice(0, 3));
+    // console.log('  Local demand data:', localDemandData.slice(0, 3));
+    // console.log('  Cross-location data:', crossLocationData.slice(0, 3));
+    // console.log('  Labels:', labels.slice(0, 3));
     
     // Update existing chart if possible, otherwise destroy and recreate
     if (supplyDemandOverviewChartV2) {
@@ -11357,13 +11366,13 @@ function updateSupplyDemandChart() {
         
         // Debug logging
         if (i === 0) {  // Log first month only to avoid spam
-            console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
-            console.log(`  Location: ${currentLocation}`);
-            console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
-            console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
-            console.log(`  Monthly Demand:`, monthlyDemand);
-            console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
-            console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
+            // console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
+            // console.log(`  Location: ${currentLocation}`);
+            // console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            // console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
+            // console.log(`  Monthly Demand:`, monthlyDemand);
+            // console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
+            // console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
         }
     }
     
@@ -11510,11 +11519,11 @@ function updatePhaseBreakdown() {
         return;
     }
     
-    console.log('Phase breakdown data:', {
-        activeCohorts: activeCohorts.length,
-        currentLocation: currentLocation,
-        locationCohorts: locationData[currentLocation]?.activeCohorts?.length
-    });
+    // console.log('Phase breakdown data:', {
+    //     activeCohorts: activeCohorts.length,
+    //     currentLocation: currentLocation,
+    //     locationCohorts: locationData[currentLocation]?.activeCohorts?.length
+    // });
     
     // Count trainees in each phase
     const phaseData = {
@@ -11910,25 +11919,25 @@ window.testSync = function() {
         if (container) {
             const table = container.querySelector('.data-table');
             const wrapper = container.querySelector('.table-wrapper');
-            console.log(`${id}:`);
-            console.log(`  Container: width=${container.clientWidth}, scrollWidth=${container.scrollWidth}`);
-            console.log(`  Wrapper: width=${wrapper?.clientWidth}, scrollWidth=${wrapper?.scrollWidth}`);
-            console.log(`  Table: width=${table?.clientWidth}, scrollWidth=${table?.scrollWidth}`);
-            console.log(`  Scrollable: ${container.scrollWidth > container.clientWidth}`);
+            // console.log(`${id}:`);
+            // console.log(`  Container: width=${container.clientWidth}, scrollWidth=${container.scrollWidth}`);
+            // console.log(`  Wrapper: width=${wrapper?.clientWidth}, scrollWidth=${wrapper?.scrollWidth}`);
+            // console.log(`  Table: width=${table?.clientWidth}, scrollWidth=${table?.scrollWidth}`);
+            // console.log(`  Scrollable: ${container.scrollWidth > container.clientWidth}`);
         } else {
-            console.log(`${id}: NOT FOUND`);
+            // console.log(`${id}: NOT FOUND`);
         }
     });
     
     // Check CSS column width
     const columnWidth = getComputedStyle(document.documentElement).getPropertyValue('--column-width');
-    console.log(`CSS column width: ${columnWidth}`);
+    // console.log(`CSS column width: ${columnWidth}`);
     
     // Count columns
     const firstTable = document.querySelector('.data-table');
     if (firstTable) {
         const headerCells = firstTable.querySelectorAll('thead tr:last-child th');
-        console.log(`Number of header columns: ${headerCells.length}`);
+        // console.log(`Number of header columns: ${headerCells.length}`);
     }
 };
 
@@ -12398,8 +12407,8 @@ window.addTestCohorts = function() {
     
     updateAllTables();
     renderGanttChart();
-    console.log('Added 2 test A320 cohorts (A320-02 has cross-location training configured)');
-    console.log('Current cohorts:', activeCohorts);
+    // console.log('Added 2 test A320 cohorts (A320-02 has cross-location training configured)');
+    // console.log('Current cohorts:', activeCohorts);
 };
 
 // Function to add demo data for dashboard
@@ -12529,13 +12538,13 @@ function getStorageStats() {
 // Log storage stats to console (for debugging)
 function logStorageStats() {
     const stats = getStorageStats();
-    console.log('=== LocalStorage Usage Stats ===');
-    console.log(`Total Size: ${stats.totalSizeMB} MB (${stats.percentUsed} of typical 5MB limit)`);
-    console.log(`Scenarios: ${stats.scenarioCount} scenarios stored`);
+    // console.log('=== LocalStorage Usage Stats ===');
+    // console.log(`Total Size: ${stats.totalSizeMB} MB (${stats.percentUsed} of typical 5MB limit)`);
+    // console.log(`Scenarios: ${stats.scenarioCount} scenarios stored`);
     if (stats.largestScenario) {
-        console.log(`Largest Scenario: "${stats.largestScenario}" (${(stats.largestScenarioSize / 1024).toFixed(2)} KB)`);
+        // console.log(`Largest Scenario: "${stats.largestScenario}" (${(stats.largestScenarioSize / 1024).toFixed(2)} KB)`);
     }
-    console.log('\nBreakdown by key:');
+    // console.log('\nBreakdown by key:');
     console.table(stats.items);
     return stats;
 }
@@ -13756,17 +13765,47 @@ function showTargetAdjustment() {
 // ============= DEFICIT RESOLUTION ASSISTANT FUNCTIONS =============
 
 function initializeDeficitDetection() {
+    // Initial check with delay to ensure DOM is ready
+    setTimeout(() => {
+        // console.log('[initializeDeficitDetection] Running initial deficit check');
+        checkForDeficits();
+    }, 500);
+    
     // Check for deficits periodically
-    checkForDeficits();
     setInterval(checkForDeficits, 30000); // Check every 30 seconds
 }
 
 function checkForDeficits() {
+    // Ensure we're using the correct location data
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Debug logging
+    // console.log(`[checkForDeficits] Current location: ${currentLocation}`);
+    
+    // Sync global variables with location data before calculating
+    if (locationData && locationData[currentLocation]) {
+        pathways = locationData[currentLocation].pathways || pathways;
+        trainerFTE = locationData[currentLocation].trainerFTE || trainerFTE;
+        priorityConfig = locationData[currentLocation].priorityConfig || priorityConfig;
+        activeCohorts = locationData[currentLocation].activeCohorts || activeCohorts;
+        
+        // console.log(`[checkForDeficits] Active cohorts for ${currentLocation}:`, activeCohorts.length);
+        // console.log(`[checkForDeficits] Trainer FTE for ${currentLocation}:`, trainerFTE);
+    }
+    
     const { demand } = calculateDemand();
     const deficits = analyzeDeficitsWithCascading(demand);
     
+    // console.log(`[checkForDeficits] Found ${deficits.length} deficit periods for ${currentLocation}`);
+    if (deficits.length > 0) {
+        // console.log(`[checkForDeficits] First deficit:`, deficits[0]);
+    }
+    
     const resolveDeficitsBtn = document.getElementById('resolve-deficits-btn');
-    if (!resolveDeficitsBtn) return;
+    if (!resolveDeficitsBtn) {
+        // console.log('[checkForDeficits] No resolve deficits button found');
+        return;
+    }
     
     if (deficits.length > 0) {
         // Count deficits by type
@@ -13888,35 +13927,163 @@ function showDeficitResolution() {
     // Display deficit analysis with detailed information
     displayDetailedDeficitAnalysis();
     
-    // Generate cohort-specific rescheduling solutions
-    const cohortSolutions = generateCohortReschedulingSolutions(window.currentDeficits);
-    console.log('Generated cohort solutions:', cohortSolutions);
-    displayCohortReschedulingUI(cohortSolutions);
+    // Show initial message to click on deficit cells
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    deficitSolutions.innerHTML = `
+        <div class="initial-message">
+            <h3>Click on any red deficit cell above to see cohorts affecting that period</h3>
+            <p>This will show you exactly which cohorts have line training during that deficit period and suggest the best moves to resolve it.</p>
+        </div>
+    `;
     
     // Initialize preview functionality
     initializeDeficitPreview();
 }
 
+// Show cohorts affecting a specific period when deficit cell is clicked
+window.showCohortsForPeriod = function(year, fortnight) {
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+    
+    // console.log(`Checking cohorts for ${year} FN${fortnight}, found ${cohorts.length} total cohorts`);
+    
+    // Find all cohorts that have line training in this specific period
+    const affectingCohorts = [];
+    const nonMoveableCohorts = [];
+    
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) {
+            // console.log(`No pathway found for cohort ${cohort.id} with pathwayId ${cohort.pathwayId}`);
+            return;
+        }
+        
+        // Calculate line training periods for this cohort
+        const ltPeriods = calculateLineTrainingPeriodsForCohort(cohort, pathway);
+        
+        if (ltPeriods.length > 0) {
+            // console.log(`Cohort ${cohort.id} (${pathway.name}) has ${ltPeriods.length} LT periods`);
+        }
+        
+        // Check if any line training period matches our target period
+        const hasLTInPeriod = ltPeriods.some(lt => 
+            lt.year === year && lt.fortnight === fortnight
+        );
+        
+        if (hasLTInPeriod) {
+            // console.log(`Cohort ${cohort.id} has LT in ${year} FN${fortnight}`);
+            
+            // Check if cohort is moveable
+            const isMoveable = isCohortMoveable(cohort);
+            // console.log(`Cohort ${cohort.id} moveable: ${isMoveable} (starts ${cohort.startYear} FN${cohort.startFortnight})`);
+            
+            if (isMoveable) {
+                affectingCohorts.push({
+                    cohort: cohort,
+                    pathway: pathway,
+                    currentStart: formatCohortDate(cohort.startYear, cohort.startFortnight),
+                    deficitImpact: cohort.numTrainees,
+                    flexible: pathway.type !== 'CP'
+                });
+            } else {
+                nonMoveableCohorts.push(cohort);
+                // console.log(`Cohort ${cohort.id} affects this period but is not moveable (starts ${cohort.startYear} FN${cohort.startFortnight})`);
+            }
+        }
+    });
+    
+    // Update the solutions display
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    const monthName = MONTHS[Math.floor((fortnight - 1) / 2)];
+    
+    // console.log(`Found ${affectingCohorts.length} moveable cohorts and ${nonMoveableCohorts.length} non-moveable cohorts`);
+    
+    if (affectingCohorts.length === 0) {
+        let message = `<h3>No moveable cohorts affect ${monthName} ${year} (FN${fortnight})</h3>`;
+        
+        if (nonMoveableCohorts.length > 0) {
+            message += `<p>${nonMoveableCohorts.length} cohort(s) have line training in this period but have already started and cannot be moved.</p>`;
+        }
+        
+        deficitSolutions.innerHTML = `
+            <div class="no-cohorts-message">
+                ${message}
+                <p>The deficit in this period cannot be resolved by moving cohorts. Consider:</p>
+                <ul>
+                    <li>Adding more trainers for this period</li>
+                    <li>Reducing the number of trainees starting around this time</li>
+                    <li>Cross-location training from another location</li>
+                </ul>
+            </div>
+        `;
+    } else {
+        const cohortSolutionsObj = {};
+        affectingCohorts.forEach(sol => {
+            cohortSolutionsObj[sol.cohort.id] = sol;
+        });
+        
+        // Display cohorts with focus on this specific period
+        displayCohortReschedulingUI(cohortSolutionsObj, { year, fortnight, monthName });
+    }
+    
+    // Clear any previous preview
+    const previewContent = document.getElementById('preview-content');
+    if (previewContent) {
+        previewContent.innerHTML = '<div class="preview-placeholder">Select cohorts to see impact</div>';
+    }
+}
+
 function displayDetailedDeficitAnalysis() {
     const deficitSummaryContent = document.getElementById('deficit-summary-content');
     
+    // Calculate total deficit
+    let totalDeficit = 0;
+    window.currentDeficits.forEach(deficit => {
+        Object.values(deficit.deficitsByType).forEach(data => {
+            totalDeficit += data.deficit;
+        });
+    });
+    
     // Create a calendar-style view showing current surplus/deficit for affected periods
     let summaryHTML = `
+        <div class="deficit-quick-summary">
+            <strong>Total deficit: ${totalDeficit} trainers</strong> across ${window.currentDeficits.length} periods. 
+            Move cohorts whose line training overlaps with red periods below.
+        </div>
         <table class="deficit-calendar-table">
             <thead>
                 <tr>
     `;
     
-    // Show 12 fortnights starting from the first deficit
-    const startFortnight = Math.min(...window.currentDeficits.map(d => d.fortnight));
-    const startYear = Math.min(...window.currentDeficits.map(d => d.year));
+    // Get the range of deficit periods to show
+    const deficitFortnights = window.currentDeficits.map(d => ({ year: d.year, fortnight: d.fortnight }));
+    deficitFortnights.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.fortnight - b.fortnight;
+    });
     
-    for (let i = 0; i < 12; i++) {
+    const firstDeficit = deficitFortnights[0];
+    const lastDeficit = deficitFortnights[deficitFortnights.length - 1];
+    
+    // Calculate range to show (include some buffer before and after)
+    let startFortnight = Math.max(1, firstDeficit.fortnight - 2);
+    let startYear = firstDeficit.year;
+    if (startFortnight < 1) {
+        startFortnight += FORTNIGHTS_PER_YEAR;
+        startYear--;
+    }
+    
+    // Show enough fortnights to cover all deficits plus some buffer
+    const totalFortnightsNeeded = ((lastDeficit.year - startYear) * FORTNIGHTS_PER_YEAR + lastDeficit.fortnight - startFortnight) + 3;
+    const fortnightsToShow = Math.max(12, Math.min(24, totalFortnightsNeeded));
+    
+    for (let i = 0; i < fortnightsToShow; i++) {
         let fortnight = startFortnight + i;
         let year = startYear;
         
-        if (fortnight > FORTNIGHTS_PER_YEAR) {
-            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
             year++;
         }
         
@@ -13929,33 +14096,28 @@ function displayDetailedDeficitAnalysis() {
             </thead>
             <tbody>
                 <tr id="current-deficit-row">
-                    <td colspan="12" class="deficit-header-row">Current Deficit/Surplus</td>
+                    <td colspan="${fortnightsToShow}" class="deficit-header-row">Current Deficit/Surplus</td>
                 </tr>
                 <tr id="current-values-row">
     `;
     
-    // Add current values
-    for (let i = 0; i < 12; i++) {
+    // Add current values - need to check actual supply/demand for each period
+    for (let i = 0; i < fortnightsToShow; i++) {
         let fortnight = startFortnight + i;
         let year = startYear;
         
-        if (fortnight > FORTNIGHTS_PER_YEAR) {
-            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
             year++;
         }
         
-        const deficit = window.currentDeficits.find(d => d.year === year && d.fortnight === fortnight);
-        let value = 0;
+        // Calculate the actual supply/deficit for this period
+        const result = calculateSupplyDeficit(year, fortnight);
+        const value = result.surplus > 0 ? result.surplus : -result.deficit;
         
-        if (deficit) {
-            Object.values(deficit.deficitsByType).forEach(data => {
-                value += data.deficit;
-            });
-            value = -value; // Convert to deficit display (negative = deficit)
-        }
-        
-        const cellClass = value < 0 ? 'deficit-cell' : value > 0 ? 'surplus-cell' : '';
-        summaryHTML += `<td class="${cellClass}" data-fortnight="${fortnight}" data-year="${year}">${value}</td>`;
+        const cellClass = value < 0 ? 'deficit-cell clickable' : value > 0 ? 'surplus-cell' : '';
+        const clickHandler = value < 0 ? `onclick="showCohortsForPeriod(${year}, ${fortnight})"` : '';
+        summaryHTML += `<td class="${cellClass}" data-fortnight="${fortnight}" data-year="${year}" ${clickHandler} title="${value < 0 ? 'Click to see cohorts affecting this period' : ''}">${Math.round(value)}</td>`;
     }
     
     summaryHTML += `
@@ -14490,19 +14652,25 @@ function updateDeficitSummaryTable(selectedMoves) {
     // Calculate impact of moves
     const impactByPeriod = calculateSimpleReschedulingImpact(selectedMoves);
     
-    // Get the start fortnight and year for the table
-    const startFortnight = Math.min(...window.currentDeficits.map(d => d.fortnight));
-    const startYear = Math.min(...window.currentDeficits.map(d => d.year));
+    // Get the number of columns from the header
+    const headerCells = document.querySelectorAll('.deficit-calendar-table thead th');
+    const numColumns = headerCells.length;
+    
+    // Get the starting fortnight/year from the first header cell
+    const firstHeaderText = headerCells[0].textContent;
+    const match = firstHeaderText.match(/FN(\d+).*?(\d{4})/);
+    let startFortnight = parseInt(match[1]);
+    let startYear = parseInt(match[2]);
     
     // Add adjustment row
-    let adjustmentHTML = `<tr id="adjustment-row"><td colspan="12" class="deficit-header-row impact-header">Impact of Moves</td></tr><tr id="adjustment-values-row">`;
+    let adjustmentHTML = `<tr id="adjustment-row"><td colspan="${numColumns}" class="deficit-header-row impact-header">Impact of Moves</td></tr><tr id="adjustment-values-row">`;
     
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < numColumns; i++) {
         let fortnight = startFortnight + i;
         let year = startYear;
         
-        if (fortnight > FORTNIGHTS_PER_YEAR) {
-            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
             year++;
         }
         
@@ -14515,14 +14683,14 @@ function updateDeficitSummaryTable(selectedMoves) {
     adjustmentHTML += '</tr>';
     
     // Add adjusted values row
-    adjustmentHTML += `<tr id="adjusted-row"><td colspan="12" class="deficit-header-row adjusted-header">After Rescheduling</td></tr><tr id="adjusted-values-row">`;
+    adjustmentHTML += `<tr id="adjusted-row"><td colspan="${numColumns}" class="deficit-header-row adjusted-header">After Rescheduling</td></tr><tr id="adjusted-values-row">`;
     
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < numColumns; i++) {
         let fortnight = startFortnight + i;
         let year = startYear;
         
-        if (fortnight > FORTNIGHTS_PER_YEAR) {
-            fortnight = fortnight - FORTNIGHTS_PER_YEAR;
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
             year++;
         }
         
@@ -14545,6 +14713,7 @@ function updateDeficitSummaryTable(selectedMoves) {
 
 function calculateSimpleReschedulingImpact(selectedMoves) {
     const impactByPeriod = {};
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
     selectedMoves.forEach(move => {
         // Find the cohort
@@ -14556,22 +14725,58 @@ function calculateSimpleReschedulingImpact(selectedMoves) {
         const pathway = pathways.find(p => p.id === cohort.pathwayId);
         if (!pathway) return;
         
-        // Simple impact calculation - assume cohort affects deficit directly
-        const trainerDemand = Math.ceil(cohort.numTrainees / 2); // Simplified ratio
-        
-        // Remove demand from original fortnight
-        const originalKey = `${move.originalYear}-${move.originalFortnight}`;
-        if (!impactByPeriod[originalKey]) {
-            impactByPeriod[originalKey] = { change: 0 };
-        }
-        impactByPeriod[originalKey].change += trainerDemand; // Reducing deficit (positive change)
-        
-        // Add demand to new fortnight
-        const newKey = `${move.newYear}-${move.newFortnight}`;
-        if (!impactByPeriod[newKey]) {
-            impactByPeriod[newKey] = { change: 0 };
-        }
-        impactByPeriod[newKey].change -= trainerDemand; // Increasing deficit (negative change)
+        // Calculate which line training phases are affected
+        pathway.phases.forEach((phase, phaseIndex) => {
+            if (phase.trainersRequired > 0) {
+                // Calculate original phase timing
+                let phaseStartFortnight = move.originalFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    phaseStartFortnight += pathway.phases[i].duration;
+                }
+                
+                // Impact for each fortnight in the original training period
+                for (let i = 0; i < phase.duration; i++) {
+                    let fortnight = phaseStartFortnight + i;
+                    let year = move.originalYear;
+                    
+                    while (fortnight > FORTNIGHTS_PER_YEAR) {
+                        fortnight -= FORTNIGHTS_PER_YEAR;
+                        year++;
+                    }
+                    
+                    const key = `${year}-${fortnight}`;
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = { change: 0 };
+                    }
+                    // Removing demand from original period (positive impact)
+                    impactByPeriod[key].change += cohort.numTrainees * phase.trainersRequired;
+                }
+                
+                // Calculate new phase timing
+                phaseStartFortnight = move.newFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    phaseStartFortnight += pathway.phases[i].duration;
+                }
+                
+                // Impact for each fortnight in the new training period
+                for (let i = 0; i < phase.duration; i++) {
+                    let fortnight = phaseStartFortnight + i;
+                    let year = move.newYear;
+                    
+                    while (fortnight > FORTNIGHTS_PER_YEAR) {
+                        fortnight -= FORTNIGHTS_PER_YEAR;
+                        year++;
+                    }
+                    
+                    const key = `${year}-${fortnight}`;
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = { change: 0 };
+                    }
+                    // Adding demand to new period (negative impact)
+                    impactByPeriod[key].change -= cohort.numTrainees * phase.trainersRequired;
+                }
+            }
+        });
     });
     
     return impactByPeriod;
@@ -14878,21 +15083,21 @@ function generateCohortReschedulingSolutions(deficits) {
     // Get all cohorts that contribute to deficits
     const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
     
-    console.log('Analyzing deficits:', deficits.length, 'periods');
-    console.log('Total cohorts to check:', cohorts.length);
+    // console.log('Analyzing deficits:', deficits.length, 'periods');
+    // console.log('Total cohorts to check:', cohorts.length);
     
     // For each cohort, check if it contributes to any deficit period
     cohorts.forEach(cohort => {
         const pathway = pathways.find(p => p.id === cohort.pathwayId) || 
                        pathways.find(p => p.name === cohort.pathwayId); // Sometimes pathwayId is the name
         if (!pathway) {
-            console.log('No pathway found for cohort:', cohort.name || cohort.id, 'pathwayId:', cohort.pathwayId);
+            // console.log('No pathway found for cohort:', cohort.name || cohort.id, 'pathwayId:', cohort.pathwayId);
             return;
         }
         
         // Check if cohort is moveable (hasn't started overall training yet)
         if (!isCohortMoveable(cohort)) {
-            console.log('Cohort not moveable:', cohort.name || cohort.id, 'starts:', cohort.startYear, cohort.startFortnight);
+            // console.log('Cohort not moveable:', cohort.name || cohort.id, 'starts:', cohort.startYear, cohort.startFortnight);
             return;
         }
         
@@ -14908,11 +15113,11 @@ function generateCohortReschedulingSolutions(deficits) {
         });
         
         if (contributeToDeficit) {
-            console.log('Cohort', cohort.name || cohort.id, 'contributes to deficit');
+            // console.log('Cohort', cohort.name || cohort.id, 'contributes to deficit');
             
             // Calculate possible move dates
             const possibleMoves = calculatePossibleMoveDates(cohort, pathway, deficitPeriods[0]);
-            console.log('Possible moves for cohort:', possibleMoves.length);
+            // console.log('Possible moves for cohort:', possibleMoves.length);
             
             if (possibleMoves.length > 0) {
                 solutions[cohort.id] = {
@@ -14956,17 +15161,57 @@ function cohortHasLineTrainingInPeriod(cohort, pathway, targetYear, targetFortni
 }
 
 function isCohortMoveable(cohort) {
-    // Can't move cohorts that have already started
-    const today = new Date();
-    const cohortStart = getDateFromYearFortnight(cohort.startYear, cohort.startFortnight);
+    // For planning purposes, any cohort that hasn't completed training is potentially moveable
+    // This is especially important for small deficits (-1, -2) where we need maximum flexibility
     
-    // For testing/demo purposes, allow moving cohorts in 2026 even if we're in 2025
-    // This is because the deficits shown are in 2026
-    if (cohort.startYear >= 2026) {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const currentFortnight = (currentMonth * 2) + (new Date().getDate() >= 15 ? 2 : 1);
+    
+    // Get the pathway to determine total duration
+    const pathway = pathways.find(p => p.name === cohort.pathway);
+    if (!pathway) return false;
+    
+    // Calculate when the cohort will complete training
+    const totalDuration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+    let endYear = cohort.startYear;
+    let endFortnight = cohort.startFortnight + totalDuration - 1;
+    
+    // Adjust for year rollover
+    while (endFortnight > 24) {
+        endFortnight -= 24;
+        endYear++;
+    }
+    
+    // If cohort has already completed training, it's not moveable
+    if (endYear < currentYear || (endYear === currentYear && endFortnight < currentFortnight)) {
+        return false;
+    }
+    
+    // If cohort hasn't started yet, it's definitely moveable
+    if (cohort.startYear > currentYear || 
+        (cohort.startYear === currentYear && cohort.startFortnight > currentFortnight)) {
         return true;
     }
     
-    return cohortStart > today;
+    // For cohorts that have started but not completed:
+    // Allow moving if they're still in early phases (GS+SIM) which don't require trainers
+    // This gives us more flexibility for resolving small deficits
+    const gsSimDuration = pathway.phases
+        .filter(phase => phase.requiresTrainer === false)
+        .reduce((sum, phase) => sum + phase.duration, 0);
+    
+    const currentProgress = ((currentYear - cohort.startYear) * 24) + currentFortnight - cohort.startFortnight;
+    
+    // If still in non-trainer phases, definitely moveable
+    if (currentProgress < gsSimDuration) {
+        return true;
+    }
+    
+    // For cohorts in line training, allow movement if they're not too far along
+    // This helps with small deficits where slight schedule adjustments could help
+    const progressPercentage = currentProgress / totalDuration;
+    return progressPercentage < 0.5; // Allow moving if less than 50% complete
 }
 
 function getDateFromYearFortnight(year, fortnight) {
@@ -15022,8 +15267,17 @@ function calculatePossibleMoveDates(cohort, pathway, currentDeficit) {
                 }
             }
         } else {
-            // FO/CAD can start any fortnight
+            // FO/CAD can start any fortnight but check commencement limit
             const capacity = checkPeriodCapacity(targetYear, targetFortnight, cohort.numTrainees);
+            
+            // Check FO commencement limit (12 FO cohorts per fortnight)
+            if (pathway.type === 'FO') {
+                const foCommencementsInPeriod = countFOCommencementsInPeriod(targetYear, targetFortnight);
+                if (foCommencementsInPeriod >= 12) {
+                    continue; // Skip this period due to FO limit
+                }
+            }
+            
             if (capacity.canAccommodate) {
                 moves.push({
                     year: targetYear,
@@ -15038,6 +15292,24 @@ function calculatePossibleMoveDates(cohort, pathway, currentDeficit) {
     
     // Sort by best capacity fit
     return moves.sort((a, b) => b.capacityAfter - a.capacityAfter).slice(0, 5);
+}
+
+function countFOCommencementsInPeriod(year, fortnight) {
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+    
+    let foCount = 0;
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (pathway && pathway.type === 'FO' && 
+            cohort.startYear === year && 
+            cohort.startFortnight === fortnight) {
+            foCount++;
+        }
+    });
+    
+    return foCount;
 }
 
 function checkPeriodCapacity(year, fortnight, additionalTrainees) {
@@ -15130,7 +15402,7 @@ function calculateSupplyDeficit(year, fortnight) {
     };
 }
 
-function displayCohortReschedulingUI(cohortSolutions) {
+function displayCohortReschedulingUI(cohortSolutions, focusPeriod = null) {
     const deficitSolutions = document.getElementById('deficit-solutions');
     
     const cohortArray = Object.values(cohortSolutions);
@@ -15145,6 +15417,16 @@ function displayCohortReschedulingUI(cohortSolutions) {
     const restricted = cohortArray.filter(s => !s.flexible);
     
     let html = '';
+    
+    // Add header if focusing on specific period
+    if (focusPeriod) {
+        html += `
+            <div class="period-focus-header">
+                <h3>Cohorts with line training in ${focusPeriod.monthName} ${focusPeriod.year} (FN${focusPeriod.fortnight})</h3>
+                <p>${cohortArray.length} cohort${cohortArray.length > 1 ? 's' : ''} can be moved to resolve this deficit</p>
+            </div>
+        `;
+    }
     
     // Flexible cohorts section
     if (flexible.length > 0) {
@@ -15189,11 +15471,26 @@ function displayCohortReschedulingUI(cohortSolutions) {
 
 function createCohortRescheduleItem(solution) {
     const cohortName = getReadableCohortName(solution.cohort);
-    const moveOptions = solution.possibleMoves.map(move => 
-        `<option value="${move.year}-${move.fortnight}" data-capacity="${move.capacityAfter}">
-            ${move.display} (${move.capacityAfter > 0 ? '+' + move.capacityAfter : move.capacityAfter} capacity after)
-        </option>`
-    ).join('');
+    
+    // Calculate when line training occurs for this cohort
+    const lineTrainingPeriods = calculateLineTrainingPeriodsForCohort(solution.cohort, solution.pathway);
+    
+    // Find which deficit periods this cohort affects
+    const affectedDeficitPeriods = [];
+    window.currentDeficits.forEach(deficit => {
+        lineTrainingPeriods.forEach(ltPeriod => {
+            if (ltPeriod.year === deficit.year && ltPeriod.fortnight === deficit.fortnight) {
+                affectedDeficitPeriods.push({
+                    fortnight: deficit.fortnight,
+                    year: deficit.year,
+                    monthName: MONTHS[Math.floor((deficit.fortnight - 1) / 2)]
+                });
+            }
+        });
+    });
+    
+    // Create smart recommendations based on actual impact
+    const recommendations = calculateSmartMoveRecommendations(solution.cohort, solution.pathway, affectedDeficitPeriods);
     
     return `
         <div class="cohort-reschedule-item" data-cohort-id="${solution.cohort.id}">
@@ -15206,19 +15503,180 @@ function createCohortRescheduleItem(solution) {
             <div class="cohort-info">
                 <label for="cohort-${solution.cohort.id}">
                     <strong>${cohortName}</strong>
-                    <span class="cohort-meta">${solution.pathway.type} • ${solution.cohort.numTrainees}</span>
+                    <span class="cohort-meta">${solution.pathway.type} • ${solution.cohort.numTrainees} trainees</span>
                 </label>
+                <div class="impact-details">
+                    <span class="start-date">Starts: ${solution.currentStart}</span>
+                    <span class="lt-period">Line Training: ${formatLineTrainingPeriod(lineTrainingPeriods)}</span>
+                    ${affectedDeficitPeriods.length > 0 ? 
+                        `<span class="deficit-impact">⚠️ Impacts deficit in: ${affectedDeficitPeriods.map(p => `${p.monthName} ${p.year}`).join(', ')}</span>` : 
+                        '<span class="no-impact">ℹ️ Does not impact deficit periods</span>'}
+                </div>
             </div>
             <div class="move-selector">
-                <span class="current-date">${solution.currentStart}</span>
-                <span class="arrow">→</span>
                 <select class="new-date-select" data-cohort-id="${solution.cohort.id}">
-                    <option value="">Select new date...</option>
-                    ${moveOptions}
+                    <option value="">Select move...</option>
+                    ${recommendations.map(rec => 
+                        `<option value="${rec.year}-${rec.fortnight}" title="${rec.reason}">
+                            ${rec.label} → ${rec.impact}
+                        </option>`
+                    ).join('')}
                 </select>
             </div>
         </div>
     `;
+}
+
+function calculateLineTrainingPeriodsForCohort(cohort, pathway) {
+    const periods = [];
+    let currentFortnight = cohort.startFortnight;
+    let currentYear = cohort.startYear;
+    
+    // Go through each phase to find line training phases
+    pathway.phases.forEach(phase => {
+        if (phase.trainerDemandType) {
+            // This is a line training phase
+            for (let i = 0; i < phase.duration; i++) {
+                let fortnight = currentFortnight + i;
+                let year = currentYear;
+                
+                while (fortnight > FORTNIGHTS_PER_YEAR) {
+                    fortnight -= FORTNIGHTS_PER_YEAR;
+                    year++;
+                }
+                
+                periods.push({ 
+                    year, 
+                    fortnight, 
+                    phaseType: phase.name,
+                    demandType: phase.trainerDemandType,
+                    trainersNeeded: cohort.numTrainees * (phase.ratio || 1)
+                });
+            }
+        }
+        
+        // Move to next phase
+        currentFortnight += phase.duration;
+        while (currentFortnight > FORTNIGHTS_PER_YEAR) {
+            currentFortnight -= FORTNIGHTS_PER_YEAR;
+            currentYear++;
+        }
+    });
+    
+    return periods;
+}
+
+function formatLineTrainingPeriod(periods) {
+    if (periods.length === 0) return 'None';
+    
+    const firstPeriod = periods[0];
+    const lastPeriod = periods[periods.length - 1];
+    
+    const startMonth = MONTHS[Math.floor((firstPeriod.fortnight - 1) / 2)];
+    const endMonth = MONTHS[Math.floor((lastPeriod.fortnight - 1) / 2)];
+    
+    if (firstPeriod.year === lastPeriod.year) {
+        return `${startMonth}-${endMonth} ${firstPeriod.year}`;
+    } else {
+        return `${startMonth} ${firstPeriod.year} - ${endMonth} ${lastPeriod.year}`;
+    }
+}
+
+function calculateSmartMoveRecommendations(cohort, pathway, affectedDeficitPeriods) {
+    const recommendations = [];
+    
+    if (affectedDeficitPeriods.length === 0) {
+        // This cohort doesn't affect any deficit periods
+        return [{
+            year: cohort.startYear,
+            fortnight: cohort.startFortnight,
+            label: 'No move needed',
+            impact: 'Does not affect deficits',
+            reason: 'This cohort does not have line training during deficit periods'
+        }];
+    }
+    
+    // Calculate moves that would move line training out of deficit periods
+    const testOffsets = pathway.type === 'CP' ? 
+        [-4, -2, 2, 4] : // CP: move by months
+        [-6, -4, -2, -1, 1, 2, 4, 6]; // FO/CAD: move by fortnights
+    
+    testOffsets.forEach(offset => {
+        let newStartFortnight = cohort.startFortnight + offset;
+        let newStartYear = cohort.startYear;
+        
+        while (newStartFortnight > FORTNIGHTS_PER_YEAR) {
+            newStartFortnight -= FORTNIGHTS_PER_YEAR;
+            newStartYear++;
+        }
+        while (newStartFortnight < 1) {
+            newStartFortnight += FORTNIGHTS_PER_YEAR;
+            newStartYear--;
+        }
+        
+        // For CP, ensure it's an odd fortnight
+        if (pathway.type === 'CP' && newStartFortnight % 2 === 0) {
+            return;
+        }
+        
+        // Calculate new line training periods
+        const newLTPeriods = calculateLineTrainingPeriodsForCohort(
+            { ...cohort, startYear: newStartYear, startFortnight: newStartFortnight },
+            pathway
+        );
+        
+        // Check if this move helps
+        let stillAffectsDeficit = false;
+        let freedTrainers = 0;
+        
+        affectedDeficitPeriods.forEach(deficitPeriod => {
+            const stillInDeficit = newLTPeriods.some(lt => 
+                lt.year === deficitPeriod.year && lt.fortnight === deficitPeriod.fortnight
+            );
+            if (!stillInDeficit) {
+                freedTrainers += cohort.numTrainees;
+            } else {
+                stillAffectsDeficit = true;
+            }
+        });
+        
+        if (freedTrainers > 0) {
+            const moveLabel = pathway.type === 'CP' ?
+                (offset > 0 ? `+${offset/2} months` : `${offset/2} months`) :
+                (offset > 0 ? `+${offset} FN` : `${offset} FN`);
+                
+            recommendations.push({
+                year: newStartYear,
+                fortnight: newStartFortnight,
+                label: moveLabel,
+                impact: stillAffectsDeficit ? 
+                    `Frees ${freedTrainers} trainers (partial)` : 
+                    `Frees ${freedTrainers} trainers`,
+                reason: `Moves line training ${stillAffectsDeficit ? 'partially' : 'completely'} out of deficit periods`,
+                freedTrainers,
+                isComplete: !stillAffectsDeficit
+            });
+        }
+    });
+    
+    // Sort by most effective moves (complete solutions first, then by trainers freed)
+    recommendations.sort((a, b) => {
+        if (a.isComplete !== b.isComplete) return b.isComplete - a.isComplete;
+        return b.freedTrainers - a.freedTrainers;
+    });
+    
+    // If no good moves found, show why
+    if (recommendations.length === 0) {
+        recommendations.push({
+            year: cohort.startYear,
+            fortnight: cohort.startFortnight,
+            label: 'No beneficial moves',
+            impact: 'All moves still overlap deficit',
+            reason: 'Line training period is too long to avoid deficit periods'
+        });
+    }
+    
+    return recommendations.slice(0, 5); // Top 5 recommendations
 }
 
 function setupCohortRescheduleHandlers() {

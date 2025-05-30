@@ -57,7 +57,12 @@
       "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -n \"getPathwayById\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)",
       "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -n \"pathway.*find\\|pathways.*find\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)",
       "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -C5 \"cohort\\.pathway.*find\\|pathwayId.*find\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)",
-      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -A30 \"function updateDeficitSummaryTable\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)"
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -A30 \"function updateDeficitSummaryTable\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)",
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -A5 \"deficit-calendar-table\\|improvement-cell\\|worsening-cell\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/styles.css)",
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -n \"deficit-calendar\\|improvement-cell\\|worsening-cell\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/styles.css)",
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -n \"background: #f8f9fa|background: #fff3cd|background: #d4edda\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)",
+      "Bash(/usr/local/lib/node_modules/@anthropic-ai/claude-code/vendor/ripgrep/x64-linux/rg -n \"Current Deficit/Surplus\" /mnt/c/Users/Hoff/Desktop/Coding/trainer-view/app.js)",
+      "Bash(git describe:*)"
     ],
     "deny": []
   }

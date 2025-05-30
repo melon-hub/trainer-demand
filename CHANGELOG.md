@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.9.0] - 2025-01-29
+
+### ✨ New Features
+- **Column Highlighting System** - Interactive column selection for better visibility
+  - Click fortnight headers to highlight entire columns across all 5 tables
+  - Ctrl+Click for multi-select, Shift+Click for range select
+  - Clean outline borders around column groups instead of individual cells
+  - Smart edge detection for adjacent and non-adjacent selections
+  - Works in both light and dark modes
+- **Enhanced Deficit Resolution Modal**
+  - Improved layout with compact summary and two-column design
+  - Better visual hierarchy for cohort selection
+  - Clearer preview of selected moves
+  - More intuitive user flow
+- **Keyboard Navigation** - Arrow keys for time navigation
+- **New Scenario Button** - Create new scenarios with unsaved changes protection
+- **Scenario Card Updates** - Now shows "AU: X | NZ: Y" split instead of flag emojis
+
+### 🐛 Bug Fixes
+- Fixed FTE synchronization between global and location data
+- Fixed dashboard charts showing incorrect FTE values
+- Fixed dashboard tooltip calculations showing "Total Demand: 0.0 FTE"
+- Fixed demand table cells not having data-column attributes in split view
+- Fixed legacy scenario format migration issues
+
+### ⚡ Performance & UI Improvements
+- Sticky navigation controls for easier access when scrolling
+- Added shadow effects to sticky elements
+- Improved visual feedback for interactive elements
+- Consistent data cell generation across all tables using generateDataCell
+- Better edge detection algorithm for multi-column selections
+- Removed debug console.log statements for cleaner console output
+
+### 🔧 Technical Improvements
+- Added isAdjacent helper function for column selection logic
+- Enhanced applyHighlights with edge class detection
+- Improved CSS architecture with cleaner selectors
+- Better separation of highlighting logic from visual presentation
+
+---
+
 ## [1.8.0] - 2025-01-28
 
 ### 🐛 Major Bug Fixes

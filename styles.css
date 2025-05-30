@@ -6591,16 +6591,32 @@ body.dark-mode #deficit-resolution-modal .modal-footer {
     margin-bottom: 12px;
 }
 
+.deficit-quick-summary {
+    padding: 10px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #856404;
+}
+
 #deficit-summary-content {
     margin: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
 }
 
 /* Calendar-style deficit table */
 .deficit-calendar-table {
-    width: 100%;
+    width: auto;
+    min-width: 100%;
     border-collapse: collapse;
     font-size: 12px;
     background: #ffffff;
+    table-layout: auto;
 }
 
 .deficit-calendar-table th {
@@ -6611,7 +6627,7 @@ body.dark-mode #deficit-resolution-modal .modal-footer {
     color: #333;
     font-size: 11px;
     border: 1px solid #ddd;
-    min-width: 70px;
+    min-width: 60px;
 }
 
 .deficit-calendar-table th small {
@@ -6625,11 +6641,24 @@ body.dark-mode #deficit-resolution-modal .modal-footer {
     border: 1px solid #ddd;
     text-align: center;
     font-weight: 500;
+    min-width: 60px;
+    white-space: nowrap;
 }
 
 .deficit-cell {
     background: #f8d7da;
     color: #721c24;
+}
+
+.deficit-cell.clickable {
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.deficit-cell.clickable:hover {
+    background: #f5c6cb;
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
 }
 
 .surplus-cell {
@@ -7169,9 +7198,9 @@ body.dark-mode .solution-impact {
 
 .cohort-reschedule-item {
     display: flex;
-    align-items: center;
-    padding: 8px 10px;
-    margin-bottom: 6px;
+    align-items: flex-start;
+    padding: 12px;
+    margin-bottom: 8px;
     background: #f8f9fa;
     border: 1px solid #e9ecef;
     border-radius: 4px;
@@ -7189,6 +7218,8 @@ body.dark-mode .solution-impact {
 
 .cohort-info {
     flex: 1;
+    min-width: 0;
+    margin-right: 12px;
 }
 
 .cohort-info label {
@@ -7210,6 +7241,144 @@ body.dark-mode .solution-impact {
     margin-left: 8px;
 }
 
+.fo-limit-note {
+    font-size: 11px;
+    color: #fd7e14;
+    margin-left: 8px;
+    font-style: italic;
+}
+
+.initial-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.initial-message h3 {
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.no-cohorts-message {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.no-cohorts-message h3 {
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.no-cohorts-message ul {
+    margin: 12px 0 0 20px;
+    color: #6c757d;
+}
+
+.period-focus-header {
+    padding: 12px;
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.period-focus-header h3 {
+    margin: 0 0 4px 0;
+    color: #1976d2;
+    font-size: 16px;
+}
+
+.period-focus-header p {
+    margin: 0;
+    color: #1565c0;
+    font-size: 13px;
+}
+
+.impact-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.impact-details span {
+    display: block;
+}
+
+.start-date {
+    color: #6c757d;
+}
+
+.lt-period {
+    color: #0066cc;
+    font-weight: 500;
+}
+
+.deficit-impact {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.no-impact {
+    color: #28a745;
+}
+
+body.dark-mode .impact-details {
+    background: #2d2d2d;
+}
+
+body.dark-mode .deficit-impact {
+    color: #ff6b6b;
+}
+
+body.dark-mode .no-impact {
+    color: #51cf66;
+}
+
+body.dark-mode .lt-period {
+    color: #339af0;
+}
+
+body.dark-mode .initial-message {
+    color: #999;
+}
+
+body.dark-mode .initial-message h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .no-cohorts-message {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .no-cohorts-message h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .no-cohorts-message ul {
+    color: #999;
+}
+
+body.dark-mode .period-focus-header {
+    background: #1a3a52;
+    border-color: #2196f3;
+}
+
+body.dark-mode .period-focus-header h3 {
+    color: #64b5f6;
+}
+
+body.dark-mode .period-focus-header p {
+    color: #42a5f5;
+}
+
 .move-selector {
     display: flex;
     align-items: center;
@@ -7228,13 +7397,14 @@ body.dark-mode .solution-impact {
 }
 
 .new-date-select {
-    padding: 4px 8px;
+    padding: 6px 10px;
     border: 1px solid #ced4da;
     border-radius: 3px;
     font-size: 12px;
     color: #495057;
     background: white;
-    min-width: 160px;
+    min-width: 200px;
+    cursor: pointer;
 }
 
 .new-date-select option[data-capacity] {
@@ -7630,6 +7800,11 @@ body.dark-mode .deficit-cell {
     color: #ff9999;
 }
 
+body.dark-mode .deficit-cell.clickable:hover {
+    background: #6a2e2e;
+    color: #ffaaaa;
+}
+
 body.dark-mode .surplus-cell {
     background: #1e3a4a;
     color: #87ceeb;
@@ -7657,6 +7832,12 @@ body.dark-mode .deficit-tip {
 
 body.dark-mode .deficit-description {
     color: #b0b0b0;
+}
+
+body.dark-mode .deficit-quick-summary {
+    background: #3a3a2a;
+    border-color: #5a5a3a;
+    color: #d4a76a;
 }
 
 body.dark-mode .deficit-header-row {

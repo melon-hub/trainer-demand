@@ -3,74 +3,51 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pilot Trainer Supply/Demand Planner - v1.8.0</title>
+    <title>Pilot Trainer Supply/Demand Planner</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
         // Apply dark mode immediately to prevent flash
         const isDarkMode = localStorage.getItem('darkMode') === 'true';
         if (isDarkMode) {
             document.documentElement.classList.add('dark-mode-loading');
-            document.documentElement.style.backgroundColor = '#1a1a1a';
-            document.documentElement.style.color = '#e0e0e0';
+            // Also store the active tab for proper styling
             const activeTab = localStorage.getItem('activeTab') || 'dashboard';
             document.documentElement.setAttribute('data-active-tab', activeTab);
         }
+        // Store current location for immediate application
         const savedLocation = localStorage.getItem('currentLocation');
         if (savedLocation) {
             document.documentElement.setAttribute('data-location', savedLocation);
         }
     </script>
     <style>
-        /* Prevent flash - apply immediately */
-        html.dark-mode-loading {
-            background-color: #1a1a1a !important;
-            color: #e0e0e0 !important;
-        }
-        html.dark-mode-loading body {
-            background-color: #1a1a1a !important;
-            color: #e0e0e0 !important;
-        }
-        html.dark-mode-loading .container {
-            background-color: #1a1a1a !important;
-            color: #e0e0e0 !important;
-        }
-        html.dark-mode-loading header {
-            background-color: #2a2a2a !important;
-            color: #e0e0e0 !important;
-        }
-        html.dark-mode-loading .nav-tab {
-            background-color: #333 !important;
-            color: #e0e0e0 !important;
-        }
-        html.dark-mode-loading[data-active-tab="dashboard"] .nav-tab[data-view="dashboard"],
-        html.dark-mode-loading[data-active-tab="planner"] .nav-tab[data-view="planner"],
-        html.dark-mode-loading[data-active-tab="settings"] .nav-tab[data-view="settings"],
-        html.dark-mode-loading[data-active-tab="scenarios"] .nav-tab[data-view="scenarios"] {
-            background-color: #0d6efd !important;
-            color: white !important;
-        }
-        
-        /* Regular styles */
+        /* Critical inline styles to prevent FOUC */
         .table-container { min-height: 100px; }
         .sticky-first-column { left: 0 !important; }
+        
+        /* Apply active state based on saved location */
         html[data-location="AU"] .location-toggle[data-location="AU"],
         html:not([data-location]) .location-toggle[data-location="AU"] {
-            background-color: #2196F3; color: white;
+            background-color: #2196F3;
+            color: white;
         }
         html[data-location="NZ"] .location-toggle[data-location="NZ"] {
-            background-color: #2196F3; color: white;
+            background-color: #2196F3;
+            color: white;
         }
-        html.dark-mode-loading #dark-mode-toggle { 
-            background-color: #444 !important; 
-            color: #e0e0e0 !important; 
-            border-color: #666 !important; 
+        
+        /* Dark mode button styles to prevent flash */
+        html.dark-mode-loading #dark-mode-toggle {
+            background-color: #444;
+            color: #e0e0e0;
+            border-color: #666;
         }
-        html.dark-mode-loading .btn.btn-secondary { 
-            background-color: #444 !important; 
-            border-color: #666 !important; 
-            color: #e0e0e0 !important; 
+        html.dark-mode-loading .btn.btn-secondary {
+            background-color: #444;
+            border-color: #666;
+            color: #e0e0e0;
         }
     </style>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
 /* General Styles */
 * {
@@ -2003,11 +1980,13 @@ th {
     color: #2c3e50;
     border-bottom: 2px solid #e0e0e0;
     white-space: nowrap;
+    position: relative;
 }
 
 td {
     padding: 10px 12px;
     border-bottom: 1px solid #e0e0e0;
+    position: relative;
 }
 
 tr:hover {
@@ -4011,6 +3990,161 @@ body.dark-mode .btn-primary:hover {
     background-color: #0b5ed7;
 }
 
+/* New Scenario button */
+#new-scenario {
+    margin-right: 10px;
+    font-weight: 600;
+}
+
+/* Scenario card location stats */
+.scenario-stat > div {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.scenario-stat .location-split {
+    font-size: 0.85em;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
+/* Sticky Navigation Controls */
+.view-controls-section {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    background-color: var(--bg-primary);
+    padding: 15px 0;
+    margin: -10px -20px 20px -20px;
+    padding-left: 20px;
+    padding-right: 20px;
+    transition: all 0.2s ease;
+}
+
+.view-controls-section.sticky {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    background-color: rgba(255, 255, 255, 0.98);
+}
+
+body.dark-mode .view-controls-section {
+    background-color: var(--bg-primary);
+}
+
+body.dark-mode .view-controls-section.sticky {
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+    background-color: rgba(30, 30, 30, 0.98);
+}
+
+/* Ensure the planner view has proper padding */
+#planner-view {
+    position: relative;
+}
+
+/* Column Highlighting System */
+.fortnight-header {
+    position: relative;
+    user-select: none;
+    transition: background-color 0.2s ease;
+}
+
+.fortnight-header:hover {
+    background-color: rgba(52, 152, 219, 0.2) !important;
+    cursor: pointer;
+}
+
+/* Column highlighting - clean column outline */
+.column-highlighted {
+    position: relative !important;
+    background-color: rgba(52, 152, 219, 0.06) !important;
+}
+
+/* Left border only on left edge columns */
+.column-highlighted.column-left-edge {
+    border-left: 2px solid #3498db !important;
+}
+
+/* Right border only on right edge columns */
+.column-highlighted.column-right-edge {
+    border-right: 2px solid #3498db !important;
+}
+
+/* Top border for all highlighted header cells */
+thead .column-highlighted {
+    border-top: 2px solid #3498db !important;
+}
+
+/* Bottom border for all highlighted last row cells */
+tbody tr:last-child .column-highlighted {
+    border-bottom: 2px solid #3498db !important;
+}
+
+/* Headers get slightly stronger background */
+th.column-highlighted {
+    background-color: rgba(52, 152, 219, 0.12) !important;
+    font-weight: bold !important;
+}
+
+/* Dark mode highlighting */
+body.dark-mode .fortnight-header:hover {
+    background-color: rgba(52, 152, 219, 0.3) !important;
+}
+
+/* Dark mode column highlighting */
+body.dark-mode .column-highlighted {
+    background-color: rgba(93, 173, 226, 0.08) !important;
+}
+
+body.dark-mode .column-highlighted.column-left-edge {
+    border-left-color: #5dade2 !important;
+}
+
+body.dark-mode .column-highlighted.column-right-edge {
+    border-right-color: #5dade2 !important;
+}
+
+body.dark-mode thead .column-highlighted {
+    border-top-color: #5dade2 !important;
+}
+
+body.dark-mode tbody tr:last-child .column-highlighted {
+    border-bottom-color: #5dade2 !important;
+}
+
+body.dark-mode th.column-highlighted {
+    background-color: rgba(93, 173, 226, 0.15) !important;
+}
+
+/* Multi-select indicator */
+.fortnight-header.multi-select-mode {
+    cursor: copy;
+}
+
+/* Clear highlights button */
+.clear-highlights-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    background-color: #3498db;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    padding: 10px 20px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+    cursor: pointer;
+    display: none;
+    z-index: 200;
+    font-size: 14px;
+}
+
+.clear-highlights-btn.visible {
+    display: block;
+}
+
+.clear-highlights-btn:hover {
+    background-color: #2980b9;
+}
+
 /* Dark Mode Dashboard */
 body.dark-mode .metric-card {
     background-color: #2a2a2a;
@@ -4563,17 +4697,17 @@ body.dark-mode #pathways-table-container {
 /* Ensure all table cells use the column width variable */
 .data-table td,
 .data-table th:not(.sticky-first-column):not(.gantt-first-column) {
-    min-width: var(--column-width) !important;
-    width: var(--column-width) !important;
-    max-width: var(--column-width) !important;
+    min-width: var(--column-width) \!important;
+    width: var(--column-width) \!important;
+    max-width: var(--column-width) \!important;
     box-sizing: border-box;
 }
 
 /* Exception for month headers that span multiple columns */
 .data-table th[colspan] {
-    width: auto !important;
-    min-width: auto !important;
-    max-width: none !important;
+    width: auto \!important;
+    min-width: auto \!important;
+    max-width: none \!important;
 }
 
 /* Ensure tables expand to fit content */
@@ -4588,10 +4722,10 @@ body .data-table th.fortnight-header,
 body .gantt-table td.gantt-phase-cell,
 body .gantt-table td.gantt-empty-cell,
 body .gantt-table th.gantt-fortnight-header {
-    min-width: var(--column-width) !important;
-    width: var(--column-width) !important;
-    max-width: var(--column-width) !important;
-    padding: 4px !important;
+    min-width: var(--column-width) \!important;
+    width: var(--column-width) \!important;
+    max-width: var(--column-width) \!important;
+    padding: 4px \!important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -6380,60 +6514,70 @@ body.dark-mode .solution-card {
     font-weight: 500;
 }
 
-/* Deficit Resolution Modal Styles */
+/* Deficit Resolution Modal Styles - Material Design */
 #deficit-resolution-modal .modal-content {
-    max-width: 600px !important;
-    width: 90vw;
-    max-height: 70vh;
-    margin: 5vh auto;
-    border-radius: 12px;
+    max-width: 1200px !important;
+    width: 95vw;
+    max-height: 85vh;
+    margin: 2vh auto;
+    border-radius: 8px;
     overflow: hidden;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.12);
 }
 
 #deficit-resolution-modal .modal-header {
-    background: #dc3545;
-    color: white;
-    padding: 15px 20px;
-    border-bottom: none;
+    background: #f8f9fa;
+    color: #495057;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e9ecef;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
 }
 
 #deficit-resolution-modal .modal-header h2 {
     margin: 0;
-    font-size: 18px;
-    font-weight: 600;
+    font-size: 20px;
+    font-weight: 500;
+    color: #495057;
 }
 
 #deficit-resolution-modal .modal-close {
     background: none;
     border: none;
-    color: white;
+    color: #6c757d;
     font-size: 24px;
     cursor: pointer;
-    padding: 0;
-    width: 32px;
-    height: 32px;
+    padding: 8px;
+    width: 40px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 4px;
-    transition: background 0.2s;
+    border-radius: 50%;
+    transition: all 0.2s;
 }
 
 #deficit-resolution-modal .modal-close:hover {
-    background: rgba(255,255,255,0.2);
+    background: #e9ecef;
+    color: #495057;
 }
 
 #deficit-resolution-modal .modal-body {
     padding: 0;
-    max-height: 50vh;
+    max-height: 70vh;
     overflow-y: auto;
+    display: flex;
+    flex-direction: column;
 }
 
 #deficit-resolution-modal .modal-footer {
-    padding: 15px 20px;
-    background: #f8f9fa;
+    padding: 16px 24px;
+    background: #ffffff;
     border-top: 1px solid #e9ecef;
-    gap: 10px;
+    gap: 12px;
+    display: flex;
+    justify-content: flex-end;
 }
 
 body.dark-mode #deficit-resolution-modal .modal-content {
@@ -6441,124 +6585,1091 @@ body.dark-mode #deficit-resolution-modal .modal-content {
     border: 1px solid #444;
 }
 
+body.dark-mode #deficit-resolution-modal .modal-header {
+    background: #2a2a2a;
+    border-bottom-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode #deficit-resolution-modal .modal-header h2 {
+    color: #e0e0e0;
+}
+
+body.dark-mode #deficit-resolution-modal .modal-close {
+    color: #aaa;
+}
+
+body.dark-mode #deficit-resolution-modal .modal-close:hover {
+    background: #404040;
+    color: #e0e0e0;
+}
+
 body.dark-mode #deficit-resolution-modal .modal-footer {
-    background: #1a1a1a;
+    background: #2a2a2a;
     border-top-color: #444;
 }
 
-/* Deficit analysis sections - more condensed */
-#deficit-resolution-modal .deficit-analysis-section {
-    background: none;
-    padding: 20px;
-    margin: 0;
-    border-bottom: 1px solid #e9ecef;
+/* Deficit summary section at top */
+#deficit-summary-section {
+    background: #f8f9fa;
+    padding: 12px 16px;
+    border-bottom: 1px solid #dee2e6;
 }
 
-body.dark-mode #deficit-resolution-modal .deficit-analysis-section {
-    background: none;
-    border-bottom-color: #444;
+.deficit-summary-header {
+    margin-bottom: 8px;
 }
 
-#deficit-resolution-modal .deficit-analysis-section h3 {
-    margin: 0 0 15px 0;
+.deficit-summary-header h3 {
+    margin: 0 0 6px 0;
     font-size: 16px;
-    color: #495057;
-    border-bottom: 2px solid #dc3545;
-    padding-bottom: 8px;
+    font-weight: 500;
+    color: #212529;
 }
 
-body.dark-mode #deficit-resolution-modal .deficit-analysis-section h3 {
-    color: #e0e0e0;
+.deficit-tip {
+    font-size: 12px;
+    color: #6c757d;
+    font-style: italic;
+    margin-top: 8px;
 }
 
-#deficit-resolution-modal .deficit-period {
-    background: #fff5f5;
-    border: 1px solid #f8d7da;
-    border-left: 4px solid #dc3545;
-    border-radius: 6px;
-    padding: 12px 15px;
-    margin-bottom: 10px;
+.deficit-description {
+    padding: 10px 0;
+    color: #555;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 12px;
 }
 
-body.dark-mode #deficit-resolution-modal .deficit-period {
-    background: #2d1a1a;
-    border-color: #5a2a2a;
+.deficit-quick-summary {
+    padding: 10px 12px;
+    background: #fff3cd;
+    border: 1px solid #ffeaa7;
+    border-radius: 4px;
+    margin-bottom: 12px;
+    font-size: 13px;
+    color: #856404;
 }
 
-#deficit-resolution-modal .deficit-period-header {
+#deficit-summary-content {
+    margin: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Calendar-style deficit table */
+.deficit-calendar-table {
+    width: auto;
+    min-width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    background: #ffffff;
+    table-layout: auto;
+}
+
+.deficit-calendar-table th {
+    background: #f8f9fa;
+    padding: 6px 4px;
+    text-align: center;
     font-weight: 600;
-    font-size: 14px;
-    margin-bottom: 5px;
+    color: #333;
+    font-size: 11px;
+    border: 1px solid #ddd;
+    min-width: 60px;
+}
+
+.deficit-calendar-table th small {
+    font-size: 9px;
+    color: #6c757d;
+    font-weight: normal;
+}
+
+.deficit-calendar-table td {
+    padding: 8px 4px;
+    border: 1px solid #ddd;
+    text-align: center;
+    font-weight: 500;
+    min-width: 60px;
+    white-space: nowrap;
+}
+
+.deficit-cell {
+    background: #f8d7da;
     color: #721c24;
 }
 
-body.dark-mode #deficit-resolution-modal .deficit-period-header {
-    color: #f8b4b4;
+.deficit-cell.clickable {
+    cursor: pointer;
+    transition: all 0.2s;
 }
 
-#deficit-resolution-modal .deficit-details {
-    font-size: 13px;
+.deficit-cell.clickable:hover {
+    background: #f5c6cb;
+    transform: scale(1.05);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+}
+
+.surplus-cell {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.improvement-cell {
+    background: #d4edda;
+    color: #155724;
+}
+
+.worsening-cell {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.deficit-header-row {
+    text-align: center;
+    font-weight: 500;
+    background: #f5f5f5;
+    color: #555;
+    border: 1px solid #ddd;
+    padding: 6px;
+}
+
+.deficit-header-row.impact-header {
+    background: #fefaf4;
     color: #856404;
-    margin: 0;
 }
 
-body.dark-mode #deficit-resolution-modal .deficit-details {
-    color: #ffc107;
+.deficit-header-row.adjusted-header {
+    background: #f4f9f4;
+    color: #155724;
 }
 
-/* Solutions section */
-#deficit-resolution-modal #deficit-solutions h3 {
-    margin: 0 0 15px 0;
-    font-size: 16px;
+/* Solutions and preview section */
+#solutions-preview-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    background: #e9ecef;
+    flex: 1;
+}
+
+#solutions-column,
+#preview-column {
+    background: #ffffff;
+    padding: 16px;
+}
+
+.section-header {
+    margin: 0 0 12px 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: #333;
+}
+
+.preview-placeholder {
+    padding: 20px;
+    text-align: center;
+    color: #6c757d;
+    font-style: italic;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+/* Moves summary */
+.moves-summary {
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.move-item {
+    padding: 4px 0;
     color: #495057;
-    border-bottom: 2px solid #28a745;
-    padding-bottom: 8px;
 }
 
-body.dark-mode #deficit-resolution-modal #deficit-solutions h3 {
+/* More deficits note */
+.more-deficits-note {
+    text-align: center;
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 8px;
+    font-style: italic;
+}
+
+/* Impact preview styles */
+.impact-summary {
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.impact-header {
+    font-size: 14px;
+    font-weight: 500;
+    margin-bottom: 12px;
+    color: #495057;
+}
+
+.moves-list {
+    margin-bottom: 16px;
+    font-size: 13px;
+}
+
+.move-item {
+    padding: 4px 0;
+    color: #6c757d;
+}
+
+.impact-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.impact-table th {
+    background: #e9ecef;
+    padding: 8px;
+    text-align: left;
+    font-weight: 500;
+    font-size: 12px;
+}
+
+.impact-table td {
+    padding: 8px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.impact-table .deficit {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.impact-table .positive {
+    color: #28a745;
+}
+
+.impact-table .negative {
+    color: #dc3545;
+}
+
+.resolution-status {
+    margin-top: 16px;
+    padding: 12px;
+    border-radius: 4px;
+    text-align: center;
+    font-size: 14px;
+}
+
+.status-success {
+    background: #d4edda;
+    color: #155724;
+    border: 1px solid #c3e6cb;
+}
+
+.status-warning {
+    background: #fff3cd;
+    color: #856404;
+    border: 1px solid #ffeeba;
+}
+
+/* Dark mode impact preview */
+body.dark-mode .impact-summary {
+    background: #1a1a1a;
+}
+
+body.dark-mode .impact-header {
     color: #e0e0e0;
 }
 
-#deficit-resolution-modal .solution-card {
-    background: #f8fff8;
-    border: 1px solid #d4edda;
-    border-radius: 6px;
-    padding: 12px 15px;
-    margin-bottom: 8px;
-    transition: all 0.2s;
+body.dark-mode .move-item {
+    color: #999;
+}
+
+body.dark-mode .impact-table th {
+    background: #1a1a1a;
+    color: #b0b0b0;
+}
+
+body.dark-mode .impact-table td {
+    border-bottom-color: #333;
+}
+
+body.dark-mode .more-deficits-note {
+    color: #999;
+}
+
+body.dark-mode .status-success {
+    background: #1e3a2e;
+    color: #4ade80;
+    border-color: #166534;
+}
+
+body.dark-mode .status-warning {
+    background: #3a2e1e;
+    color: #fbbf24;
+    border-color: #a16207;
+}
+
+/* Dark mode updates */
+body.dark-mode #deficit-summary-section {
+    background: #1a1a1a;
+    border-bottom-color: #444;
+}
+
+body.dark-mode .deficit-summary-header h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .compact-deficit-table {
+    background: #2a2a2a;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+}
+
+body.dark-mode .compact-deficit-table th {
+    background: #1a1a1a;
+    color: #b0b0b0;
+}
+
+body.dark-mode .compact-deficit-table td {
+    border-bottom-color: #333;
+}
+
+body.dark-mode #solutions-column,
+body.dark-mode #preview-column {
+    background: #2a2a2a;
+}
+
+body.dark-mode #solutions-preview-section {
+    background: #444;
+}
+
+body.dark-mode .preview-placeholder {
+    background: #1a1a1a;
+    color: #888;
+}
+
+/* Deficit analysis sections - material design */
+.deficit-section-header {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #495057;
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 8px;
 }
 
-body.dark-mode #deficit-resolution-modal .solution-card {
-    background: #1a2d1a;
-    border-color: #2a5a2a;
-}
-
-#deficit-resolution-modal .solution-card:hover {
-    border-color: #28a745;
-    background: #f0fff0;
-}
-
-body.dark-mode #deficit-resolution-modal .solution-card:hover {
-    background: #254025;
-}
-
-#deficit-resolution-modal .solution-checkbox {
-    margin: 0;
-}
-
-#deficit-resolution-modal .solution-text {
-    flex: 1;
+/* Deficit summary table */
+.deficit-summary-table {
+    width: 100%;
+    border-collapse: collapse;
     font-size: 14px;
+}
+
+.deficit-summary-table th {
+    background: #f8f9fa;
+    padding: 10px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+}
+
+.deficit-summary-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.deficit-summary-table .deficit-total {
+    font-weight: 600;
+    color: #dc3545;
+}
+
+.deficit-summary-note {
+    margin-top: 12px;
+    padding: 10px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 13px;
+    color: #6c757d;
+}
+
+body.dark-mode .deficit-summary-table th {
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border-bottom-color: #555;
+}
+
+body.dark-mode .deficit-summary-table td {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .deficit-summary-note {
+    background: #3a3a3a;
+    color: #aaa;
+}
+
+body.dark-mode .deficit-section-header {
+    color: #e0e0e0;
+}
+
+.deficit-section-header::before {
+    content: "⚠️";
+    font-size: 14px;
+}
+
+.deficit-period-card {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    border-left: 4px solid #ffc107;
+}
+
+body.dark-mode .deficit-period-card {
+    background: #1a1a1a;
+    border-color: #444;
+}
+
+.deficit-period-title {
+    font-weight: 500;
+    font-size: 14px;
+    margin-bottom: 8px;
+    color: #495057;
+}
+
+body.dark-mode .deficit-period-title {
+    color: #e0e0e0;
+}
+
+.deficit-period-details {
+    font-size: 13px;
+    color: #6c757d;
+    line-height: 1.4;
+}
+
+body.dark-mode .deficit-period-details {
+    color: #aaa;
+}
+
+/* Solutions section - material design */
+.solutions-section-header {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.solutions-header {
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.solution-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+}
+
+.solution-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.solution-badge.badge-success {
+    background: #d4edda;
+    color: #155724;
+}
+
+.solution-badge.badge-info {
+    background: #d1ecf1;
+    color: #0c5460;
+}
+
+.solution-badge.badge-warning {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.solution-content {
+    flex: 1;
+}
+
+body.dark-mode .solutions-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .solution-badge.badge-success {
+    background: #1e4620;
+    color: #a8d8ac;
+}
+
+body.dark-mode .solution-badge.badge-info {
+    background: #1a4d5a;
+    color: #9ed4e3;
+}
+
+body.dark-mode .solution-badge.badge-warning {
+    background: #4a3f1a;
+    color: #e3c878;
+}
+
+body.dark-mode .solutions-section-header {
+    color: #e0e0e0;
+}
+
+.solutions-section-header::before {
+    content: "🔧";
+    font-size: 14px;
+}
+
+.solution-item {
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 12px;
+    transition: all 0.2s;
+    cursor: pointer;
+}
+
+body.dark-mode .solution-item {
+    background: #1a1a1a;
+    border-color: #444;
+}
+
+.solution-item:hover {
+    border-color: #007bff;
+    box-shadow: 0 2px 8px rgba(0,123,255,0.1);
+}
+
+.solution-item.selected {
+    border-color: #007bff;
+    background: #f8f9ff;
+}
+
+body.dark-mode .solution-item.selected {
+    background: #1a1a2a;
+    border-color: #4dabf7;
+}
+
+.solution-header {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 8px;
+}
+
+.solution-checkbox {
+    margin-top: 2px;
+}
+
+.solution-title {
+    font-weight: 500;
+    font-size: 14px;
+    color: #495057;
+    margin-bottom: 4px;
+}
+
+body.dark-mode .solution-title {
+    color: #e0e0e0;
+}
+
+.solution-description {
+    font-size: 13px;
+    color: #6c757d;
+    line-height: 1.4;
+    margin-bottom: 8px;
+}
+
+body.dark-mode .solution-description {
+    color: #aaa;
+}
+
+.solution-impact {
+    display: inline-block;
+    background: #e8f5e8;
+    color: #2d5a2d;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+body.dark-mode .solution-impact {
+    background: #1a3d1a;
+    color: #a5d6a5;
+}
+
+/* Cohort rescheduling styles */
+.cohort-reschedule-header {
+    margin-bottom: 20px;
+    padding-bottom: 16px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.cohort-reschedule-header strong {
+    display: block;
+    font-size: 16px;
+    color: #495057;
+    margin-bottom: 4px;
+}
+
+.cohort-reschedule-header small {
+    color: #6c757d;
+    font-size: 13px;
+}
+
+.cohort-section {
+    margin-bottom: 24px;
+}
+
+.cohort-section h4 {
+    font-size: 14px;
+    font-weight: 600;
+    color: #495057;
+    margin: 0 0 12px 0;
+    padding: 8px 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+}
+
+.cohort-reschedule-item {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.cohort-reschedule-item:hover {
+    border-color: #dee2e6;
+    background: #ffffff;
+}
+
+.cohort-checkbox-wrapper {
+    margin-right: 10px;
+}
+
+.cohort-info {
+    flex: 1;
+    min-width: 0;
+    margin-right: 12px;
+}
+
+.cohort-info label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
     margin: 0;
 }
 
-#deficit-resolution-modal .solution-impact {
-    font-weight: 600;
-    color: #28a745;
+.cohort-info strong {
+    color: #495057;
     font-size: 13px;
+}
+
+.cohort-meta {
+    color: #6c757d;
+    font-size: 12px;
+    margin-left: 8px;
+}
+
+.fo-limit-note {
+    font-size: 11px;
+    color: #fd7e14;
+    margin-left: 8px;
+    font-style: italic;
+}
+
+.initial-message {
+    text-align: center;
+    padding: 40px 20px;
+    color: #6c757d;
+}
+
+.initial-message h3 {
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.no-cohorts-message {
+    padding: 20px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    border: 1px solid #dee2e6;
+}
+
+.no-cohorts-message h3 {
+    color: #495057;
+    margin-bottom: 12px;
+}
+
+.no-cohorts-message ul {
+    margin: 12px 0 0 20px;
+    color: #6c757d;
+}
+
+.period-focus-header {
+    padding: 12px;
+    background: #e3f2fd;
+    border: 1px solid #90caf9;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.period-focus-header h3 {
+    margin: 0 0 4px 0;
+    color: #1976d2;
+    font-size: 16px;
+}
+
+.period-focus-header p {
+    margin: 0;
+    color: #1565c0;
+    font-size: 13px;
+}
+
+.impact-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-top: 8px;
+    padding: 8px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 12px;
+}
+
+.impact-details span {
+    display: block;
+}
+
+.start-date {
+    color: #6c757d;
+}
+
+.lt-period {
+    color: #0066cc;
+    font-weight: 500;
+}
+
+.deficit-impact {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+.no-impact {
+    color: #28a745;
+}
+
+body.dark-mode .impact-details {
+    background: #2d2d2d;
+}
+
+body.dark-mode .deficit-impact {
+    color: #ff6b6b;
+}
+
+body.dark-mode .no-impact {
+    color: #51cf66;
+}
+
+body.dark-mode .lt-period {
+    color: #339af0;
+}
+
+body.dark-mode .initial-message {
+    color: #999;
+}
+
+body.dark-mode .initial-message h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .no-cohorts-message {
+    background: #2d2d2d;
+    border-color: #444;
+}
+
+body.dark-mode .no-cohorts-message h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .no-cohorts-message ul {
+    color: #999;
+}
+
+body.dark-mode .period-focus-header {
+    background: #1a3a52;
+    border-color: #2196f3;
+}
+
+body.dark-mode .period-focus-header h3 {
+    color: #64b5f6;
+}
+
+body.dark-mode .period-focus-header p {
+    color: #42a5f5;
+}
+
+.move-selector {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.current-date {
+    color: #6c757d;
+    font-size: 12px;
+}
+
+.arrow {
+    color: #adb5bd;
+    font-size: 14px;
+}
+
+.new-date-select {
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    font-size: 12px;
+    color: #495057;
+    background: white;
+    min-width: 200px;
+    cursor: pointer;
+}
+
+.new-date-select option[data-capacity] {
+    padding: 4px;
+}
+
+.reschedule-summary {
+    margin-top: 20px;
+    padding: 16px;
+    background: #f8f9fa;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.reschedule-summary .tip {
+    margin-bottom: 8px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.reschedule-summary ul {
+    margin: 0;
+    padding-left: 20px;
+    color: #6c757d;
+}
+
+.reschedule-summary li {
+    margin-bottom: 4px;
+}
+
+/* Dark mode support */
+body.dark-mode .cohort-reschedule-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .cohort-reschedule-header strong {
+    color: #e0e0e0;
+}
+
+body.dark-mode .cohort-section h4 {
+    background: #3a3a3a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .cohort-reschedule-item {
+    background: #1a1a1a;
+    border-color: #444;
+}
+
+body.dark-mode .cohort-reschedule-item:hover {
+    border-color: #555;
+}
+
+body.dark-mode .cohort-info strong {
+    color: #e0e0e0;
+}
+
+body.dark-mode .new-date-select {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .reschedule-summary {
+    background: #2a2a2a;
+}
+
+body.dark-mode .reschedule-summary .tip {
+    color: #e0e0e0;
+}
+
+/* Preview section */
+.preview-section {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid #e9ecef;
+}
+
+body.dark-mode .preview-section {
+    border-top-color: #444;
+}
+
+.preview-header {
+    margin: 0 0 16px 0;
+    font-size: 16px;
+    font-weight: 500;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+body.dark-mode .preview-header {
+    color: #e0e0e0;
+}
+
+.preview-header::before {
+    content: "📊";
+    font-size: 14px;
+}
+
+.preview-summary {
+    margin-bottom: 16px;
+    font-weight: 500;
+    color: #495057;
+}
+
+.impact-summary-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-bottom: 16px;
+}
+
+.impact-summary-table th {
+    background: #f8f9fa;
+    padding: 10px;
+    text-align: left;
+    font-weight: 500;
+    border-bottom: 2px solid #dee2e6;
+    color: #495057;
+}
+
+.impact-summary-table td {
+    padding: 10px;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.impact-summary-table td.deficit {
+    color: #dc3545;
+    font-weight: 500;
+}
+
+.impact-summary-table td.surplus {
+    color: #28a745;
+    font-weight: 500;
+}
+
+.preview-notes {
+    margin-top: 16px;
+    padding: 12px;
+    background: #f8f9fa;
+    border-radius: 4px;
+    font-size: 13px;
+}
+
+.preview-notes ul {
+    margin: 8px 0;
+    padding-left: 20px;
+}
+
+.preview-notes li {
+    margin-bottom: 4px;
+    color: #495057;
+}
+
+body.dark-mode .preview-summary {
+    color: #e0e0e0;
+}
+
+body.dark-mode .impact-summary-table th {
+    background: #3a3a3a;
+    color: #e0e0e0;
+    border-bottom-color: #555;
+}
+
+body.dark-mode .impact-summary-table td {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .preview-notes {
+    background: #3a3a3a;
+}
+
+body.dark-mode .preview-notes li {
+    color: #ccc;
+}
+
+.preview-table {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 12px;
+}
+
+body.dark-mode .preview-table {
+    background: #1a1a1a;
+}
+
+.preview-table table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.preview-table th,
+.preview-table td {
+    padding: 4px 8px;
+    text-align: center;
+    border: 1px solid #e9ecef;
+}
+
+body.dark-mode .preview-table th,
+body.dark-mode .preview-table td {
+    border-color: #444;
+}
+
+.preview-table th {
+    background: #e9ecef;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+body.dark-mode .preview-table th {
+    background: #333;
 }
 
 /* Scrollbar styling for modal */
@@ -6714,14 +7825,98 @@ body.dark-mode .category-cell.available {
     color: #66bb6a;
 }
 
+/* Dark mode styles for deficit resolution modal */
+body.dark-mode .deficit-calendar-table {
+    background: #1a1a1a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .deficit-calendar-table th {
+    background: #2d2d2d;
+    color: #e0e0e0;
+    border-color: #444;
+}
+
+body.dark-mode .deficit-calendar-table th small {
+    color: #999;
+}
+
+body.dark-mode .deficit-calendar-table td {
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .deficit-cell {
+    background: #5a1e1e;
+    color: #ff9999;
+}
+
+body.dark-mode .deficit-cell.clickable:hover {
+    background: #6a2e2e;
+    color: #ffaaaa;
+}
+
+body.dark-mode .surplus-cell {
+    background: #1e3a4a;
+    color: #87ceeb;
+}
+
+body.dark-mode .improvement-cell {
+    background: #1e3e1e;
+    color: #90ee90;
+}
+
+body.dark-mode .worsening-cell {
+    background: #5a1e1e;
+    color: #ff9999;
+}
+
+body.dark-mode #deficit-summary-content {
+    background: #1a1a1a;
+}
+
+body.dark-mode .deficit-tip {
+    background: #2d2d2d;
+    border-color: #444;
+    color: #b0b0b0;
+}
+
+body.dark-mode .deficit-description {
+    color: #b0b0b0;
+}
+
+body.dark-mode .deficit-quick-summary {
+    background: #3a3a2a;
+    border-color: #5a5a3a;
+    color: #d4a76a;
+}
+
+body.dark-mode .deficit-header-row {
+    background: #2d2d2d;
+    color: #b0b0b0;
+    border-color: #444;
+}
+
+body.dark-mode .deficit-header-row.impact-header {
+    background: #3a3a2a;
+    color: #d4a76a;
+}
+
+body.dark-mode .deficit-header-row.adjusted-header {
+    background: #2a3a2a;
+    color: #90ee90;
+}
+
 .spacing-row td {
     padding: 0 !important;
     height: 10px !important;
     background: transparent !important;
 }
+
     </style>
 </head>
 <body>
+
     <div class="container">
         <header>
             <h1>Pilot Trainer Supply/Demand Planner</h1>
@@ -7525,6 +8720,7 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                             <button id="view-grid" class="view-btn active" title="Grid view">⊞</button>
                             <button id="view-list" class="view-btn" title="List view">☰</button>
                         </div>
+                        <button id="new-scenario" class="btn btn-primary" title="Create a new scenario">New Scenario</button>
                         <button id="compare-scenarios" class="btn btn-secondary" title="Compare two scenarios" disabled>Compare</button>
                         <button id="export-all-scenarios" class="btn btn-secondary" title="Export all scenarios">Export All</button>
                         <button id="import-scenarios" class="btn btn-secondary" title="Import scenarios">Import</button>
@@ -7540,6 +8736,11 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
 
     <!-- Toast Container -->
     <div id="toast-container" class="toast-container"></div>
+    
+    <!-- Clear Highlights Button -->
+    <button id="clear-highlights-btn" class="clear-highlights-btn" onclick="clearAllHighlights()">
+        Clear Highlights (<span id="highlight-count">0</span>)
+    </button>
 
     <!-- Import Rename Modal -->
     <div id="import-rename-modal" class="modal">
@@ -7689,29 +8890,52 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
     
     <!-- Deficit Resolution Modal -->
     <div id="deficit-resolution-modal" class="modal">
-        <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-content">
             <div class="modal-header">
                 <h2>Deficit Resolution Assistant</h2>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
-                <div id="deficit-analysis">
-                    <!-- Deficit analysis will be dynamically inserted here -->
+                <!-- Compact Deficit Summary -->
+                <div id="deficit-summary-section">
+                    <div class="deficit-description">Select cohorts below to reschedule them to periods with available capacity. The table shows current trainer availability and how your changes will impact the schedule.</div>
+                    <div id="deficit-summary-content">
+                        <!-- Compact deficit summary will be inserted here -->
+                    </div>
                 </div>
-                <div id="deficit-solutions">
-                    <!-- Solutions will be dynamically inserted here -->
+                
+                <!-- Two columns for solutions and preview -->
+                <div id="solutions-preview-section">
+                    <!-- Left Column: Solutions -->
+                    <div id="solutions-column">
+                        <div class="section-header">Cohorts to Reschedule</div>
+                        <div id="deficit-solutions">
+                            <!-- Solutions will be dynamically inserted here -->
+                        </div>
+                    </div>
+                    
+                    <!-- Right Column: Preview -->
+                    <div id="preview-column">
+                        <div class="section-header">Selected Moves</div>
+                        <div id="preview-content">
+                            <div class="preview-placeholder">
+                                Select cohorts to see moves
+                            </div>
+                            <!-- Preview will be dynamically updated here -->
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
-                <button id="preview-deficit-changes" class="btn btn-secondary">Preview Impact</button>
-                <button id="apply-deficit-solutions" class="btn btn-primary" disabled>Apply Selected</button>
+                <button id="apply-deficit-solutions" class="btn btn-primary" disabled>Apply Selected Solutions</button>
                 <button class="btn btn-secondary modal-cancel">Cancel</button>
             </div>
         </div>
     </div>
 
     <script src="app.js"></script>
-<script>
+
+    <script>
 // Configuration Constants
 const START_YEAR = 2024;
 const END_YEAR = 2034;
@@ -7994,8 +9218,11 @@ let viewState = {
     showCrossLocationCommencements: false
 };
 
-// Dashboard navigation state
-let dashboardViewOffset = { AU: 0, NZ: 0 }; // Months offset from current date per location
+// Dashboard navigation state - now location-specific
+let dashboardViewOffset = {
+    AU: 0,
+    NZ: 0
+};
 
 // Navigate dashboard view
 function navigateDashboard(months) {
@@ -8297,6 +9524,9 @@ function switchLocation(newLocation) {
                     updateAllTables();
                     perfMonitor.end('switchLocation.updateTables');
                     
+                    // Check for deficits after location switch
+                    checkForDeficits();
+                    
                     perfMonitor.start('switchLocation.renderGantt');
                     renderGanttChart();
                     perfMonitor.end('switchLocation.renderGantt');
@@ -8413,7 +9643,7 @@ function initDashboardToggle() {
 
 function calculateMetricTrends() {
     const currentDate = new Date();
-    currentDate.setMonth(currentDate.getMonth() + (dashboardViewOffset[currentLocation] || 0));
+    currentDate.setMonth(currentDate.getMonth() + dashboardViewOffset);
     const currentYear = currentDate.getFullYear();
     const currentMonth = currentDate.getMonth();
     const currentFortnight = (currentMonth * 2) + (currentDate.getDate() <= 14 ? 1 : 2);
@@ -8571,6 +9801,266 @@ function loadDefaultFTE() {
     return false;
 }
 
+// Migrate old scenarios to include AU/NZ stats
+function migrateScenarioStats() {
+    const scenarios = getScenarios();
+    let migrated = 0;
+    
+    scenarios.forEach(scenario => {
+        // Check if scenario needs migration (missing AU/NZ stats)
+        if (!scenario.stats.auCohorts && !scenario.stats.nzCohorts) {
+            if (scenario.state.locationData) {
+                // New format scenario with locationData
+                scenario.stats.auCohorts = scenario.state.locationData.AU?.activeCohorts?.length || 0;
+                scenario.stats.nzCohorts = scenario.state.locationData.NZ?.activeCohorts?.length || 0;
+                scenario.stats.auTrainees = scenario.state.locationData.AU?.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0;
+                scenario.stats.nzTrainees = scenario.state.locationData.NZ?.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0;
+            } else if (scenario.state.cohorts) {
+                // Legacy format - check cohorts for location property
+                const auCohorts = scenario.state.cohorts.filter(c => !c.location || c.location === 'AU');
+                const nzCohorts = scenario.state.cohorts.filter(c => c.location === 'NZ');
+                
+                scenario.stats.auCohorts = auCohorts.length;
+                scenario.stats.nzCohorts = nzCohorts.length;
+                scenario.stats.auTrainees = auCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+                scenario.stats.nzTrainees = nzCohorts.reduce((sum, c) => sum + c.numTrainees, 0);
+            } else {
+                // Fallback - all cohorts go to AU
+                scenario.stats.auCohorts = scenario.stats.totalCohorts || 0;
+                scenario.stats.nzCohorts = 0;
+                scenario.stats.auTrainees = scenario.stats.totalTrainees || 0;
+                scenario.stats.nzTrainees = 0;
+            }
+            migrated++;
+        }
+    });
+    
+    if (migrated > 0) {
+        // Save the migrated scenarios
+        localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+        console.log(`Migrated ${migrated} scenarios to include AU/NZ stats`);
+    }
+}
+
+// Setup keyboard shortcuts for navigation
+function setupKeyboardShortcuts() {
+    document.addEventListener('keydown', (e) => {
+        // Don't trigger if user is typing in an input
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') {
+            return;
+        }
+        
+        // Only work in planner view
+        if (!document.getElementById('planner-view').classList.contains('active')) {
+            return;
+        }
+        
+        switch(e.key) {
+            case 'ArrowLeft':
+                e.preventDefault();
+                document.getElementById('nav-left')?.click();
+                break;
+            case 'ArrowRight':
+                e.preventDefault();
+                document.getElementById('nav-right')?.click();
+                break;
+            case 'Home':
+                e.preventDefault();
+                document.getElementById('today-btn')?.click();
+                break;
+        }
+    });
+}
+
+// Setup column highlighting system
+let highlightedColumns = new Set();
+
+function setupColumnHighlighting() {
+    // Clear highlights when clicking outside of headers
+    document.addEventListener('click', (e) => {
+        // Check if click is on a header cell
+        const isHeaderClick = e.target.closest('.month-header, .fortnight-header');
+        const isWithinTable = e.target.closest('.table-container, .gantt-container');
+        
+        if (!isHeaderClick && isWithinTable) {
+            clearAllHighlights();
+        }
+    });
+    
+    // Escape key to clear
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            clearAllHighlights();
+        }
+    });
+}
+
+function handleColumnClick(e, year, fortnight) {
+    e.stopPropagation();
+    
+    const columnId = `${year}-${fortnight}`;
+    
+    // Show hint on first use
+    if (highlightedColumns.size === 0 && !localStorage.getItem('columnHighlightHintShown')) {
+        showNotification('💡 Tip: Ctrl+Click for multi-select, Shift+Click for range select', 'info', 5000);
+        localStorage.setItem('columnHighlightHintShown', 'true');
+    }
+    
+    if (e.ctrlKey || e.metaKey) {
+        // Multi-select mode
+        if (highlightedColumns.has(columnId)) {
+            highlightedColumns.delete(columnId);
+        } else {
+            highlightedColumns.add(columnId);
+        }
+    } else if (e.shiftKey && highlightedColumns.size > 0) {
+        // Range select
+        const lastColumn = Array.from(highlightedColumns).pop();
+        selectRange(lastColumn, columnId);
+    } else {
+        // Single select - clear others first
+        highlightedColumns.clear();
+        highlightedColumns.add(columnId);
+    }
+    
+    applyHighlights();
+}
+
+function selectRange(startCol, endCol) {
+    const [startYear, startFn] = startCol.split('-').map(Number);
+    const [endYear, endFn] = endCol.split('-').map(Number);
+    
+    let currentYear = startYear;
+    let currentFn = startFn;
+    
+    // Clear existing highlights for clean range
+    highlightedColumns.clear();
+    
+    // Determine direction
+    const goingForward = (endYear > startYear) || (endYear === startYear && endFn >= startFn);
+    
+    while (true) {
+        highlightedColumns.add(`${currentYear}-${currentFn}`);
+        
+        if (currentYear === endYear && currentFn === endFn) break;
+        
+        if (goingForward) {
+            currentFn++;
+            if (currentFn > FORTNIGHTS_PER_YEAR) {
+                currentFn = 1;
+                currentYear++;
+            }
+        } else {
+            currentFn--;
+            if (currentFn < 1) {
+                currentFn = FORTNIGHTS_PER_YEAR;
+                currentYear--;
+            }
+        }
+        
+        // Safety check
+        if (currentYear < START_YEAR || currentYear > END_YEAR) break;
+    }
+}
+
+function applyHighlights() {
+    // Remove all existing highlights and edge classes
+    document.querySelectorAll('.column-highlighted, .column-left-edge, .column-right-edge').forEach(el => {
+        el.classList.remove('column-highlighted', 'column-left-edge', 'column-right-edge');
+    });
+    
+    // Convert Set to sorted array to find edges
+    const sortedColumns = Array.from(highlightedColumns).sort((a, b) => {
+        const [yearA, fnA] = a.split('-').map(Number);
+        const [yearB, fnB] = b.split('-').map(Number);
+        return yearA !== yearB ? yearA - yearB : fnA - fnB;
+    });
+    
+    // Apply new highlights with edge detection
+    sortedColumns.forEach((columnId, index) => {
+        const prevId = index > 0 ? sortedColumns[index - 1] : null;
+        const nextId = index < sortedColumns.length - 1 ? sortedColumns[index + 1] : null;
+        
+        // Check if this column is adjacent to previous/next
+        const isLeftEdge = !prevId || !isAdjacent(prevId, columnId);
+        const isRightEdge = !nextId || !isAdjacent(columnId, nextId);
+        
+        // Highlight all cells with matching data-column attribute
+        document.querySelectorAll(`[data-column="${columnId}"]`).forEach(el => {
+            el.classList.add('column-highlighted');
+            if (isLeftEdge) el.classList.add('column-left-edge');
+            if (isRightEdge) el.classList.add('column-right-edge');
+        });
+    });
+    
+    // Show/hide clear button
+    updateClearHighlightsButton();
+}
+
+// Helper function to check if two columns are adjacent
+function isAdjacent(col1, col2) {
+    const [year1, fn1] = col1.split('-').map(Number);
+    const [year2, fn2] = col2.split('-').map(Number);
+    
+    if (year1 === year2) {
+        return fn2 === fn1 + 1;
+    } else if (year2 === year1 + 1) {
+        return fn1 === FORTNIGHTS_PER_YEAR && fn2 === 1;
+    }
+    return false;
+}
+
+function clearAllHighlights() {
+    highlightedColumns.clear();
+    document.querySelectorAll('.column-highlighted, .column-left-edge, .column-right-edge').forEach(el => {
+        el.classList.remove('column-highlighted', 'column-left-edge', 'column-right-edge');
+    });
+    updateClearHighlightsButton();
+}
+
+function updateClearHighlightsButton() {
+    const button = document.getElementById('clear-highlights-btn');
+    const countSpan = document.getElementById('highlight-count');
+    
+    if (button) {
+        const hasHighlights = highlightedColumns.size > 0;
+        button.classList.toggle('visible', hasHighlights);
+        
+        if (countSpan) {
+            countSpan.textContent = highlightedColumns.size;
+        }
+    }
+}
+
+// Setup sticky navigation shadow effect
+function setupStickyNavigation() {
+    const viewControlsSection = document.querySelector('.view-controls-section');
+    if (!viewControlsSection) return;
+    
+    let ticking = false;
+    
+    function updateStickyClass() {
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        
+        if (scrollTop > 10) {
+            viewControlsSection.classList.add('sticky');
+        } else {
+            viewControlsSection.classList.remove('sticky');
+        }
+        
+        ticking = false;
+    }
+    
+    function requestTick() {
+        if (!ticking) {
+            window.requestAnimationFrame(updateStickyClass);
+            ticking = true;
+        }
+    }
+    
+    window.addEventListener('scroll', requestTick);
+}
+
 // Initialize the application
 function init() {
     perfMonitor.start('init');
@@ -8581,12 +10071,17 @@ function init() {
     
     perfMonitor.start('init.migrate');
     migrateDataToLocations(); // Migrate data first
+    migrateScenarioStats(); // Migrate scenario stats to include AU/NZ split
     perfMonitor.end('init.migrate');
     
     perfMonitor.start('init.loadDefaults');
     // Load default FTE if available
     if (loadDefaultFTE()) {
         // console.log('Loaded default FTE from localStorage');
+        // console.log('AU FTE after loading defaults:', locationData.AU.trainerFTE);
+        // console.log('NZ FTE after loading defaults:', locationData.NZ.trainerFTE);
+    } else {
+        // console.log('No default FTE found in localStorage');
     }
     perfMonitor.end('init.loadDefaults');
     
@@ -8604,6 +10099,9 @@ function init() {
         trainerFTE = locationData[currentLocation].trainerFTE;
         priorityConfig = locationData[currentLocation].priorityConfig;
         activeCohorts = locationData[currentLocation].activeCohorts;
+        // console.log('Setting global trainerFTE from location data:');
+        // console.log('Current location:', currentLocation);
+        // console.log('Global trainerFTE now:', trainerFTE);
     }
     
     // Update UI to reflect saved location
@@ -8641,6 +10139,9 @@ function init() {
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
+            // console.log('After loading scenario:');
+            // console.log('AU FTE after scenario:', locationData.AU.trainerFTE);
+            // console.log('Global trainerFTE after scenario:', trainerFTE);
             // Delay notification until after UI is ready
             setTimeout(() => {
                 showNotification(`Loaded: ${scenario.name}`, 'info');
@@ -8701,7 +10202,9 @@ function init() {
     // Force dashboard update if we loaded a scenario and we're on dashboard
     if (scenarioLoaded && lastActiveTab === 'dashboard') {
         setTimeout(() => {
-            console.log('Force updating dashboard after scenario load');
+            // console.log('Force updating dashboard after scenario load');
+            // console.log('Global trainerFTE at dashboard update:', trainerFTE);
+            // console.log('Location FTE at dashboard update:', locationData[currentLocation].trainerFTE);
             updateDashboardV2();
         }, 200);
     }
@@ -8724,6 +10227,18 @@ function init() {
         }, 500);
     });
     
+    // Setup sticky navigation shadow
+    setupStickyNavigation();
+    
+    // Setup keyboard shortcuts for navigation
+    setupKeyboardShortcuts();
+    
+    // Setup column highlighting
+    setupColumnHighlighting();
+    
+    // Initialize deficit detection
+    initializeDeficitDetection();
+    
     // Show refresh notification if page was reloaded
     if (performance.navigation && performance.navigation.type === 1) {
         // Type 1 is reload
@@ -8739,6 +10254,13 @@ function init() {
             }, 100);
         }
     }
+}
+
+// Helper function to generate data cell with column tracking
+function generateDataCell(year, fortnight, content, additionalClasses = '', additionalStyles = '') {
+    return `<td class="data-cell ${additionalClasses}" 
+               data-column="${year}-${fortnight}" 
+               ${additionalStyles ? `style="${additionalStyles}"` : ''}>${content}</td>`;
 }
 
 // Generate table headers with months and fortnights
@@ -8793,8 +10315,10 @@ function generateTableHeaders(includeYearColumn = true, includeLabels = true) {
         }
         monthSpan++;
         
-        // Add fortnight header
-        fortnightHeaders += `<th class="fortnight-header">FN${String(currentFn).padStart(2, '0')}</th>`;
+        // Add fortnight header with click handler and data attribute
+        fortnightHeaders += `<th class="fortnight-header" data-column="${currentYear}-${currentFn}" 
+                                 onclick="handleColumnClick(event, ${currentYear}, ${currentFn})"
+                                 style="cursor: pointer;">FN${String(currentFn).padStart(2, '0')}</th>`;
         
         currentFn++;
         if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -9027,10 +10551,15 @@ function setupEventListeners() {
     }
     
     // Export/Import buttons
+    const newScenarioBtn = document.getElementById('new-scenario');
     const exportAllBtn = document.getElementById('export-all-scenarios');
     const importBtn = document.getElementById('import-scenarios');
     const importFileInput = document.getElementById('import-file-input');
     const compareBtn = document.getElementById('compare-scenarios');
+    
+    if (newScenarioBtn) {
+        newScenarioBtn.addEventListener('click', createNewScenario);
+    }
     
     if (exportAllBtn) {
         exportAllBtn.addEventListener('click', exportAllScenarios);
@@ -9338,7 +10867,7 @@ function setupEventListeners() {
                 // Extra timeout for ALL view to ensure everything is rendered
                 setTimeout(() => {
                     setupSynchronizedScrolling();
-                    console.log('Extra sync setup for ALL view');
+                    // console.log('Extra sync setup for ALL view');
                 }, 200);
             }
         });
@@ -9747,7 +11276,7 @@ function scrollToToday() {
     const isFirstHalf = currentDay <= 15;
     const currentFortnight = (currentMonth - 1) * 2 + (isFirstHalf ? 1 : 2);
     
-    console.log(`Today: ${currentYear}-${currentMonth}-${currentDay}, Fortnight: ${currentFortnight}`);
+    // console.log(`Today: ${currentYear}-${currentMonth}-${currentDay}, Fortnight: ${currentFortnight}`);
     
     // Get the current time range
     const range = getTimeRangeForView();
@@ -9759,7 +11288,7 @@ function scrollToToday() {
                         (currentYear === range.endYear && currentFortnight <= range.endFortnight));
     
     if (!todayInView) {
-        console.log('Today is not within the current view range');
+        // console.log('Today is not within the current view range');
         return;
     }
     
@@ -9788,9 +11317,9 @@ function scrollToToday() {
         }
     }
     
-    console.log(`Today is Year ${currentYear} FN${currentFortnight}`);
-    console.log(`View starts at Year ${range.startYear} FN${range.startFortnight}`);
-    console.log(`Column index (0-based): ${columnIndex}`);
+    // console.log(`Today is Year ${currentYear} FN${currentFortnight}`);
+    // console.log(`View starts at Year ${range.startYear} FN${range.startFortnight}`);
+    // console.log(`Column index (0-based): ${columnIndex}`);
     
     // Apply -3 month offset (6 fortnights) to center the view
     const scrollColumn = Math.max(0, columnIndex - 6);
@@ -9844,7 +11373,7 @@ function switchView(viewName) {
             // Setup sync when switching to planner
             setTimeout(() => {
                 setupSynchronizedScrolling();
-                console.log('Sync setup after switching to planner view');
+                // console.log('Sync setup after switching to planner view');
                 // Scroll to today and update view buttons
                 scrollToToday();
                 updateViewButtons();
@@ -10011,6 +11540,9 @@ function updateAllTables() {
         updateDashboardV2();
     }
     
+    // Check for deficits after updating tables
+    checkForDeficits();
+    
     perfMonitor.end('updateAllTables');
 }
 
@@ -10068,12 +11600,12 @@ function adjustColumnWidths() {
     document.documentElement.style.setProperty('--column-width', `${columnWidth}px`);
     
     // Debug log
-    console.log('Column width adjusted:', {
-        view: viewState.currentView,
-        totalColumns,
-        viewportWidth: window.innerWidth,
-        calculatedWidth: columnWidth
-    });
+    // console.log('Column width adjusted:', {
+    //     view: viewState.currentView,
+    //     totalColumns,
+    //     viewportWidth: window.innerWidth,
+    //     calculatedWidth: columnWidth
+    // });
 }
 
 // Global variable to store scroll handlers
@@ -10122,7 +11654,7 @@ function setupSynchronizedScrolling() {
         }
     });
     
-    console.log(`Sync established for ${containers.filter(c => c).length} containers`);
+    // console.log(`Sync established for ${containers.filter(c => c).length} containers`);
 }
 
 // Toggle FTE Summary
@@ -10220,7 +11752,7 @@ function renderCommencementSummary() {
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        html += `<td class="data-cell">${data.CP || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, data.CP || '-');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -10240,7 +11772,7 @@ function renderCommencementSummary() {
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        html += `<td class="data-cell">${data.FO || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, data.FO || '-');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -10260,7 +11792,7 @@ function renderCommencementSummary() {
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFortnight <= range.endFortnight)) {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
-        html += `<td class="data-cell">${data.CAD || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, data.CAD || '-');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -10308,7 +11840,7 @@ function renderCommencementSummary() {
             const key = `${currentYear}-${currentFortnight}`;
             const data = nzCommencements[key] || { FO: 0, CAD: 0 };
             const nzTotal = data.FO + data.CAD;
-            html += `<td class="data-cell" style="font-style: italic; color: #3498db; background: rgba(52, 152, 219, 0.05);">${nzTotal || '-'}</td>`;
+            html += generateDataCell(currentYear, currentFortnight, nzTotal || '-', '', 'font-style: italic; color: #3498db; background: rgba(52, 152, 219, 0.05);');
             
             currentFortnight++;
             if (currentFortnight > 24) {
@@ -10330,7 +11862,7 @@ function renderCommencementSummary() {
         const key = `${currentYear}-${currentFortnight}`;
         const data = commencements[key] || { CP: 0, FO: 0, CAD: 0, total: 0 };
         const foAndCad = data.FO + data.CAD;
-        html += `<td class="data-cell" style="font-style: italic; color: var(--text-secondary);">${foAndCad || '-'}</td>`;
+        html += generateDataCell(currentYear, currentFortnight, foAndCad || '-', '', 'font-style: italic; color: var(--text-secondary);');
         
         currentFortnight++;
         if (currentFortnight > 24) {
@@ -10389,14 +11921,18 @@ function renderFTESummaryTable() {
     let currentYear = range.startYear;
     let currentFn = range.startFortnight;
     
-    // Use location-specific FTE if available
+    // Debug log FTE values
     const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
         locationData[currentLocation].trainerFTE : trainerFTE;
+    // console.log('FTE Summary Table Debug:');
+    // console.log('  Current Location:', currentLocation);
+    // console.log('  Using locationData FTE:', !!(locationData && currentLocation && locationData[currentLocation]));
+    // console.log('  Sample FTE values for', currentYear + ':', locationFTE[currentYear]);
     
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
         const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[currentYear]?.[cat] || 0), 0);
         const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(0);
-        html += `<td class="data-cell total-supply-cell">${fortnightlyTotal}</td>`;
+        html += generateDataCell(currentYear, currentFn, fortnightlyTotal, 'total-supply-cell');
         
         currentFn++;
         if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10416,8 +11952,10 @@ function renderFTESummaryTable() {
             currentFn = range.startFortnight;
             
             while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
+                const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
+                    locationData[currentLocation].trainerFTE : trainerFTE;
                 const fortnightlyFTE = ((locationFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
-                html += `<td class="data-cell category-detail-cell">${fortnightlyFTE}</td>`;
+                html += generateDataCell(currentYear, currentFn, fortnightlyFTE, 'category-detail-cell');
                 
                 currentFn++;
                 if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10472,7 +12010,7 @@ function renderDemandTable() {
                 // Local demand is total minus cross-location
                 const localValue = totalValue - crossLocValue;
                 
-                html += `<td class="data-cell" style="background: rgba(0, 123, 255, 0.05);">${localValue.toFixed(0)}</td>`;
+                html += generateDataCell(currentYear, currentFn, localValue.toFixed(0), '', 'background: rgba(0, 123, 255, 0.05);');
                 
                 currentFn++;
                 if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10497,9 +12035,11 @@ function renderDemandTable() {
                 }
                 
                 if (crossLocValue > 0) {
-                    html += `<td class="data-cell" style="background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;">${crossLocValue.toFixed(0)}</td>`;
+                    html += generateDataCell(currentYear, currentFn, crossLocValue.toFixed(0), '', 
+                        'background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;');
                 } else {
-                    html += `<td class="data-cell" style="background: rgba(52, 152, 219, 0.05); color: #999;">-</td>`;
+                    html += generateDataCell(currentYear, currentFn, '-', '', 
+                        'background: rgba(52, 152, 219, 0.05); color: #999;');
                 }
                 
                 currentFn++;
@@ -10541,7 +12081,13 @@ function renderDemandTable() {
                 cellContent = value.toFixed(0);
             }
             
-            html += `<td class="data-cell" style="position: relative;" ${tooltip}>${cellContent}</td>`;
+            // Use a temporary wrapper to add tooltip
+            const cell = generateDataCell(currentYear, currentFn, cellContent, '', 'position: relative;');
+            if (tooltip) {
+                html += cell.replace('<td', `<td ${tooltip}`);
+            } else {
+                html += cell;
+            }
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10572,7 +12118,7 @@ function renderDemandTable() {
             }
             
             const localTotal = demandData.total - crossLocTotal;
-            html += `<td class="data-cell total-row" style="background: rgba(0, 123, 255, 0.05);">${localTotal.toFixed(0)}</td>`;
+            html += generateDataCell(totalYear, totalFn, localTotal.toFixed(0), 'total-row', 'background: rgba(0, 123, 255, 0.05);');
             
             totalFn++;
             if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -10597,9 +12143,11 @@ function renderDemandTable() {
             }
             
             if (crossLocTotal > 0) {
-                html += `<td class="data-cell total-row" style="background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;">${crossLocTotal.toFixed(0)}</td>`;
+                html += generateDataCell(totalYear, totalFn, crossLocTotal.toFixed(0), 'total-row', 
+                    'background: rgba(52, 152, 219, 0.1); color: #2980b9; font-weight: 600;');
             } else {
-                html += `<td class="data-cell total-row" style="background: rgba(52, 152, 219, 0.05); color: #999;">-</td>`;
+                html += generateDataCell(totalYear, totalFn, '-', 'total-row', 
+                    'background: rgba(52, 152, 219, 0.05); color: #999;');
             }
             
             totalFn++;
@@ -10619,7 +12167,7 @@ function renderDemandTable() {
         
         while (totalYear < range.endYear || (totalYear === range.endYear && totalFn <= range.endFortnight)) {
             const demandData = demand[totalYear]?.[totalFn] || { total: 0 };
-            html += `<td class="data-cell total-row" style="font-weight: bold;">${demandData.total.toFixed(0)}</td>`;
+            html += generateDataCell(totalYear, totalFn, demandData.total.toFixed(0), 'total-row', 'font-weight: bold;');
             
             totalFn++;
             if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -10652,7 +12200,12 @@ function renderDemandTable() {
                 cellTooltip = `title="Total: ${demandData.total.toFixed(0)} (Local: ${localTotal.toFixed(0)} + Cross-location: ${crossLocTotal.toFixed(0)})"`;
             }
             
-            html += `<td class="data-cell total-row" ${cellTooltip}>${cellContent}</td>`;
+            const cell = generateDataCell(totalYear, totalFn, cellContent, 'total-row');
+            if (cellTooltip) {
+                html += cell.replace('<td', `<td ${cellTooltip}`);
+            } else {
+                html += cell;
+            }
             
             totalFn++;
             if (totalFn > FORTNIGHTS_PER_YEAR) {
@@ -10855,7 +12408,7 @@ function renderSurplusDeficitTableDetailed() {
             const isDeficit = surplusDeficit < 0;
             const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
             
-            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
+            html += generateDataCell(currentYear, currentFn, surplusDeficit.toFixed(0), cellClass);
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -10904,7 +12457,7 @@ function renderSurplusDeficitTableDetailed() {
                 }
                 
                 const cellClass = contribution > 0 ? 'available' : '';
-                html += `<td class="data-cell category-cell ${cellClass}">${contribution > 0 ? contribution.toFixed(0) : '-'}</td>`;
+                html += generateDataCell(catYear, catFn, contribution > 0 ? contribution.toFixed(0) : '-', `category-cell ${cellClass}`);
                 
                 catFn++;
                 if (catFn > FORTNIGHTS_PER_YEAR) {
@@ -10943,7 +12496,7 @@ function renderSurplusDeficitTableDetailed() {
         
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
-        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
+        html += generateDataCell(netYear, netFn, totalNetSD.toFixed(0), `total-row ${isDeficit ? 'deficit' : 'surplus'}`);
         
         netFn++;
         if (netFn > FORTNIGHTS_PER_YEAR) {
@@ -11025,7 +12578,7 @@ function renderSurplusDeficitTableSimple() {
             const isDeficit = surplusDeficit < 0;
             const cellClass = isDeficit ? 'deficit' : (surplusDeficit > 0 ? 'surplus' : '');
             
-            html += `<td class="data-cell ${cellClass}">${surplusDeficit.toFixed(0)}</td>`;
+            html += generateDataCell(currentYear, currentFn, surplusDeficit.toFixed(0), cellClass);
             
             currentFn++;
             if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -11058,7 +12611,7 @@ function renderSurplusDeficitTableSimple() {
         
         const totalNetSD = totalFortnightlyFTE - totalLineTrainingDemand;
         const isDeficit = totalNetSD < 0;
-        html += `<td class="data-cell total-row ${isDeficit ? 'deficit' : 'surplus'}">${totalNetSD.toFixed(0)}</td>`;
+        html += generateDataCell(netYear, netFn, totalNetSD.toFixed(0), `total-row ${isDeficit ? 'deficit' : 'surplus'}`);
         
         netFn++;
         if (netFn > FORTNIGHTS_PER_YEAR) {
@@ -11197,19 +12750,19 @@ function calculateDemand() {
                     let usesCrossLocation = false;
                     let crossLocationFrom = null;
                     
-                    console.log(`Checking cross-location for ${cohortName}, ${phase.name}, fortnight ${globalFortnight}`);
-                    console.log('Cross-location config:', JSON.stringify(cohort.crossLocationTraining, null, 2));
-                    console.log('Cohort location:', cohort.location, 'Current viewing location:', viewingLocation);
+                    // console.log(`Checking cross-location for ${cohortName}, ${phase.name}, fortnight ${globalFortnight}`);
+                    // console.log('Cross-location config:', JSON.stringify(cohort.crossLocationTraining, null, 2));
+                    // console.log('Cohort location:', cohort.location, 'Current viewing location:', viewingLocation);
                     
                     if (cohort.crossLocationTraining) {
                         Object.entries(cohort.crossLocationTraining).forEach(([location, data]) => {
-                            console.log(`  Checking location ${location}, phases:`, data.phases);
+                            // console.log(`  Checking location ${location}, phases:`, data.phases);
                             if (data.phases && data.phases[phase.name]) {
-                                console.log(`  Phase ${phase.name} fortnights:`, data.phases[phase.name]);
+                                // console.log(`  Phase ${phase.name} fortnights:`, data.phases[phase.name]);
                                 if (data.phases[phase.name].includes(globalFortnight)) {
                                     usesCrossLocation = true;
                                     crossLocationFrom = location;
-                                    console.log(`  ✓ Found cross-location: using ${location} trainers for fortnight ${globalFortnight}`);
+                                    // console.log(`  ✓ Found cross-location: using ${location} trainers for fortnight ${globalFortnight}`);
                                 }
                             }
                         });
@@ -11218,7 +12771,7 @@ function calculateDemand() {
                     if (usesCrossLocation && crossLocationFrom) {
                         // This cohort is using trainers from another location
                         // Don't add demand to current location - it's using the other location's trainers
-                        console.log(`Cross-location: Cohort ${cohort.name} (${cohort.location}) using ${crossLocationFrom} trainers for ${phase.name} in ${currentYear} FN${currentFortnight} - NO demand in ${viewingLocation}`);
+                        // console.log(`Cross-location: Cohort ${cohort.name} (${cohort.location}) using ${crossLocationFrom} trainers for ${phase.name} in ${currentYear} FN${currentFortnight} - NO demand in ${viewingLocation}`);
                         
                         // Track this in crossLocationDemand for the OTHER location to pick up
                         if (!crossLocationDemand[currentYear][currentFortnight][crossLocationFrom]) {
@@ -11332,15 +12885,15 @@ function calculateDemand() {
     const activeLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
     const viewingLocation2 = document.querySelector('.location-toggle.active')?.textContent || 'AU';
-    console.log(`\n=== SECOND PASS: Looking for cohorts using ${activeLocation} trainers (viewing: ${viewingLocation2}) ===`);
-    console.log(`Total cohorts to check: ${activeCohorts.length}`);
+    // console.log(`\n=== SECOND PASS: Looking for cohorts using ${activeLocation} trainers (viewing: ${viewingLocation2}) ===`);
+    // console.log(`Total cohorts to check: ${activeCohorts.length}`);
     
     // We need to check ALL location's cohorts, not just the current view
     const allCohorts = [
         ...locationData.AU.activeCohorts,
         ...locationData.NZ.activeCohorts
     ];
-    console.log(`Checking ALL cohorts from both locations: ${allCohorts.length} total`);
+    // console.log(`Checking ALL cohorts from both locations: ${allCohorts.length} total`);
     
     allCohorts.forEach(cohort => {
         // Need to find the pathway from the correct location's data
@@ -11349,21 +12902,21 @@ function calculateDemand() {
         if (!pathway) return;
         
         const cohortName = cohort.name || `Cohort ${cohort.id}`;
-        console.log(`Checking cohort ${cohortName} from ${cohort.location}`);
+        // console.log(`Checking cohort ${cohortName} from ${cohort.location}`);
         
         // Skip if this cohort is from the current location (already processed above)
         if (cohort.location === activeLocation) {
-            console.log(`- Skipping ${cohortName} - already processed in first pass`);
+            // console.log(`- Skipping ${cohortName} - already processed in first pass`);
             return;
         }
         
         // Check if this cohort uses trainers from the current location
         if (!cohort.crossLocationTraining || !cohort.crossLocationTraining[activeLocation]) {
-            console.log(`- Skipping ${cohortName} - no cross-location config for ${activeLocation}`);
+            // console.log(`- Skipping ${cohortName} - no cross-location config for ${activeLocation}`);
             return;
         }
         
-        console.log(`- ${cohortName} HAS cross-location config for ${activeLocation}:`, cohort.crossLocationTraining[activeLocation]);
+        // console.log(`- ${cohortName} HAS cross-location config for ${activeLocation}:`, cohort.crossLocationTraining[activeLocation]);
         
         let currentYear = cohort.startYear;
         let currentFortnight = cohort.startFortnight;
@@ -11381,7 +12934,7 @@ function calculateDemand() {
                     if (cohort.crossLocationTraining[activeLocation].phases?.[phase.name]?.includes(globalFortnight)) {
                         const phaseDemand = cohort.numTrainees;
                         
-                        console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${activeLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
+                        // console.log(`Adding cross-location demand: Cohort ${cohortName} (${cohort.location}) using ${activeLocation} trainers for ${phase.name} in ${currentYear} FN${currentFortnight}`);
                         
                         // Add this demand to the current location
                         demand[currentYear][currentFortnight].total += phaseDemand;
@@ -11540,7 +13093,10 @@ function renderGanttChart() {
     let fnNum = range.startFortnight;
     
     while (fnYear < range.endYear || (fnYear === range.endYear && fnNum <= range.endFortnight)) {
-        html += `<th class="fortnight-header gantt-fortnight-header">FN${String(fnNum).padStart(2, '0')}</th>`;
+        html += `<th class="fortnight-header gantt-fortnight-header" 
+                     data-column="${fnYear}-${fnNum}" 
+                     onclick="handleColumnClick(event, ${fnYear}, ${fnNum})"
+                     style="cursor: pointer;">FN${String(fnNum).padStart(2, '0')}</th>`;
         
         fnNum++;
         if (fnNum > FORTNIGHTS_PER_YEAR) {
@@ -11723,10 +13279,10 @@ function renderGanttChart() {
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
                 
-                html += `<td ${draggableAttrs} style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative; overflow: visible;" title="${tooltip}">${cellContent}</td>`;
+                html += `<td ${draggableAttrs} data-column="${renderYear}-${renderFn}" style="${cellStyle} ${isDraggable ? 'cursor: grab;' : ''} position: relative; overflow: visible;" title="${tooltip}">${cellContent}</td>`;
             } else {
                 // Empty cell
-                html += '<td class="gantt-empty-cell data-cell"></td>';
+                html += `<td class="gantt-empty-cell data-cell" data-column="${renderYear}-${renderFn}"></td>`;
             }
             
             renderFn++;
@@ -11741,9 +13297,9 @@ function renderGanttChart() {
     });
     
     // Add cross-location cohorts section
-    console.log('=== Starting cross-location cohorts section ===');
-    console.log('Global currentLocation:', currentLocation);
-    console.log('locationData:', locationData);
+    // console.log('=== Starting cross-location cohorts section ===');
+    // console.log('Global currentLocation:', currentLocation);
+    // console.log('locationData:', locationData);
     
     // Use the global currentLocation variable instead of querying DOM
     const otherLocation = currentLocation === 'AU' ? 'NZ' : 'AU';
@@ -11751,22 +13307,22 @@ function renderGanttChart() {
     
     // Find cohorts from other locations that use current location's trainers
     const otherLocationCohorts = locationData[otherLocation]?.activeCohorts || [];
-    console.log(`Checking for cross-location cohorts: currentLocation=${currentLocation}, otherLocation=${otherLocation}`);
-    console.log(`Other location cohorts count: ${otherLocationCohorts.length}`);
+    // console.log(`Checking for cross-location cohorts: currentLocation=${currentLocation}, otherLocation=${otherLocation}`);
+    // console.log(`Other location cohorts count: ${otherLocationCohorts.length}`);
     
     otherLocationCohorts.forEach(cohort => {
         if (cohort.crossLocationTraining && cohort.crossLocationTraining[currentLocation]) {
-            console.log(`Cohort ${cohort.id} has cross-location training to ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
+            // console.log(`Cohort ${cohort.id} has cross-location training to ${currentLocation}:`, cohort.crossLocationTraining[currentLocation]);
             // Check if any phases have cross-location training
             const hasRelevantTraining = Object.values(cohort.crossLocationTraining[currentLocation].phases || {}).some(fortnights => fortnights.length > 0);
             if (hasRelevantTraining) {
-                console.log(`Adding cohort ${cohort.id} to cross-location display`);
+                // console.log(`Adding cohort ${cohort.id} to cross-location display`);
                 crossLocationCohorts.push(cohort);
             }
         }
     });
     
-    console.log(`Total cross-location cohorts found: ${crossLocationCohorts.length}`);
+    // console.log(`Total cross-location cohorts found: ${crossLocationCohorts.length}`);
     
     // Render cross-location cohorts if any exist
     if (crossLocationCohorts.length > 0) {
@@ -11828,7 +13384,7 @@ function renderGanttChart() {
                             progress: i + 1,
                             totalDuration: phase.duration
                         };
-                        console.log(`Cross-location cell added for cohort ${cohort.id}: ${key}, phase: ${phase.trainerDemandType}`);
+                        // console.log(`Cross-location cell added for cohort ${cohort.id}: ${key}, phase: ${phase.trainerDemandType}`);
                     }
                     
                     tempFortnight++;
@@ -11860,11 +13416,11 @@ function renderGanttChart() {
                     // Show the training type abbreviation
                     const abbreviation = cell.phase.name.replace('LT-', '');
                     
-                    html += `<td class="gantt-phase-cell data-cell" style="background-color: ${backgroundColor} !important; position: relative;" title="${tooltip}">`;
+                    html += `<td class="gantt-phase-cell data-cell" data-column="${renderYear}-${renderFn}" style="background-color: ${backgroundColor} !important; position: relative;" title="${tooltip}">`;
                     html += `<span style="font-size: 9px; color: white; font-weight: 500;">${abbreviation}</span>`;
                     html += `</td>`;
                 } else {
-                    html += '<td class="gantt-empty-cell data-cell"></td>';
+                    html += `<td class="gantt-empty-cell data-cell" data-column="${renderYear}-${renderFn}"></td>`;
                 }
                 
                 renderFn++;
@@ -11901,7 +13457,7 @@ function renderGanttChart() {
     const timeout = viewState.currentView === 'all' ? 150 : 100;
     setTimeout(() => {
         setupSynchronizedScrolling();
-        console.log('Sync re-established after Gantt chart render');
+        // console.log('Sync re-established after Gantt chart render');
     }, timeout);
 }
 
@@ -12258,7 +13814,7 @@ function renderPathwaysTable() {
 let fteYearOffset = 0; // Year offset for FTE editor
 
 function openFTEModal() {
-    console.log('Opening FTE modal...');
+    // console.log('Opening FTE modal...');
     const container = document.getElementById('fte-edit-container');
     
     let html = '<div style="max-height: 500px; overflow-y: auto;">';
@@ -12299,9 +13855,9 @@ function openFTEModal() {
     // Debug: Check if inputs are created and accessible
     setTimeout(() => {
         const inputs = container.querySelectorAll('input[type="number"]');
-        console.log('FTE inputs created:', inputs.length);
+        // console.log('FTE inputs created:', inputs.length);
         if (inputs.length > 0) {
-            console.log('First input:', inputs[0], 'disabled:', inputs[0].disabled, 'readonly:', inputs[0].readOnly);
+            // console.log('First input:', inputs[0], 'disabled:', inputs[0].disabled, 'readonly:', inputs[0].readOnly);
         }
     }, 100);
 }
@@ -12349,7 +13905,7 @@ function generateFTEInputFields() {
             html += `value="${fortnightlyFTE.toFixed(1)}" min="0" step="0.5" style="width: 80px; text-align: center; border: 1px solid #ccc; background: white; color: inherit; user-select: text; pointer-events: auto;" `;
             html += `data-year="${year}" data-category="${category}" `;
             html += `onpaste="handleFTEPaste(event, ${year}, '${category}')" onkeydown="handleFTEKeyDown(event, ${year}, '${category}')" `;
-            html += `onfocus="this.select(); console.log('FTE input focused:', this.id)" onclick="console.log('FTE input clicked:', this.id)" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
+            // html += `onfocus="this.select(); console.log('FTE input focused:', this.id)" onclick="console.log('FTE input clicked:', this.id)" onmousedown="handleFTEMouseDown(event, ${year}, '${category}')"`;
             html += `></td>`;
         });
         html += '</tr>';
@@ -12409,7 +13965,7 @@ function navigateFTEYears(direction) {
 function handleFTEMouseDown(event, year, category) {
     // Don't prevent default for input elements - they need to focus
     if (event.target.tagName === 'INPUT') {
-        console.log('Allowing input focus for:', event.target.id);
+        // console.log('Allowing input focus for:', event.target.id);
         return;
     }
     
@@ -12820,6 +14376,10 @@ function handleFTEUpdate(e) {
         updateSupplyDemandChart();
         updateTrainerHeatmap();
     }
+    
+    // Save FTE as default whenever it's edited
+    saveDefaultFTE();
+    // console.log('Saved FTE as default after edit');
     
     markDirty();
 }
@@ -13391,11 +14951,11 @@ function handleCohortUpdate(e) {
         
         // Process cross-location training data
         let crossLocationTraining = {};
-        console.log('enableCrossLocation checkbox value:', formData.get('enableCrossLocation'));
+        // console.log('enableCrossLocation checkbox value:', formData.get('enableCrossLocation'));
         if (formData.get('enableCrossLocation')) {
-            console.log('Cross-location enabled, processing radio buttons...');
+            // console.log('Cross-location enabled, processing radio buttons...');
             const radioButtons = document.querySelectorAll('#cross-location-config input[type="radio"]:checked');
-            console.log(`Found ${radioButtons.length} checked radio buttons`);
+            // console.log(`Found ${radioButtons.length} checked radio buttons`);
             
             radioButtons.forEach(radio => {
                 const location = radio.value;
@@ -13403,11 +14963,11 @@ function handleCohortUpdate(e) {
                 const fortnight = parseInt(radio.dataset.fortnight);
                 const cohortLocation = formData.get('location');
                 
-                console.log(`Radio: location=${location}, phase=${phase}, fortnight=${fortnight}, cohortLocation=${cohortLocation}`);
+                // console.log(`Radio: location=${location}, phase=${phase}, fortnight=${fortnight}, cohortLocation=${cohortLocation}`);
                 
                 // Only save if using different location than cohort's home
                 if (location !== cohortLocation) {
-                    console.log(`Adding cross-location: ${phase} fortnight ${fortnight} uses ${location} trainers`);
+                    // console.log(`Adding cross-location: ${phase} fortnight ${fortnight} uses ${location} trainers`);
                     if (!crossLocationTraining[location]) {
                         crossLocationTraining[location] = { phases: {} };
                     }
@@ -13418,9 +14978,9 @@ function handleCohortUpdate(e) {
                 }
             });
             
-            console.log('Final crossLocationTraining:', JSON.stringify(crossLocationTraining, null, 2));
+            // console.log('Final crossLocationTraining:', JSON.stringify(crossLocationTraining, null, 2));
         } else {
-            console.log('Cross-location NOT enabled');
+            // console.log('Cross-location NOT enabled');
         }
         
         activeCohorts[cohortIndex] = {
@@ -13433,17 +14993,17 @@ function handleCohortUpdate(e) {
             crossLocationTraining: crossLocationTraining
         };
         
-        console.log('Updated cohort:', activeCohorts[cohortIndex]);
-        console.log('Cohort cross-location config:', JSON.stringify(activeCohorts[cohortIndex].crossLocationTraining, null, 2));
+        // console.log('Updated cohort:', activeCohorts[cohortIndex]);
+        // console.log('Cohort cross-location config:', JSON.stringify(activeCohorts[cohortIndex].crossLocationTraining, null, 2));
         
         // Debug: Check what's actually stored
         if (activeCohorts[cohortIndex].crossLocationTraining && Object.keys(activeCohorts[cohortIndex].crossLocationTraining).length > 0) {
-            console.log('Cross-location details:');
+            // console.log('Cross-location details:');
             Object.entries(activeCohorts[cohortIndex].crossLocationTraining).forEach(([loc, data]) => {
-                console.log(`  Location ${loc}:`, data);
+                // console.log(`  Location ${loc}:`, data);
                 if (data.phases) {
                     Object.entries(data.phases).forEach(([phase, fortnights]) => {
-                        console.log(`    Phase ${phase}: fortnights`, fortnights);
+                        // console.log(`    Phase ${phase}: fortnights`, fortnights);
                     });
                 }
             });
@@ -14333,7 +15893,7 @@ function optimizeForTarget(e) {
     const dateInput = document.getElementById('target-date');
     
     // Debug logging
-    console.log('CP Input:', cpInput.value, 'Parsed:', parseInt(cpInput.value) || 0);
+    // console.log('CP Input:', cpInput.value, 'Parsed:', parseInt(cpInput.value) || 0);
     
     const targetCP = parseInt(cpInput.value) || 0;
     const targetFO = parseInt(foInput.value) || 0;
@@ -14341,7 +15901,7 @@ function optimizeForTarget(e) {
     const targetDate = new Date(dateInput.value);
     const considerExisting = document.getElementById('consider-existing')?.checked ?? true;
     const smoothSchedule = document.getElementById('smooth-schedule')?.checked ?? false;
-    console.log('Optimizer starting with smoothSchedule =', smoothSchedule);
+    // console.log('Optimizer starting with smoothSchedule =', smoothSchedule);
     
     if (targetCP + targetFO + targetCAD === 0) {
         showNotification('Please enter at least one target', 'warning');
@@ -14357,7 +15917,7 @@ function optimizeForTarget(e) {
     const schedule = calculateOptimalSchedule(targets, targetDate, considerExisting, smoothSchedule);
     
     // Debug logging
-    console.log('Optimization result:', schedule);
+    // console.log('Optimization result:', schedule);
     
     // Display results
     const resultsDiv = document.getElementById('optimization-results');
@@ -15205,12 +16765,12 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true, 
                 
                 // If trainer deficit detected
                 if (hasTrainerDeficit) {
-                    console.log(`Deficit detected for ${type} ${cohortSize} trainees at ${startYear}-${startFn}, smoothSchedule=${smoothSchedule}`);
-                    console.log('Deficit details:', deficitDetails);
+                    // console.log(`Deficit detected for ${type} ${cohortSize} trainees at ${startYear}-${startFn}, smoothSchedule=${smoothSchedule}`);
+                    // console.log('Deficit details:', deficitDetails);
                     
                     if (smoothSchedule) {
                         // With smoothing, we MUST skip this slot to prevent negative capacity
-                        console.log(`Smoothing: Skipping ${type} cohort at ${startYear}-${startFn} to prevent deficit`);
+                        // console.log(`Smoothing: Skipping ${type} cohort at ${startYear}-${startFn} to prevent deficit`);
                         
                         capacityAnalysis.conflicts.push({
                             type: 'Trainer',
@@ -15926,6 +17486,12 @@ function handleScenarioSave(event) {
     const message = isDuplicate ? 
         'Scenario duplicated successfully!' : 'Scenario saved successfully!';
     showNotification(message, 'success');
+    
+    // Check if we need to create a new scenario after save
+    if (window.pendingNewScenario) {
+        window.pendingNewScenario = false;
+        setTimeout(() => createNewScenario(), 100);
+    }
 }
 
 function closeScenarioModal() {
@@ -15934,6 +17500,7 @@ function closeScenarioModal() {
     
     // Clear any pending duplicate
     window.pendingDuplicateScenario = null;
+    window.pendingNewScenario = false;
 }
 
 function showNotification(message, type = 'info', duration = 5000) {
@@ -16101,8 +17668,13 @@ function updateCurrentScenario() {
         date: new Date().toISOString(),
         state: getCurrentState(),
         stats: {
-            totalCohorts: activeCohorts.length,
-            totalTrainees: activeCohorts.reduce((sum, c) => sum + c.numTrainees, 0)
+            totalCohorts: (locationData.AU.activeCohorts?.length || 0) + (locationData.NZ.activeCohorts?.length || 0),
+            totalTrainees: (locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0) + 
+                          (locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0),
+            auCohorts: locationData.AU.activeCohorts?.length || 0,
+            nzCohorts: locationData.NZ.activeCohorts?.length || 0,
+            auTrainees: locationData.AU.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0,
+            nzTrainees: locationData.NZ.activeCohorts?.reduce((sum, c) => sum + c.numTrainees, 0) || 0
         }
     };
     
@@ -16139,7 +17711,29 @@ function loadScenarioDataOnly(scenario) {
     // Load the scenario state
     if (scenario.state.locationData) {
         // New format with location data
-        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Preserve saved FTE instead of using scenario's FTE
+            // console.log('Preserving saved default FTE values for new format scenario');
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+            // Override scenario FTE with saved defaults
+            try {
+                const parsed = JSON.parse(savedDefaultFTE);
+                if (parsed.AU) {
+                    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
+                }
+                if (parsed.NZ) {
+                    locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
+                }
+            } catch (e) {
+                console.error('Error applying saved FTE to scenario:', e);
+            }
+        } else {
+            // No saved defaults, use scenario's data as-is
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        }
+        
         // Only use scenario's location if we don't have a saved preference
         const savedLocation = localStorage.getItem('currentLocation');
         if (!savedLocation) {
@@ -16162,8 +17756,10 @@ function loadScenarioDataOnly(scenario) {
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Keep our saved FTE values, don't use scenario's FTE
-            console.log('Preserving saved default FTE values instead of using scenario FTE');
-            // Don't update trainerFTE or locationData FTE
+            // console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // LocationData FTE should already be set from loadDefaultFTE()
+            // Update global trainerFTE from the preserved locationData
+            trainerFTE = locationData[currentLocation].trainerFTE;
         } else {
             // No saved defaults, use scenario's FTE
             trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
@@ -16229,7 +17825,29 @@ function loadScenarioData(scenario) {
     // Load the scenario state
     if (scenario.state.locationData) {
         // New format with location data
-        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        // Check if we should preserve existing FTE values
+        const savedDefaultFTE = localStorage.getItem('defaultFTE');
+        if (savedDefaultFTE) {
+            // Preserve saved FTE instead of using scenario's FTE
+            // console.log('Preserving saved default FTE values for new format scenario');
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+            // Override scenario FTE with saved defaults
+            try {
+                const parsed = JSON.parse(savedDefaultFTE);
+                if (parsed.AU) {
+                    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
+                }
+                if (parsed.NZ) {
+                    locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
+                }
+            } catch (e) {
+                console.error('Error applying saved FTE to scenario:', e);
+            }
+        } else {
+            // No saved defaults, use scenario's data as-is
+            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        }
+        
         // Only use scenario's location if we don't have a saved preference
         const savedLocation = localStorage.getItem('currentLocation');
         if (!savedLocation) {
@@ -16252,8 +17870,10 @@ function loadScenarioData(scenario) {
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Keep our saved FTE values, don't use scenario's FTE
-            console.log('Preserving saved default FTE values instead of using scenario FTE');
-            // Keep the existing trainerFTE and locationData FTE values
+            // console.log('Preserving saved default FTE values instead of using scenario FTE');
+            // LocationData FTE should already be set from loadDefaultFTE()
+            // Update global trainerFTE from the preserved locationData
+            trainerFTE = locationData[currentLocation].trainerFTE;
         } else {
             // No saved defaults, use scenario's FTE
             trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
@@ -16270,10 +17890,10 @@ function loadScenarioData(scenario) {
         const nzCohorts = activeCohorts.filter(c => c.location === 'NZ');
         
         console.log('Legacy format migration:');
-        console.log('Total cohorts:', activeCohorts.length);
-        console.log('AU cohorts:', auCohorts.length);
-        console.log('NZ cohorts:', nzCohorts.length);
-        console.log('NZ cohorts with cross-location training:', 
+        // console.log('Total cohorts:', activeCohorts.length);
+        // console.log('AU cohorts:', auCohorts.length);
+        // console.log('NZ cohorts:', nzCohorts.length);
+        // console.log('NZ cohorts with cross-location training:',
             nzCohorts.filter(c => c.crossLocationTraining && c.crossLocationTraining.AU).length);
         
         locationData.AU.activeCohorts = auCohorts;
@@ -16328,7 +17948,7 @@ function loadScenarioData(scenario) {
                 c.crossLocationTraining.AU && 
                 Object.keys(c.crossLocationTraining.AU.phases || {}).length > 0
             ).length;
-            console.log(`Cross-location cohorts from NZ using AU trainers: ${crossLocCount}`);
+            // console.log(`Cross-location cohorts from NZ using AU trainers: ${crossLocCount}`);
         }
     }, 150);
     
@@ -16396,6 +18016,56 @@ function duplicateScenario(scenarioId) {
     nameInput.select();
 }
 
+function createNewScenario() {
+    // Check if there are unsaved changes
+    if (viewState.isDirty) {
+        const choice = confirm('You have unsaved changes. Would you like to save the current scenario first?\n\nClick OK to save first, or Cancel to discard changes.');
+        
+        if (choice) {
+            // User wants to save first
+            showScenarioSaveModal();
+            // Set a flag to create new scenario after save
+            window.pendingNewScenario = true;
+            return;
+        }
+    }
+    
+    // Reset to default state
+    // Clear all cohorts
+    activeCohorts = [];
+    locationData.AU.activeCohorts = [];
+    locationData.NZ.activeCohorts = [];
+    
+    // Reset FTE to defaults if no saved defaults exist
+    const savedDefaultFTE = localStorage.getItem('defaultFTE');
+    if (!savedDefaultFTE) {
+        // Reset to system defaults
+        for (let year = START_YEAR; year <= END_YEAR; year++) {
+            if (!trainerFTE[year]) trainerFTE[year] = {};
+            TRAINER_CATEGORIES.forEach(category => {
+                trainerFTE[year][category] = 240; // Default FTE
+            });
+        }
+        // Copy to location data
+        locationData.AU.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
+    }
+    
+    // Clear scenario tracking
+    viewState.currentScenarioId = null;
+    viewState.isDirty = false;
+    
+    // Update UI
+    updateAllTables();
+    renderGanttChart();
+    updateCurrentScenarioDisplay();
+    
+    // Switch to planner view to start building
+    switchView('planner');
+    
+    showNotification('New scenario created. Start adding cohorts!', 'success');
+}
+
 function renderScenarioList() {
     const container = document.getElementById('scenario-list');
     
@@ -16451,14 +18121,14 @@ function renderScenarioList() {
                         <span>Cohorts:</span>
                         <strong>${scenario.stats.totalCohorts}</strong>
                         ${scenario.stats.auCohorts !== undefined ? 
-                            `<div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">AU: ${scenario.stats.auCohorts}, NZ: ${scenario.stats.nzCohorts}</div>` : 
+                            `<div class="location-split">AU: ${scenario.stats.auCohorts} &nbsp;|&nbsp; NZ: ${scenario.stats.nzCohorts}</div>` : 
                             ''}
                     </div>
                     <div class="scenario-stat">
                         <span>Trainees:</span>
                         <strong>${scenario.stats.totalTrainees}</strong>
                         ${scenario.stats.auTrainees !== undefined ? 
-                            `<div style="font-size: 0.85em; color: var(--text-secondary); margin-top: 2px;">AU: ${scenario.stats.auTrainees}, NZ: ${scenario.stats.nzTrainees}</div>` : 
+                            `<div class="location-split">AU: ${scenario.stats.auTrainees} &nbsp;|&nbsp; NZ: ${scenario.stats.nzTrainees}</div>` : 
                             ''}
                     </div>
                 </div>
@@ -16634,7 +18304,7 @@ function importScenarios(event) {
                                     if (cohort.crossLocationTraining && cohort.location === 'NZ') {
                                         const keys = Object.keys(cohort.crossLocationTraining);
                                         if (keys.length > 0 && !isNaN(keys[0])) {
-                                            console.log('Converting legacy cross-location format in locationData for cohort:', cohort);
+                                            // console.log('Converting legacy cross-location format in locationData for cohort:', cohort);
                                             cohort.crossLocationTraining = convertLegacyCrossLocation(
                                                 cohort, 
                                                 scenario.state.locationData[location].pathways
@@ -16730,7 +18400,7 @@ function convertLegacyCrossLocation(cohort, pathways) {
         });
     });
     
-    console.log('Converted cross-location format:', oldFormat, '->', newFormat);
+    // console.log('Converted cross-location format:', oldFormat, '->', newFormat);
     return newFormat;
 }
 
@@ -17446,9 +19116,13 @@ function updateSupplyDemandOverview() {
                 tooltip: {
                     callbacks: {
                         footer: function(tooltipItems) {
-                            const supply = supplyData[tooltipItems[0].dataIndex];
-                            const totalDemand = localDemandData[tooltipItems[0].dataIndex] + 
-                                              crossLocationData[tooltipItems[0].dataIndex];
+                            const dataIndex = tooltipItems[0].dataIndex;
+                            // Get data from the chart's datasets
+                            const chart = tooltipItems[0].chart;
+                            const supply = chart.data.datasets[2].data[dataIndex] || 0; // Trainer Supply
+                            const localDemand = chart.data.datasets[0].data[dataIndex] || 0; // AU Demand
+                            const crossDemand = chart.data.datasets[1].data[dataIndex] || 0; // NZ Training in AU
+                            const totalDemand = localDemand + crossDemand;
                             const balance = supply - totalDemand;
                             
                             return [
@@ -17898,19 +19572,54 @@ function updateSupplyDemandOverviewV2() {
         // Local demand is total minus cross-location
         const localDemand = totalMonthlyDemand - crossDemand;
         
+        // Debug cross-location calculation
+        if (i === 0 && (crossDemand1 > 0 || crossDemand2 > 0)) {
+            // console.log(`Cross-location debug for ${labels[i]}:`);
+            // console.log(`  crossLocationPortion1:`, crossLocationPortion1);
+            // console.log(`  crossLocationPortion2:`, crossLocationPortion2);
+            // console.log(`  crossDemand1:`, crossDemand1);
+            // console.log(`  crossDemand2:`, crossDemand2);
+            // console.log(`  Average crossDemand:`, crossDemand);
+        }
+        
         supplyData.push(monthlySupply);
         localDemandData.push(localDemand);
         crossLocationData.push(crossDemand); // Just the cross-location portion
         totalDemandData.push(totalMonthlyDemand); // Total for reference
+        
+        // Debug logging for first month
+        if (i === 0) {
+            // console.log(`Supply/Demand Overview Debug for ${labels[i]}:`);
+            // console.log(`  Year:`, year);
+            // console.log(`  Location FTE for year:`, locationFTE[year]);
+            // console.log(`  Annual FTE total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            // console.log(`  Monthly Supply (fortnightly average):`, monthlySupply);
+            // console.log(`  Local Demand:`, localDemand);
+            // console.log(`  Cross-location Demand:`, crossDemand);
+            // console.log(`  Total Demand:`, localDemand + crossDemand);
+            // console.log(`  Raw demand data fn1:`, demand[year]?.[fn1]);
+            // console.log(`  Raw demand data fn2:`, demand[year]?.[fn2]);
+        }
     }
+    
+    // Debug the data arrays
+    // console.log('Chart Data Debug:');
+    // console.log('  Supply data:', supplyData.slice(0, 3));
+    // console.log('  Local demand data:', localDemandData.slice(0, 3));
+    // console.log('  Cross-location data:', crossLocationData.slice(0, 3));
+    // console.log('  Labels:', labels.slice(0, 3));
     
     // Update existing chart if possible, otherwise destroy and recreate
     if (supplyDemandOverviewChartV2) {
         try {
             supplyDemandOverviewChartV2.data.labels = labels;
-            supplyDemandOverviewChartV2.data.datasets[0].data = supplyData;
-            supplyDemandOverviewChartV2.data.datasets[1].data = localDemandData;
-            supplyDemandOverviewChartV2.data.datasets[2].data = crossLocationData;
+            // Dataset order must match the order when chart was created:
+            // 0: localDemandData (AU Demand)
+            // 1: crossLocationData (NZ Training in AU)  
+            // 2: supplyData (Trainer Supply)
+            supplyDemandOverviewChartV2.data.datasets[0].data = localDemandData;
+            supplyDemandOverviewChartV2.data.datasets[1].data = crossLocationData;
+            supplyDemandOverviewChartV2.data.datasets[2].data = supplyData;
             supplyDemandOverviewChartV2.update('none'); // No animation for smooth navigation
             return; // Exit if update successful
         } catch (e) {
@@ -17980,9 +19689,13 @@ function updateSupplyDemandOverviewV2() {
                 tooltip: {
                     callbacks: {
                         footer: function(tooltipItems) {
-                            const supply = supplyData[tooltipItems[0].dataIndex];
-                            const totalDemand = localDemandData[tooltipItems[0].dataIndex] + 
-                                              crossLocationData[tooltipItems[0].dataIndex];
+                            const dataIndex = tooltipItems[0].dataIndex;
+                            // Get data from the chart's datasets
+                            const chart = tooltipItems[0].chart;
+                            const supply = chart.data.datasets[2].data[dataIndex] || 0; // Trainer Supply
+                            const localDemand = chart.data.datasets[0].data[dataIndex] || 0; // AU Demand
+                            const crossDemand = chart.data.datasets[1].data[dataIndex] || 0; // NZ Training in AU
+                            const totalDemand = localDemand + crossDemand;
                             const balance = supply - totalDemand;
                             
                             return [
@@ -18591,13 +20304,13 @@ function updateSupplyDemandChart() {
         
         // Debug logging
         if (i === 0) {  // Log first month only to avoid spam
-            console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
-            console.log(`  Location: ${currentLocation}`);
-            console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
-            console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
-            console.log(`  Monthly Demand:`, monthlyDemand);
-            console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
-            console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
+            // console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
+            // console.log(`  Location: ${currentLocation}`);
+            // console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
+            // console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
+            // console.log(`  Monthly Demand:`, monthlyDemand);
+            // console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
+            // console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
         }
     }
     
@@ -18744,11 +20457,11 @@ function updatePhaseBreakdown() {
         return;
     }
     
-    console.log('Phase breakdown data:', {
-        activeCohorts: activeCohorts.length,
-        currentLocation: currentLocation,
-        locationCohorts: locationData[currentLocation]?.activeCohorts?.length
-    });
+    // console.log('Phase breakdown data:', {
+    //     activeCohorts: activeCohorts.length,
+    //     currentLocation: currentLocation,
+    //     locationCohorts: locationData[currentLocation]?.activeCohorts?.length
+    // });
     
     // Count trainees in each phase
     const phaseData = {
@@ -18835,8 +20548,17 @@ function updatePhaseBreakdown() {
         }
     });
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (phaseBreakdownChart) {
-        phaseBreakdownChart.destroy();
+        try {
+            phaseBreakdownChart.data.labels = Object.keys(phaseData);
+            phaseBreakdownChart.data.datasets[0].data = Object.values(phaseData);
+            phaseBreakdownChart.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            phaseBreakdownChart.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -18949,8 +20671,17 @@ function updateWorkloadChart() {
         });
     }
     
+    // Update existing chart if possible, otherwise destroy and recreate
     if (workloadChart) {
-        workloadChart.destroy();
+        try {
+            workloadChart.data.labels = labels;
+            workloadChart.data.datasets[0].data = data;
+            workloadChart.update('none'); // No animation for smooth navigation
+            return; // Exit if update successful
+        } catch (e) {
+            // If update fails, destroy and recreate
+            workloadChart.destroy();
+        }
     }
     
     const isDarkMode = document.body.classList.contains('dark-mode');
@@ -19126,25 +20857,25 @@ window.testSync = function() {
         if (container) {
             const table = container.querySelector('.data-table');
             const wrapper = container.querySelector('.table-wrapper');
-            console.log(`${id}:`);
-            console.log(`  Container: width=${container.clientWidth}, scrollWidth=${container.scrollWidth}`);
-            console.log(`  Wrapper: width=${wrapper?.clientWidth}, scrollWidth=${wrapper?.scrollWidth}`);
-            console.log(`  Table: width=${table?.clientWidth}, scrollWidth=${table?.scrollWidth}`);
-            console.log(`  Scrollable: ${container.scrollWidth > container.clientWidth}`);
+            // console.log(`${id}:`);
+            // console.log(`  Container: width=${container.clientWidth}, scrollWidth=${container.scrollWidth}`);
+            // console.log(`  Wrapper: width=${wrapper?.clientWidth}, scrollWidth=${wrapper?.scrollWidth}`);
+            // console.log(`  Table: width=${table?.clientWidth}, scrollWidth=${table?.scrollWidth}`);
+            // console.log(`  Scrollable: ${container.scrollWidth > container.clientWidth}`);
         } else {
-            console.log(`${id}: NOT FOUND`);
+            // console.log(`${id}: NOT FOUND`);
         }
     });
     
     // Check CSS column width
     const columnWidth = getComputedStyle(document.documentElement).getPropertyValue('--column-width');
-    console.log(`CSS column width: ${columnWidth}`);
+    // console.log(`CSS column width: ${columnWidth}`);
     
     // Count columns
     const firstTable = document.querySelector('.data-table');
     if (firstTable) {
         const headerCells = firstTable.querySelectorAll('thead tr:last-child th');
-        console.log(`Number of header columns: ${headerCells.length}`);
+        // console.log(`Number of header columns: ${headerCells.length}`);
     }
 };
 
@@ -19614,8 +21345,8 @@ window.addTestCohorts = function() {
     
     updateAllTables();
     renderGanttChart();
-    console.log('Added 2 test A320 cohorts (A320-02 has cross-location training configured)');
-    console.log('Current cohorts:', activeCohorts);
+    // console.log('Added 2 test A320 cohorts (A320-02 has cross-location training configured)');
+    // console.log('Current cohorts:', activeCohorts);
 };
 
 // Function to add demo data for dashboard
@@ -19745,13 +21476,13 @@ function getStorageStats() {
 // Log storage stats to console (for debugging)
 function logStorageStats() {
     const stats = getStorageStats();
-    console.log('=== LocalStorage Usage Stats ===');
-    console.log(`Total Size: ${stats.totalSizeMB} MB (${stats.percentUsed} of typical 5MB limit)`);
-    console.log(`Scenarios: ${stats.scenarioCount} scenarios stored`);
+    // console.log('=== LocalStorage Usage Stats ===');
+    // console.log(`Total Size: ${stats.totalSizeMB} MB (${stats.percentUsed} of typical 5MB limit)`);
+    // console.log(`Scenarios: ${stats.scenarioCount} scenarios stored`);
     if (stats.largestScenario) {
-        console.log(`Largest Scenario: "${stats.largestScenario}" (${(stats.largestScenarioSize / 1024).toFixed(2)} KB)`);
+        // console.log(`Largest Scenario: "${stats.largestScenario}" (${(stats.largestScenarioSize / 1024).toFixed(2)} KB)`);
     }
-    console.log('\nBreakdown by key:');
+    // console.log('\nBreakdown by key:');
     console.table(stats.items);
     return stats;
 }
@@ -20972,17 +22703,47 @@ function showTargetAdjustment() {
 // ============= DEFICIT RESOLUTION ASSISTANT FUNCTIONS =============
 
 function initializeDeficitDetection() {
+    // Initial check with delay to ensure DOM is ready
+    setTimeout(() => {
+        // console.log('[initializeDeficitDetection] Running initial deficit check');
+        checkForDeficits();
+    }, 500);
+    
     // Check for deficits periodically
-    checkForDeficits();
     setInterval(checkForDeficits, 30000); // Check every 30 seconds
 }
 
 function checkForDeficits() {
+    // Ensure we're using the correct location data
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Debug logging
+    // console.log(`[checkForDeficits] Current location: ${currentLocation}`);
+    
+    // Sync global variables with location data before calculating
+    if (locationData && locationData[currentLocation]) {
+        pathways = locationData[currentLocation].pathways || pathways;
+        trainerFTE = locationData[currentLocation].trainerFTE || trainerFTE;
+        priorityConfig = locationData[currentLocation].priorityConfig || priorityConfig;
+        activeCohorts = locationData[currentLocation].activeCohorts || activeCohorts;
+        
+        // console.log(`[checkForDeficits] Active cohorts for ${currentLocation}:`, activeCohorts.length);
+        // console.log(`[checkForDeficits] Trainer FTE for ${currentLocation}:`, trainerFTE);
+    }
+    
     const { demand } = calculateDemand();
     const deficits = analyzeDeficitsWithCascading(demand);
     
+    // console.log(`[checkForDeficits] Found ${deficits.length} deficit periods for ${currentLocation}`);
+    if (deficits.length > 0) {
+        // console.log(`[checkForDeficits] First deficit:`, deficits[0]);
+    }
+    
     const resolveDeficitsBtn = document.getElementById('resolve-deficits-btn');
-    if (!resolveDeficitsBtn) return;
+    if (!resolveDeficitsBtn) {
+        // console.log('[checkForDeficits] No resolve deficits button found');
+        return;
+    }
     
     if (deficits.length > 0) {
         // Count deficits by type
@@ -21101,90 +22862,365 @@ function showDeficitResolution() {
     
     modal.style.display = 'block';
     
-    const deficitAnalysis = document.getElementById('deficit-analysis');
+    // Display deficit analysis with detailed information
+    displayDetailedDeficitAnalysis();
+    
+    // Show initial message to click on deficit cells
     const deficitSolutions = document.getElementById('deficit-solutions');
+    deficitSolutions.innerHTML = `
+        <div class="initial-message">
+            <h3>Click on any red deficit cell above to see cohorts affecting that period</h3>
+            <p>This will show you exactly which cohorts have line training during that deficit period and suggest the best moves to resolve it.</p>
+        </div>
+    `;
     
-    // Display deficit analysis
-    let analysisHTML = '<h3>Priority Deficits:</h3><div class="deficit-analysis-section">';
-    
-    window.currentDeficits.slice(0, 5).forEach(deficit => {
-        const monthYear = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year}`;
-        
-        analysisHTML += `
-            <div class="deficit-period">
-                <div class="deficit-period-header">${monthYear} (Fortnight ${deficit.fortnight}):</div>
-                <div class="deficit-details">
-        `;
-        
-        Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
-            const trainingName = type.replace('LT-', '') + ' Training';
-            analysisHTML += `• ${data.deficit.toFixed(0)} ${trainingName} deficit (${data.reason})<br>`;
-        });
-        
-        analysisHTML += '</div></div>';
-    });
-    
-    analysisHTML += '</div>';
-    deficitAnalysis.innerHTML = analysisHTML;
-    
-    // Generate solutions
-    const solutions = generateDeficitSolutions(window.currentDeficits);
-    displayDeficitSolutions(solutions);
+    // Initialize preview functionality
+    initializeDeficitPreview();
 }
 
-function generateDeficitSolutions(deficits) {
-    const solutions = [];
+// Show cohorts affecting a specific period when deficit cell is clicked
+window.showCohortsForPeriod = function(year, fortnight) {
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+    
+    // console.log(`Checking cohorts for ${year} FN${fortnight}, found ${cohorts.length} total cohorts`);
+    
+    // Find all cohorts that have line training in this specific period
+    const affectingCohorts = [];
+    const nonMoveableCohorts = [];
+    
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) {
+            // console.log(`No pathway found for cohort ${cohort.id} with pathwayId ${cohort.pathwayId}`);
+            return;
+        }
+        
+        // Calculate line training periods for this cohort
+        const ltPeriods = calculateLineTrainingPeriodsForCohort(cohort, pathway);
+        
+        if (ltPeriods.length > 0) {
+            // console.log(`Cohort ${cohort.id} (${pathway.name}) has ${ltPeriods.length} LT periods`);
+        }
+        
+        // Check if any line training period matches our target period
+        const hasLTInPeriod = ltPeriods.some(lt => 
+            lt.year === year && lt.fortnight === fortnight
+        );
+        
+        if (hasLTInPeriod) {
+            // console.log(`Cohort ${cohort.id} has LT in ${year} FN${fortnight}`);
+            
+            // Check if cohort is moveable
+            const isMoveable = isCohortMoveable(cohort);
+            // console.log(`Cohort ${cohort.id} moveable: ${isMoveable} (starts ${cohort.startYear} FN${cohort.startFortnight})`);
+            
+            if (isMoveable) {
+                affectingCohorts.push({
+                    cohort: cohort,
+                    pathway: pathway,
+                    currentStart: formatCohortDate(cohort.startYear, cohort.startFortnight),
+                    deficitImpact: cohort.numTrainees,
+                    flexible: pathway.type !== 'CP'
+                });
+            } else {
+                nonMoveableCohorts.push(cohort);
+                // console.log(`Cohort ${cohort.id} affects this period but is not moveable (starts ${cohort.startYear} FN${cohort.startFortnight})`);
+            }
+        }
+    });
+    
+    // Update the solutions display
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    const monthName = MONTHS[Math.floor((fortnight - 1) / 2)];
+    
+    // console.log(`Found ${affectingCohorts.length} moveable cohorts and ${nonMoveableCohorts.length} non-moveable cohorts`);
+    
+    if (affectingCohorts.length === 0) {
+        let message = `<h3>No moveable cohorts affect ${monthName} ${year} (FN${fortnight})</h3>`;
+        
+        if (nonMoveableCohorts.length > 0) {
+            message += `<p>${nonMoveableCohorts.length} cohort(s) have line training in this period but have already started and cannot be moved.</p>`;
+        }
+        
+        deficitSolutions.innerHTML = `
+            <div class="no-cohorts-message">
+                ${message}
+                <p>The deficit in this period cannot be resolved by moving cohorts. Consider:</p>
+                <ul>
+                    <li>Adding more trainers for this period</li>
+                    <li>Reducing the number of trainees starting around this time</li>
+                    <li>Cross-location training from another location</li>
+                </ul>
+            </div>
+        `;
+    } else {
+        const cohortSolutionsObj = {};
+        affectingCohorts.forEach(sol => {
+            cohortSolutionsObj[sol.cohort.id] = sol;
+        });
+        
+        // Display cohorts with focus on this specific period
+        displayCohortReschedulingUI(cohortSolutionsObj, { year, fortnight, monthName });
+    }
+    
+    // Clear any previous preview
+    const previewContent = document.getElementById('preview-content');
+    if (previewContent) {
+        previewContent.innerHTML = '<div class="preview-placeholder">Select cohorts to see impact</div>';
+    }
+}
+
+function displayDetailedDeficitAnalysis() {
+    const deficitSummaryContent = document.getElementById('deficit-summary-content');
+    
+    // Calculate total deficit
+    let totalDeficit = 0;
+    window.currentDeficits.forEach(deficit => {
+        Object.values(deficit.deficitsByType).forEach(data => {
+            totalDeficit += data.deficit;
+        });
+    });
+    
+    // Create a calendar-style view showing current surplus/deficit for affected periods
+    let summaryHTML = `
+        <div class="deficit-quick-summary">
+            <strong>Total deficit: ${totalDeficit} trainers</strong> across ${window.currentDeficits.length} periods. 
+            Move cohorts whose line training overlaps with red periods below.
+        </div>
+        <table class="deficit-calendar-table">
+            <thead>
+                <tr>
+    `;
+    
+    // Get the range of deficit periods to show
+    const deficitFortnights = window.currentDeficits.map(d => ({ year: d.year, fortnight: d.fortnight }));
+    deficitFortnights.sort((a, b) => {
+        if (a.year !== b.year) return a.year - b.year;
+        return a.fortnight - b.fortnight;
+    });
+    
+    const firstDeficit = deficitFortnights[0];
+    const lastDeficit = deficitFortnights[deficitFortnights.length - 1];
+    
+    // Calculate range to show (include some buffer before and after)
+    let startFortnight = Math.max(1, firstDeficit.fortnight - 2);
+    let startYear = firstDeficit.year;
+    if (startFortnight < 1) {
+        startFortnight += FORTNIGHTS_PER_YEAR;
+        startYear--;
+    }
+    
+    // Show enough fortnights to cover all deficits plus some buffer
+    const totalFortnightsNeeded = ((lastDeficit.year - startYear) * FORTNIGHTS_PER_YEAR + lastDeficit.fortnight - startFortnight) + 3;
+    const fortnightsToShow = Math.max(12, Math.min(24, totalFortnightsNeeded));
+    
+    for (let i = 0; i < fortnightsToShow; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        const monthName = MONTHS[Math.floor((fortnight - 1) / 2)];
+        summaryHTML += `<th>FN${fortnight}<br><small>${monthName.substr(0, 3)} ${year}</small></th>`;
+    }
+    
+    summaryHTML += `
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="current-deficit-row">
+                    <td colspan="${fortnightsToShow}" class="deficit-header-row">Current Deficit/Surplus</td>
+                </tr>
+                <tr id="current-values-row">
+    `;
+    
+    // Add current values - need to check actual supply/demand for each period
+    for (let i = 0; i < fortnightsToShow; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        // Calculate the actual supply/deficit for this period
+        const result = calculateSupplyDeficit(year, fortnight);
+        const value = result.surplus > 0 ? result.surplus : -result.deficit;
+        
+        const cellClass = value < 0 ? 'deficit-cell clickable' : value > 0 ? 'surplus-cell' : '';
+        const clickHandler = value < 0 ? `onclick="showCohortsForPeriod(${year}, ${fortnight})"` : '';
+        summaryHTML += `<td class="${cellClass}" data-fortnight="${fortnight}" data-year="${year}" ${clickHandler} title="${value < 0 ? 'Click to see cohorts affecting this period' : ''}">${Math.round(value)}</td>`;
+    }
+    
+    summaryHTML += `
+                </tr>
+            </tbody>
+        </table>
+    `;
+    
+    deficitSummaryContent.innerHTML = summaryHTML;
+}
+
+function getReadableCohortName(cohort) {
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    const pathwayName = pathway ? pathway.name : cohort.pathwayId;
+    const cohortName = cohort.name || `${pathwayName} Cohort ${cohort.id}`;
+    return cohortName;
+}
+
+function generateEnhancedDeficitSolutions(deficits) {
     const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
     
-    // Solution 1: Temporal adjustments
-    deficits.forEach(deficit => {
-        const affectedCohorts = findCohortsInPeriod(deficit.year, deficit.fortnight);
-        affectedCohorts.forEach(cohort => {
-            if (cohort.numTrainees <= 6) { // Only suggest moving smaller cohorts
+    // Group deficits by month for strategic solutions
+    const deficitsByMonth = {};
+    const surplusByMonth = {};
+    
+    // First, analyze all periods to find deficits AND surpluses
+    const startYear = Math.min(...deficits.map(d => d.year));
+    const endYear = Math.max(...deficits.map(d => d.year));
+    
+    for (let year = startYear; year <= endYear; year++) {
+        for (let fortnight = 1; fortnight <= FORTNIGHTS_PER_YEAR; fortnight++) {
+            const result = calculateSupplyDeficit(year, fortnight);
+            const monthKey = `${year}-${Math.floor((fortnight - 1) / 2)}`;
+            const displayKey = `${MONTHS[Math.floor((fortnight - 1) / 2)]} ${year}`;
+            
+            if (!deficitsByMonth[monthKey]) {
+                deficitsByMonth[monthKey] = {
+                    displayName: displayKey,
+                    year,
+                    month: Math.floor((fortnight - 1) / 2),
+                    totalDeficit: 0,
+                    cohorts: [],
+                    fortnights: []
+                };
+            }
+            
+            if (!surplusByMonth[monthKey]) {
+                surplusByMonth[monthKey] = {
+                    displayName: displayKey,
+                    year,
+                    month: Math.floor((fortnight - 1) / 2),
+                    totalSurplus: 0
+                };
+            }
+            
+            // Sum up deficits/surpluses
+            const totalDeficit = result.totalDeficitDetail.reduce((sum, d) => sum + Math.max(0, d.deficit), 0);
+            const totalSurplus = result.totalDeficitDetail.reduce((sum, d) => sum + Math.max(0, -d.deficit), 0);
+            
+            if (totalDeficit > 0) {
+                deficitsByMonth[monthKey].totalDeficit += totalDeficit;
+                deficitsByMonth[monthKey].fortnights.push(fortnight);
+                const cohorts = findCohortsInPeriod(year, fortnight);
+                cohorts.forEach(c => {
+                    if (!deficitsByMonth[monthKey].cohorts.find(existing => existing.id === c.id)) {
+                        deficitsByMonth[monthKey].cohorts.push(c);
+                    }
+                });
+            }
+            
+            if (totalSurplus > 0) {
+                surplusByMonth[monthKey].totalSurplus += totalSurplus;
+            }
+        }
+    }
+    
+    // Generate month-based strategic solutions
+    const solutions = [];
+    
+    Object.entries(deficitsByMonth).forEach(([monthKey, deficitData]) => {
+        if (deficitData.totalDeficit === 0) return;
+        
+        // Find months with surplus capacity
+        const availableMonths = Object.entries(surplusByMonth)
+            .filter(([key, data]) => data.totalSurplus > 0)
+            .sort((a, b) => {
+                // Prefer nearby months
+                const aDistance = Math.abs(parseInt(a[0].split('-')[0]) * 12 + parseInt(a[0].split('-')[1]) - 
+                                         (deficitData.year * 12 + deficitData.month));
+                const bDistance = Math.abs(parseInt(b[0].split('-')[0]) * 12 + parseInt(b[0].split('-')[1]) - 
+                                         (deficitData.year * 12 + deficitData.month));
+                return aDistance - bDistance;
+            })
+            .slice(0, 3); // Top 3 nearby months with capacity
+        
+        // Group cohorts by size for solution bundling
+        const smallCohorts = deficitData.cohorts.filter(c => c.numTrainees <= 6);
+        const mediumCohorts = deficitData.cohorts.filter(c => c.numTrainees > 6 && c.numTrainees <= 12);
+        const largeCohorts = deficitData.cohorts.filter(c => c.numTrainees > 12);
+        
+        // Solution 1: Move multiple small cohorts together
+        if (smallCohorts.length > 0 && availableMonths.length > 0) {
+            const targetMonth = availableMonths[0];
+            const cohortsToMove = smallCohorts.slice(0, Math.min(3, smallCohorts.length));
+            const totalTrainees = cohortsToMove.reduce((sum, c) => sum + c.numTrainees, 0);
+            
+            solutions.push({
+                type: 'move-multiple',
+                title: `Reschedule ${cohortsToMove.length} small cohorts from ${deficitData.displayName}`,
+                description: `Move ${cohortsToMove.map(c => getReadableCohortName(c)).join(', ')} to ${targetMonth[1].displayName}`,
+                impact: `Resolves ${Math.round((totalTrainees / deficitData.totalDeficit) * 100)}% of ${deficitData.displayName} deficit`,
+                monthlyImpact: {
+                    [deficitData.displayName]: -totalTrainees,
+                    [targetMonth[1].displayName]: +totalTrainees
+                },
+                cohortIds: cohortsToMove.map(c => c.id),
+                fromMonth: deficitData.displayName,
+                toMonth: targetMonth[1].displayName,
+                totalTrainees,
+                deficitReduction: totalTrainees
+            });
+        }
+        
+        // Solution 2: Split large cohorts across months
+        if (largeCohorts.length > 0) {
+            largeCohorts.forEach(cohort => {
+                const halfSize = Math.floor(cohort.numTrainees / 2);
                 solutions.push({
-                    type: 'move',
-                    description: `Move ${cohort.name || 'Cohort ' + cohort.id} by 2 weeks`,
-                    impact: `Resolves ${cohort.numTrainees} trainee deficit`,
+                    type: 'split-cohort',
+                    title: `Split ${getReadableCohortName(cohort)} across two months`,
+                    description: `Keep ${halfSize} trainees in ${deficitData.displayName}, move ${cohort.numTrainees - halfSize} to next month`,
+                    impact: `Reduces ${deficitData.displayName} deficit by ${cohort.numTrainees - halfSize} trainees`,
+                    monthlyImpact: {
+                        [deficitData.displayName]: -(cohort.numTrainees - halfSize),
+                        'Next Month': +(cohort.numTrainees - halfSize)
+                    },
                     cohortId: cohort.id,
-                    newStartFortnight: deficit.fortnight + 2
+                    splitSize: halfSize,
+                    deficitReduction: cohort.numTrainees - halfSize
+                });
+            });
+        }
+    });
+    
+    // Solution 3: Cross-location training (NZ→AU only)
+    if (currentLocation === 'NZ') {
+        Object.entries(deficitsByMonth).forEach(([monthKey, deficitData]) => {
+            if (deficitData.totalDeficit > 0) {
+                solutions.push({
+                    type: 'cross-location',
+                    title: `Use AU trainers for ${deficitData.displayName}`,
+                    description: `Send ${Math.round(deficitData.totalDeficit)} NZ trainees to AU for training`,
+                    impact: `Completely resolves ${deficitData.displayName} deficit`,
+                    monthlyImpact: {
+                        [`${deficitData.displayName} (NZ)`]: -deficitData.totalDeficit,
+                        [`${deficitData.displayName} (AU)`]: +deficitData.totalDeficit
+                    },
+                    deficitReduction: deficitData.totalDeficit
                 });
             }
         });
-    });
-    
-    // Solution 2: Cross-location (NZ only)
-    if (currentLocation === 'NZ') {
-        deficits.forEach(deficit => {
-            Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
-                solutions.push({
-                    type: 'cross-location',
-                    description: `Send ${data.deficit.toFixed(0)} ${type.replace('LT-', '')} trainees to AU`,
-                    impact: 'Leverages AU trainer capacity',
-                    deficitType: type,
-                    traineeCount: data.deficit,
-                    period: { year: deficit.year, fortnight: deficit.fortnight }
-                });
-            });
-        });
     }
     
-    // Solution 3: Cohort splitting
-    deficits.forEach(deficit => {
-        const largeCohorts = findCohortsInPeriod(deficit.year, deficit.fortnight)
-            .filter(c => c.numTrainees > 10);
-        
-        largeCohorts.forEach(cohort => {
-            solutions.push({
-                type: 'split',
-                description: `Split ${cohort.name || 'Cohort ' + cohort.id} into 2 smaller groups`,
-                impact: 'Distributes trainer load',
-                cohortId: cohort.id,
-                splitSize: Math.ceil(cohort.numTrainees / 2)
-            });
-        });
-    });
-    
-    return solutions.slice(0, 10); // Limit to top 10 solutions
+    // Sort solutions by impact and return top ones
+    return solutions.sort((a, b) => b.deficitReduction - a.deficitReduction).slice(0, 6);
 }
 
 function findCohortsInPeriod(year, fortnight) {
@@ -21264,28 +23300,31 @@ function previewDeficitChanges() {
 }
 
 function applyDeficitSolutions() {
-    const selectedIndices = Array.from(document.querySelectorAll('.solution-checkbox:checked'))
-        .map(cb => parseInt(cb.dataset.solutionIndex));
+    const selectedMoves = [];
     
-    if (selectedIndices.length === 0) return;
-    
-    selectedIndices.forEach(index => {
-        const solution = window.currentDeficitSolutions[index];
+    // Collect all selected cohort moves
+    document.querySelectorAll('.cohort-move-checkbox:checked').forEach(checkbox => {
+        const cohortId = checkbox.id.replace('cohort-', '');
+        const dateSelect = document.querySelector(`.new-date-select[data-cohort-id="${cohortId}"]`);
         
-        switch (solution.type) {
-            case 'move':
-                // Move cohort to new start time
-                moveCohort(solution.cohortId, solution.newStartFortnight);
-                break;
-            case 'cross-location':
-                // Add cross-location training
-                showNotification('Cross-location implementation coming soon', 'info');
-                break;
-            case 'split':
-                // Split cohort
-                showNotification('Cohort splitting coming soon', 'info');
-                break;
+        if (dateSelect.value) {
+            const [year, fortnight] = dateSelect.value.split('-').map(Number);
+            selectedMoves.push({
+                cohortId: cohortId,
+                newYear: year,
+                newFortnight: fortnight
+            });
         }
+    });
+    
+    if (selectedMoves.length === 0) {
+        showNotification('Please select cohorts and new dates', 'warning');
+        return;
+    }
+    
+    // Apply all moves
+    selectedMoves.forEach(move => {
+        moveCohortToDate(move.cohortId, move.newYear, move.newFortnight);
     });
     
     // Close modal and refresh
@@ -21293,7 +23332,17 @@ function applyDeficitSolutions() {
     renderAll();
     checkForDeficits();
     
-    showNotification('Solutions applied successfully', 'success');
+    showNotification(`Successfully rescheduled ${selectedMoves.length} cohort${selectedMoves.length > 1 ? 's' : ''}`, 'success');
+}
+
+function moveCohortToDate(cohortId, newYear, newFortnight) {
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const cohort = cohorts.find(c => c.id == cohortId);
+    
+    if (cohort) {
+        cohort.startYear = newYear;
+        cohort.startFortnight = newFortnight;
+    }
 }
 
 function moveCohort(cohortId, newStartFortnight) {
@@ -21307,6 +23356,612 @@ function moveCohort(cohortId, newStartFortnight) {
             cohort.startYear++;
         }
     }
+}
+
+function displayEnhancedDeficitSolutions(solutions) {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    
+    if (solutions.length === 0) {
+        deficitSolutions.innerHTML = `
+            <div class="no-solutions">
+                <p>No automatic solutions available for the current deficits.</p>
+                <p>Consider manual adjustments or increasing trainer capacity.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    let html = `
+        <div class="solutions-header">
+            <strong>Recommended Actions:</strong>
+            <small style="color: #6c757d; display: block; margin-top: 4px;">
+                Select solutions to apply. Preview shows combined impact.
+            </small>
+        </div>
+    `;
+    
+    solutions.forEach((solution, index) => {
+        const badgeColor = solution.type === 'cross-location' ? 'badge-info' : 
+                          solution.type === 'move-multiple' ? 'badge-success' : 'badge-warning';
+        
+        html += `
+            <div class="solution-item" data-solution-index="${index}">
+                <div class="solution-header">
+                    <input type="checkbox" class="solution-checkbox" id="solution-${index}" data-solution-index="${index}">
+                    <div class="solution-content">
+                        <div class="solution-title-row">
+                            <span class="solution-title">${solution.title}</span>
+                            <span class="solution-badge ${badgeColor}">${solution.impact}</span>
+                        </div>
+                        <div class="solution-description">${solution.description}</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    deficitSolutions.innerHTML = html;
+    
+    // Store solutions for later use
+    window.currentSolutions = solutions;
+    
+    // Add event listeners for solution selection
+    const checkboxes = document.querySelectorAll('.solution-checkbox');
+    const solutionItems = document.querySelectorAll('.solution-item');
+    
+    checkboxes.forEach((checkbox, index) => {
+        checkbox.addEventListener('change', function() {
+            const applyBtn = document.getElementById('apply-deficit-solutions');
+            const selectedSolutions = Array.from(checkboxes).filter(cb => cb.checked);
+            applyBtn.disabled = selectedSolutions.length === 0;
+            
+            // Update solution item styling
+            solutionItems[index].classList.toggle('selected', checkbox.checked);
+            
+            // Update preview
+            updateDeficitPreview();
+        });
+    });
+    
+    // Add click handlers to solution items (clicking anywhere selects)
+    solutionItems.forEach((item, index) => {
+        item.addEventListener('click', function(e) {
+            if (e.target.type !== 'checkbox') {
+                const checkbox = checkboxes[index];
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            }
+        });
+    });
+}
+
+function calculateReschedulingImpact(selectedMoves) {
+    const impactByPeriod = {};
+    
+    // Get all deficit periods from the current deficits
+    if (window.currentDeficits) {
+        window.currentDeficits.forEach(deficit => {
+            const key = `${deficit.year}-${deficit.fortnight}`;
+            impactByPeriod[key] = {
+                year: deficit.year,
+                fortnight: deficit.fortnight,
+                before: deficit.deficit,
+                after: deficit.deficit,
+                change: 0
+            };
+        });
+    }
+    
+    // Calculate the impact of moving cohorts
+    selectedMoves.forEach(move => {
+        // Find the cohort
+        const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+        const cohort = cohorts.find(c => c.id == move.cohortId);
+        if (!cohort) return;
+        
+        const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Calculate demand for original and new positions
+        pathway.phases.forEach((phase, phaseIndex) => {
+            if (phase.trainerDemandType) {
+                const demand = Math.ceil(cohort.numTrainees / phase.ratio);
+                
+                // Remove demand from original fortnights
+                let startFortnight = move.originalFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    startFortnight += pathway.phases[i].duration;
+                }
+                
+                for (let i = 0; i < phase.duration; i++) {
+                    const fortnight = startFortnight + i;
+                    const year = move.originalYear + Math.floor((fortnight - 1) / FORTNIGHTS_PER_YEAR);
+                    const adjustedFortnight = ((fortnight - 1) % FORTNIGHTS_PER_YEAR) + 1;
+                    const key = `${year}-${adjustedFortnight}`;
+                    
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = {
+                            year,
+                            fortnight: adjustedFortnight,
+                            before: 0,
+                            after: 0,
+                            change: 0
+                        };
+                    }
+                    impactByPeriod[key].after += demand; // Reducing deficit
+                    impactByPeriod[key].change += demand;
+                }
+                
+                // Add demand to new fortnights
+                startFortnight = move.newFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    startFortnight += pathway.phases[i].duration;
+                }
+                
+                for (let i = 0; i < phase.duration; i++) {
+                    const fortnight = startFortnight + i;
+                    const year = move.newYear + Math.floor((fortnight - 1) / FORTNIGHTS_PER_YEAR);
+                    const adjustedFortnight = ((fortnight - 1) % FORTNIGHTS_PER_YEAR) + 1;
+                    const key = `${year}-${adjustedFortnight}`;
+                    
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = {
+                            year,
+                            fortnight: adjustedFortnight,
+                            before: 0,
+                            after: 0,
+                            change: 0
+                        };
+                    }
+                    impactByPeriod[key].after -= demand; // Increasing deficit
+                    impactByPeriod[key].change -= demand;
+                }
+            }
+        });
+    });
+    
+    return impactByPeriod;
+}
+
+function updateDeficitPreview() {
+    const previewContent = document.getElementById('preview-content');
+    if (!previewContent) return;
+    
+    // Get selected cohorts and their new dates
+    const selectedMoves = [];
+    document.querySelectorAll('.cohort-move-checkbox:checked').forEach(checkbox => {
+        const cohortId = checkbox.dataset.cohortId;
+        const dateSelect = document.querySelector(`.new-date-select[data-cohort-id="${cohortId}"]`);
+        
+        if (dateSelect && dateSelect.value) {
+            const [year, fortnight] = dateSelect.value.split('-').map(Number);
+            const cohortElement = checkbox.closest('.cohort-reschedule-item');
+            const cohortName = cohortElement.querySelector('.cohort-info strong').textContent;
+            
+            selectedMoves.push({
+                cohortId,
+                cohortName,
+                newYear: year,
+                newFortnight: fortnight,
+                originalYear: parseInt(checkbox.dataset.originalYear),
+                originalFortnight: parseInt(checkbox.dataset.originalFortnight)
+            });
+        }
+    });
+    
+    if (selectedMoves.length === 0) {
+        previewContent.innerHTML = '<div class="preview-placeholder">Select cohorts to see impact</div>';
+        updateDeficitSummaryTable(null);
+        return;
+    }
+    
+    // Show moves summary
+    let html = '<div class="moves-summary">';
+    selectedMoves.forEach(move => {
+        html += `<div class="move-item">Moving ${move.cohortName}: FN${move.originalFortnight} → FN${move.newFortnight}</div>`;
+    });
+    html += '</div>';
+    
+    previewContent.innerHTML = html;
+    
+    // Update the summary table with adjusted values
+    updateDeficitSummaryTable(selectedMoves);
+    
+    // Enable/disable apply button based on selection
+    const applyButton = document.getElementById('apply-deficit-solutions');
+    if (applyButton) {
+        applyButton.disabled = selectedMoves.length === 0;
+    }
+}
+
+function updateDeficitSummaryTable(selectedMoves) {
+    const summaryTable = document.querySelector('.deficit-calendar-table tbody');
+    if (!summaryTable) return;
+    
+    // Remove existing adjustment rows
+    const existingAdjustmentRows = summaryTable.querySelectorAll('[id*="adjustment"], [id*="adjusted"]');
+    existingAdjustmentRows.forEach(row => row.remove());
+    
+    if (!selectedMoves || selectedMoves.length === 0) {
+        return;
+    }
+    
+    // Calculate impact of moves
+    const impactByPeriod = calculateSimpleReschedulingImpact(selectedMoves);
+    
+    // Get the number of columns from the header
+    const headerCells = document.querySelectorAll('.deficit-calendar-table thead th');
+    const numColumns = headerCells.length;
+    
+    // Get the starting fortnight/year from the first header cell
+    const firstHeaderText = headerCells[0].textContent;
+    const match = firstHeaderText.match(/FN(\d+).*?(\d{4})/);
+    let startFortnight = parseInt(match[1]);
+    let startYear = parseInt(match[2]);
+    
+    // Add adjustment row
+    let adjustmentHTML = `<tr id="adjustment-row"><td colspan="${numColumns}" class="deficit-header-row impact-header">Impact of Moves</td></tr><tr id="adjustment-values-row">`;
+    
+    for (let i = 0; i < numColumns; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        const key = `${year}-${fortnight}`;
+        const impact = impactByPeriod[key] ? impactByPeriod[key].change : 0;
+        const cellClass = impact > 0 ? 'improvement-cell' : impact < 0 ? 'worsening-cell' : '';
+        const displayValue = impact > 0 ? `+${impact}` : `${impact}`;
+        adjustmentHTML += `<td class="${cellClass}">${impact === 0 ? '-' : displayValue}</td>`;
+    }
+    adjustmentHTML += '</tr>';
+    
+    // Add adjusted values row
+    adjustmentHTML += `<tr id="adjusted-row"><td colspan="${numColumns}" class="deficit-header-row adjusted-header">After Rescheduling</td></tr><tr id="adjusted-values-row">`;
+    
+    for (let i = 0; i < numColumns; i++) {
+        let fortnight = startFortnight + i;
+        let year = startYear;
+        
+        while (fortnight > FORTNIGHTS_PER_YEAR) {
+            fortnight -= FORTNIGHTS_PER_YEAR;
+            year++;
+        }
+        
+        // Get current value
+        const currentCell = summaryTable.querySelector(`[data-fortnight="${fortnight}"][data-year="${year}"]`);
+        const currentValue = currentCell ? parseInt(currentCell.textContent) || 0 : 0;
+        
+        // Calculate adjusted value
+        const key = `${year}-${fortnight}`;
+        const impact = impactByPeriod[key] ? impactByPeriod[key].change : 0;
+        const adjustedValue = currentValue + impact;
+        
+        const cellClass = adjustedValue < 0 ? 'deficit-cell' : adjustedValue > 0 ? 'surplus-cell' : '';
+        adjustmentHTML += `<td class="${cellClass}">${adjustedValue}</td>`;
+    }
+    adjustmentHTML += '</tr>';
+    
+    summaryTable.insertAdjacentHTML('beforeend', adjustmentHTML);
+}
+
+function calculateSimpleReschedulingImpact(selectedMoves) {
+    const impactByPeriod = {};
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    selectedMoves.forEach(move => {
+        // Find the cohort
+        const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+        const cohort = cohorts.find(c => c.id == move.cohortId);
+        if (!cohort) return;
+        
+        const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Calculate which line training phases are affected
+        pathway.phases.forEach((phase, phaseIndex) => {
+            if (phase.trainersRequired > 0) {
+                // Calculate original phase timing
+                let phaseStartFortnight = move.originalFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    phaseStartFortnight += pathway.phases[i].duration;
+                }
+                
+                // Impact for each fortnight in the original training period
+                for (let i = 0; i < phase.duration; i++) {
+                    let fortnight = phaseStartFortnight + i;
+                    let year = move.originalYear;
+                    
+                    while (fortnight > FORTNIGHTS_PER_YEAR) {
+                        fortnight -= FORTNIGHTS_PER_YEAR;
+                        year++;
+                    }
+                    
+                    const key = `${year}-${fortnight}`;
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = { change: 0 };
+                    }
+                    // Removing demand from original period (positive impact)
+                    impactByPeriod[key].change += cohort.numTrainees * phase.trainersRequired;
+                }
+                
+                // Calculate new phase timing
+                phaseStartFortnight = move.newFortnight;
+                for (let i = 0; i < phaseIndex; i++) {
+                    phaseStartFortnight += pathway.phases[i].duration;
+                }
+                
+                // Impact for each fortnight in the new training period
+                for (let i = 0; i < phase.duration; i++) {
+                    let fortnight = phaseStartFortnight + i;
+                    let year = move.newYear;
+                    
+                    while (fortnight > FORTNIGHTS_PER_YEAR) {
+                        fortnight -= FORTNIGHTS_PER_YEAR;
+                        year++;
+                    }
+                    
+                    const key = `${year}-${fortnight}`;
+                    if (!impactByPeriod[key]) {
+                        impactByPeriod[key] = { change: 0 };
+                    }
+                    // Adding demand to new period (negative impact)
+                    impactByPeriod[key].change -= cohort.numTrainees * phase.trainersRequired;
+                }
+            }
+        });
+    });
+    
+    return impactByPeriod;
+}
+
+function initializeDeficitPreview() {
+    // Add event listeners for cohort selection changes
+    document.addEventListener('change', function(e) {
+        if (e.target.classList.contains('cohort-move-checkbox') || 
+            e.target.classList.contains('new-date-select')) {
+            updateDeficitPreview();
+        }
+    });
+    
+    // Initialize preview with current state
+    updateDeficitPreview();
+}
+
+function updateCohortMovePreview(selectedMoves) {
+    const previewContent = document.getElementById('preview-content');
+    
+    if (!previewContent) return;
+    
+    if (!selectedMoves || selectedMoves.length === 0) {
+        previewContent.innerHTML = '<div class="preview-placeholder">Select cohorts to reschedule to see the impact preview</div>';
+        return;
+    }
+    
+    // Calculate fortnight-by-fortnight impact
+    const fortnightImpact = {};
+    
+    // Initialize with current deficits at fortnight level
+    window.currentDeficits.forEach(deficit => {
+        const fortnightKey = `${deficit.year}-${deficit.fortnight}`;
+        const totalDeficit = Object.values(deficit.deficitsByType).reduce((sum, data) => sum + data.deficit, 0);
+        fortnightImpact[fortnightKey] = {
+            year: deficit.year,
+            fortnight: deficit.fortnight,
+            currentDeficit: totalDeficit,
+            changes: 0
+        };
+    });
+    
+    // Apply cohort move impacts
+    selectedMoves.forEach(move => {
+        // For each move, calculate which fortnights are affected
+        const pathway = move.cohort.pathway || pathways.find(p => p.id === move.cohort.pathwayId);
+        if (!pathway) return;
+        
+        // Calculate line training periods for original schedule
+        let phases = calculateLineTrainingPeriods(move.cohort, pathway, move.from.year, move.from.fortnight);
+        phases.forEach(period => {
+            const key = `${period.year}-${period.fortnight}`;
+            if (!fortnightImpact[key]) {
+                fortnightImpact[key] = { year: period.year, fortnight: period.fortnight, currentDeficit: 0, changes: 0 };
+            }
+            fortnightImpact[key].changes -= move.impact; // Remove demand from original periods
+        });
+        
+        // Calculate line training periods for new schedule
+        phases = calculateLineTrainingPeriods(move.cohort, pathway, move.to.year, move.to.fortnight);
+        phases.forEach(period => {
+            const key = `${period.year}-${period.fortnight}`;
+            if (!fortnightImpact[key]) {
+                fortnightImpact[key] = { year: period.year, fortnight: period.fortnight, currentDeficit: 0, changes: 0 };
+            }
+            fortnightImpact[key].changes += move.impact; // Add demand to new periods
+        });
+    });
+    
+    let html = `
+        <div class="preview-summary">
+            <strong>Impact of moving ${selectedMoves.length} cohort${selectedMoves.length > 1 ? 's' : ''}:</strong>
+        </div>
+        
+        <table class="impact-summary-table">
+            <thead>
+                <tr>
+                    <th>Period</th>
+                    <th>Current</th>
+                    <th>After Moves</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+    
+    // Sort by year and fortnight
+    const sortedPeriods = Object.entries(fortnightImpact)
+        .sort((a, b) => {
+            const aYear = a[1].year;
+            const bYear = b[1].year;
+            if (aYear !== bYear) return aYear - bYear;
+            return a[1].fortnight - b[1].fortnight;
+        })
+        .filter(([_, data]) => data.currentDeficit !== 0 || data.changes !== 0);
+    
+    sortedPeriods.forEach(([key, data]) => {
+        const periodLabel = formatCohortDate(data.year, data.fortnight);
+        const current = Math.round(data.currentDeficit);
+        const afterChanges = Math.round(data.currentDeficit + data.changes);
+        let status, statusColor;
+        
+        if (current > 0) { // Was deficit
+            if (afterChanges <= 0) {
+                status = 'RESOLVED ✓';
+                statusColor = '#28a745';
+            } else if (afterChanges < current) {
+                status = `IMPROVED (${Math.round((current - afterChanges) / current * 100)}%)`;
+                statusColor = '#ffc107';
+            } else {
+                status = 'WORSENED';
+                statusColor = '#dc3545';
+            }
+        } else { // Was surplus
+            if (afterChanges >= 0) {
+                status = 'Still OK';
+                statusColor = '#28a745';
+            } else {
+                status = 'NEW DEFICIT';
+                statusColor = '#dc3545';
+            }
+        }
+        
+        html += `
+            <tr>
+                <td><strong>${periodLabel}</strong></td>
+                <td class="${current > 0 ? 'deficit' : 'surplus'}">${current > 0 ? '-' : '+'}${Math.abs(current)}</td>
+                <td class="${afterChanges > 0 ? 'deficit' : 'surplus'}">${afterChanges > 0 ? '-' : '+'}${Math.abs(afterChanges)}</td>
+                <td style="color: ${statusColor}; font-weight: 500;">${status}</td>
+            </tr>
+        `;
+    });
+    
+    html += `
+            </tbody>
+        </table>
+        
+        <div class="preview-notes">
+            <strong>Cohorts being moved:</strong>
+            <ul style="margin: 8px 0; padding-left: 20px;">
+                ${selectedMoves.map(move => {
+                    const cohortName = getReadableCohortName(move.cohort);
+                    const fromDate = formatCohortDate(move.from.year, move.from.fortnight);
+                    const toDate = formatCohortDate(move.to.year, move.to.fortnight);
+                    return `<li>${cohortName} (${move.impact} trainees): ${fromDate} → ${toDate}</li>`;
+                }).join('')}
+            </ul>
+        </div>
+    `;
+    
+    previewContent.innerHTML = html;
+}
+
+function calculateLineTrainingPeriods(cohort, pathway, startYear, startFortnight) {
+    const periods = [];
+    let currentYear = startYear;
+    let currentFortnight = startFortnight;
+    
+    // Go through each phase and find line training periods
+    for (const phase of pathway.phases) {
+        if (phase.trainerDemandType) {
+            // This phase requires trainers
+            for (let i = 0; i < phase.duration; i++) {
+                periods.push({
+                    year: currentYear,
+                    fortnight: currentFortnight,
+                    type: phase.trainerDemandType
+                });
+                
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+        } else {
+            // Skip non-trainer phases
+            for (let i = 0; i < phase.duration; i++) {
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+        }
+    }
+    
+    return periods;
+}
+
+function calculateCombinedImpact(selectedSolutions) {
+    const impactByPeriod = {};
+    
+    // Get current deficits
+    window.currentDeficits.forEach(deficit => {
+        const periodKey = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year} F${deficit.fortnight}`;
+        const totalDeficit = Object.values(deficit.deficitsByType).reduce((sum, data) => sum + data.deficit, 0);
+        impactByPeriod[periodKey] = {
+            period: periodKey,
+            currentDeficit: Math.round(totalDeficit),
+            changes: 0
+        };
+    });
+    
+    // Apply solution impacts
+    selectedSolutions.forEach(solution => {
+        if (solution.detailedImpact) {
+            if (solution.type === 'move') {
+                // Moving reduces demand in 'from' period and increases in 'to' period
+                const fromKey = `${MONTHS[Math.floor((solution.detailedImpact.from.fortnight - 1) / 2)]} ${solution.detailedImpact.from.year} F${solution.detailedImpact.from.fortnight}`;
+                const toKey = `${MONTHS[Math.floor((solution.detailedImpact.to.fortnight - 1) / 2)]} ${solution.detailedImpact.to.year} F${solution.detailedImpact.to.fortnight}`;
+                
+                if (impactByPeriod[fromKey]) {
+                    impactByPeriod[fromKey].changes -= solution.detailedImpact.from.reduction;
+                }
+                
+                // Initialize 'to' period if it doesn't exist
+                if (!impactByPeriod[toKey]) {
+                    impactByPeriod[toKey] = {
+                        period: toKey,
+                        currentDeficit: 0,
+                        changes: 0
+                    };
+                }
+                impactByPeriod[toKey].changes += solution.detailedImpact.to.increase;
+            } else if (solution.type === 'cross-location') {
+                const periodKey = `${MONTHS[Math.floor((solution.period.fortnight - 1) / 2)]} ${solution.period.year} F${solution.period.fortnight}`;
+                if (impactByPeriod[periodKey]) {
+                    impactByPeriod[periodKey].changes -= solution.detailedImpact.nzReduction;
+                }
+            } else if (solution.type === 'split') {
+                const period1Key = `${MONTHS[Math.floor((solution.detailedImpact.period1.fortnight - 1) / 2)]} ${deficit.year} F${solution.detailedImpact.period1.fortnight}`;
+                if (impactByPeriod[period1Key]) {
+                    impactByPeriod[period1Key].changes -= solution.detailedImpact.totalReduction;
+                }
+            }
+        }
+    });
+    
+    // Calculate final results
+    return Object.values(impactByPeriod).map(period => ({
+        period: period.period,
+        currentDeficit: period.currentDeficit,
+        afterChanges: period.currentDeficit + period.changes,
+        improvement: -period.changes // Negative change = improvement (deficit reduction)
+    }));
 }
 
 // Initialize deficit detection when DOM is ready
@@ -21358,6 +24013,757 @@ document.addEventListener('DOMContentLoaded', function() {
     setTimeout(initializeDeficitDetection, 2000);
 });
 
-</script>
+// New cohort-specific rescheduling functions
+function generateCohortReschedulingSolutions(deficits) {
+    const solutions = {};
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Get all cohorts that contribute to deficits
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    
+    // console.log('Analyzing deficits:', deficits.length, 'periods');
+    // console.log('Total cohorts to check:', cohorts.length);
+    
+    // For each cohort, check if it contributes to any deficit period
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId) || 
+                       pathways.find(p => p.name === cohort.pathwayId); // Sometimes pathwayId is the name
+        if (!pathway) {
+            // console.log('No pathway found for cohort:', cohort.name || cohort.id, 'pathwayId:', cohort.pathwayId);
+            return;
+        }
+        
+        // Check if cohort is moveable (hasn't started overall training yet)
+        if (!isCohortMoveable(cohort)) {
+            // console.log('Cohort not moveable:', cohort.name || cohort.id, 'starts:', cohort.startYear, cohort.startFortnight);
+            return;
+        }
+        
+        // Check if this cohort has line training during any deficit period
+        let contributeToDeficit = false;
+        let deficitPeriods = [];
+        
+        deficits.forEach(deficit => {
+            if (cohortHasLineTrainingInPeriod(cohort, pathway, deficit.year, deficit.fortnight)) {
+                contributeToDeficit = true;
+                deficitPeriods.push(deficit);
+            }
+        });
+        
+        if (contributeToDeficit) {
+            // console.log('Cohort', cohort.name || cohort.id, 'contributes to deficit');
+            
+            // Calculate possible move dates
+            const possibleMoves = calculatePossibleMoveDates(cohort, pathway, deficitPeriods[0]);
+            // console.log('Possible moves for cohort:', possibleMoves.length);
+            
+            if (possibleMoves.length > 0) {
+                solutions[cohort.id] = {
+                    cohort: cohort,
+                    pathway: pathway,
+                    currentStart: formatCohortDate(cohort.startYear, cohort.startFortnight),
+                    possibleMoves: possibleMoves,
+                    deficitImpact: cohort.numTrainees,
+                    flexible: pathway.type !== 'CP', // CP has month-start restrictions
+                    deficitPeriods: deficitPeriods
+                };
+            }
+        }
+    });
+    
+    return solutions;
+}
+
+function cohortHasLineTrainingInPeriod(cohort, pathway, targetYear, targetFortnight) {
+    let currentYear = cohort.startYear;
+    let currentFortnight = cohort.startFortnight;
+    
+    for (const phase of pathway.phases) {
+        for (let i = 0; i < phase.duration; i++) {
+            // Check if this is a line training phase in the target period
+            if (currentYear === targetYear && 
+                currentFortnight === targetFortnight && 
+                phase.trainerDemandType) {
+                return true;
+            }
+            
+            currentFortnight++;
+            if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                currentFortnight = 1;
+                currentYear++;
+            }
+        }
+    }
+    
+    return false;
+}
+
+function isCohortMoveable(cohort) {
+    // For planning purposes, any cohort that hasn't completed training is potentially moveable
+    // This is especially important for small deficits (-1, -2) where we need maximum flexibility
+    
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth();
+    const currentFortnight = (currentMonth * 2) + (new Date().getDate() >= 15 ? 2 : 1);
+    
+    // Get the pathway to determine total duration
+    const pathway = pathways.find(p => p.name === cohort.pathway);
+    if (!pathway) return false;
+    
+    // Calculate when the cohort will complete training
+    const totalDuration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
+    let endYear = cohort.startYear;
+    let endFortnight = cohort.startFortnight + totalDuration - 1;
+    
+    // Adjust for year rollover
+    while (endFortnight > 24) {
+        endFortnight -= 24;
+        endYear++;
+    }
+    
+    // If cohort has already completed training, it's not moveable
+    if (endYear < currentYear || (endYear === currentYear && endFortnight < currentFortnight)) {
+        return false;
+    }
+    
+    // If cohort hasn't started yet, it's definitely moveable
+    if (cohort.startYear > currentYear || 
+        (cohort.startYear === currentYear && cohort.startFortnight > currentFortnight)) {
+        return true;
+    }
+    
+    // For cohorts that have started but not completed:
+    // Allow moving if they're still in early phases (GS+SIM) which don't require trainers
+    // This gives us more flexibility for resolving small deficits
+    const gsSimDuration = pathway.phases
+        .filter(phase => phase.requiresTrainer === false)
+        .reduce((sum, phase) => sum + phase.duration, 0);
+    
+    const currentProgress = ((currentYear - cohort.startYear) * 24) + currentFortnight - cohort.startFortnight;
+    
+    // If still in non-trainer phases, definitely moveable
+    if (currentProgress < gsSimDuration) {
+        return true;
+    }
+    
+    // For cohorts in line training, allow movement if they're not too far along
+    // This helps with small deficits where slight schedule adjustments could help
+    const progressPercentage = currentProgress / totalDuration;
+    return progressPercentage < 0.5; // Allow moving if less than 50% complete
+}
+
+function getDateFromYearFortnight(year, fortnight) {
+    const month = Math.floor((fortnight - 1) / 2);
+    const day = fortnight % 2 === 1 ? 1 : 15;
+    return new Date(year, month, day);
+}
+
+function formatCohortDate(year, fortnight) {
+    const month = MONTHS[Math.floor((fortnight - 1) / 2)];
+    const day = fortnight % 2 === 1 ? '1st' : '15th';
+    return `${month} ${day}, ${year}`;
+}
+
+function calculatePossibleMoveDates(cohort, pathway, currentDeficit) {
+    const moves = [];
+    const isCPPathway = pathway.type === 'CP';
+    
+    // For fortnight-level moves, check nearby fortnights (+/- 4 fortnights)
+    // This allows moving by just 1 fortnight to potentially resolve deficits
+    for (let fnOffset = -4; fnOffset <= 4; fnOffset++) {
+        if (fnOffset === 0) continue; // Skip current position
+        
+        let targetFortnight = cohort.startFortnight + fnOffset;
+        let targetYear = cohort.startYear;
+        
+        // Handle year boundaries
+        while (targetFortnight > FORTNIGHTS_PER_YEAR) {
+            targetFortnight -= FORTNIGHTS_PER_YEAR;
+            targetYear++;
+        }
+        while (targetFortnight < 1) {
+            targetFortnight += FORTNIGHTS_PER_YEAR;
+            targetYear--;
+        }
+        
+        // Skip if too far in the past
+        if (targetYear < new Date().getFullYear()) continue;
+        
+        if (isCPPathway) {
+            // CP can only start on 1st of month (odd fortnights: 1, 3, 5...)
+            // Only check if this is a valid month start
+            if (targetFortnight % 2 === 1) {
+                const capacity = checkPeriodCapacity(targetYear, targetFortnight, cohort.numTrainees);
+                if (capacity.canAccommodate) {
+                    moves.push({
+                        year: targetYear,
+                        fortnight: targetFortnight,
+                        display: formatCohortDate(targetYear, targetFortnight),
+                        capacityAfter: capacity.remainingCapacity,
+                        impact: fnOffset < 0 ? 'Earlier' : 'Later'
+                    });
+                }
+            }
+        } else {
+            // FO/CAD can start any fortnight but check commencement limit
+            const capacity = checkPeriodCapacity(targetYear, targetFortnight, cohort.numTrainees);
+            
+            // Check FO commencement limit (12 FO cohorts per fortnight)
+            if (pathway.type === 'FO') {
+                const foCommencementsInPeriod = countFOCommencementsInPeriod(targetYear, targetFortnight);
+                if (foCommencementsInPeriod >= 12) {
+                    continue; // Skip this period due to FO limit
+                }
+            }
+            
+            if (capacity.canAccommodate) {
+                moves.push({
+                    year: targetYear,
+                    fortnight: targetFortnight,
+                    display: formatCohortDate(targetYear, targetFortnight),
+                    capacityAfter: capacity.remainingCapacity,
+                    impact: fnOffset < 0 ? 'Earlier' : 'Later'
+                });
+            }
+        }
+    }
+    
+    // Sort by best capacity fit
+    return moves.sort((a, b) => b.capacityAfter - a.capacityAfter).slice(0, 5);
+}
+
+function countFOCommencementsInPeriod(year, fortnight) {
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    const cohorts = (locationData && currentLocation && locationData[currentLocation]?.activeCohorts) || activeCohorts;
+    const pathways = (locationData && currentLocation && locationData[currentLocation]?.pathways) || window.pathways;
+    
+    let foCount = 0;
+    cohorts.forEach(cohort => {
+        const pathway = pathways.find(p => p.id === cohort.pathwayId);
+        if (pathway && pathway.type === 'FO' && 
+            cohort.startYear === year && 
+            cohort.startFortnight === fortnight) {
+            foCount++;
+        }
+    });
+    
+    return foCount;
+}
+
+function checkPeriodCapacity(year, fortnight, additionalTrainees) {
+    // Calculate demand for the specific period
+    const { demand } = calculateDemand();
+    
+    // Check if this period exists in demand
+    if (!demand[year] || !demand[year][fortnight]) {
+        // No demand data means full capacity available
+        const totalSupply = calculateTotalSupplyForPeriod(year, fortnight);
+        return {
+            canAccommodate: totalSupply >= additionalTrainees,
+            remainingCapacity: totalSupply - additionalTrainees,
+            currentSurplus: totalSupply
+        };
+    }
+    
+    const periodDemand = demand[year][fortnight];
+    const totalUnallocated = periodDemand.unallocated ? 
+        Object.values(periodDemand.unallocated).reduce((sum, val) => sum + val, 0) : 0;
+    
+    // If there's unallocated demand, this period has a deficit
+    if (totalUnallocated > 0) {
+        return {
+            canAccommodate: false,
+            remainingCapacity: -totalUnallocated,
+            currentSurplus: -totalUnallocated
+        };
+    }
+    
+    // Calculate remaining capacity
+    const totalSupply = calculateTotalSupplyForPeriod(year, fortnight);
+    const totalAllocated = periodDemand.allocated ? 
+        Object.values(periodDemand.allocated).reduce((sum, val) => sum + val, 0) : 0;
+    const remainingCapacity = totalSupply - totalAllocated;
+    
+    return {
+        canAccommodate: remainingCapacity >= additionalTrainees,
+        remainingCapacity: remainingCapacity - additionalTrainees,
+        currentSurplus: remainingCapacity
+    };
+}
+
+function calculateTotalSupplyForPeriod(year, fortnight) {
+    // Get total FTE for the year
+    const yearFTE = trainerFTE[year] || trainerFTE[Object.keys(trainerFTE).sort().pop()]; // Use latest year if not found
+    if (!yearFTE) return 0;
+    
+    // Sum all trainer types and divide by fortnights per year
+    const totalFTE = Object.values(yearFTE).reduce((sum, val) => sum + val, 0);
+    return totalFTE / FORTNIGHTS_PER_YEAR;
+}
+
+function calculateSupplyDeficit(year, fortnight) {
+    // Calculate demand for the specific period
+    const { demand } = calculateDemand();
+    
+    const totalSupply = calculateTotalSupplyForPeriod(year, fortnight);
+    
+    // Check if this period exists in demand
+    if (!demand[year] || !demand[year][fortnight]) {
+        // No demand data means full surplus
+        return {
+            surplus: totalSupply,
+            deficit: 0,
+            totalSupply,
+            totalDemand: 0
+        };
+    }
+    
+    const periodDemand = demand[year][fortnight];
+    
+    // Calculate total allocated demand
+    const totalAllocated = periodDemand.allocated ? 
+        Object.values(periodDemand.allocated).reduce((sum, val) => sum + val, 0) : 0;
+    
+    // Calculate total unallocated demand (this represents deficit)
+    const totalUnallocated = periodDemand.unallocated ? 
+        Object.values(periodDemand.unallocated).reduce((sum, val) => sum + val, 0) : 0;
+    
+    const totalDemand = totalAllocated + totalUnallocated;
+    const netBalance = totalSupply - totalDemand;
+    
+    return {
+        surplus: Math.max(0, netBalance),
+        deficit: Math.max(0, -netBalance),
+        totalSupply,
+        totalDemand,
+        unallocated: totalUnallocated
+    };
+}
+
+function displayCohortReschedulingUI(cohortSolutions, focusPeriod = null) {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    
+    const cohortArray = Object.values(cohortSolutions);
+    if (cohortArray.length === 0) {
+        // If no specific cohorts found, show general recommendations
+        displayGeneralDeficitRecommendations();
+        return;
+    }
+    
+    // Group by flexibility
+    const flexible = cohortArray.filter(s => s.flexible);
+    const restricted = cohortArray.filter(s => !s.flexible);
+    
+    let html = '';
+    
+    // Add header if focusing on specific period
+    if (focusPeriod) {
+        html += `
+            <div class="period-focus-header">
+                <h3>Cohorts with line training in ${focusPeriod.monthName} ${focusPeriod.year} (FN${focusPeriod.fortnight})</h3>
+                <p>${cohortArray.length} cohort${cohortArray.length > 1 ? 's' : ''} can be moved to resolve this deficit</p>
+            </div>
+        `;
+    }
+    
+    // Flexible cohorts section
+    if (flexible.length > 0) {
+        html += `
+            <div class="cohort-section">
+                <h4>FO/CAD Cohorts</h4>
+                ${flexible.map(sol => createCohortRescheduleItem(sol)).join('')}
+            </div>
+        `;
+    }
+    
+    // Restricted cohorts section  
+    if (restricted.length > 0) {
+        html += `
+            <div class="cohort-section">
+                <h4>CP Cohorts (odd fortnights only)</h4>
+                ${restricted.map(sol => createCohortRescheduleItem(sol)).join('')}
+            </div>
+        `;
+    }
+    
+    // Add summary
+    html += `
+        <div class="reschedule-summary">
+            <div class="tip">💡 <strong>Tips:</strong></div>
+            <ul>
+                <li>Green numbers show remaining capacity after move</li>
+                <li>CP cohorts can only start on the 1st of each month</li>
+                <li>Consider moving smaller cohorts first for flexibility</li>
+            </ul>
+        </div>
+    `;
+    
+    deficitSolutions.innerHTML = html;
+    
+    // Store for later use
+    window.cohortRescheduleSolutions = cohortSolutions;
+    
+    // Add event handlers
+    setupCohortRescheduleHandlers();
+}
+
+function createCohortRescheduleItem(solution) {
+    const cohortName = getReadableCohortName(solution.cohort);
+    
+    // Calculate when line training occurs for this cohort
+    const lineTrainingPeriods = calculateLineTrainingPeriodsForCohort(solution.cohort, solution.pathway);
+    
+    // Find which deficit periods this cohort affects
+    const affectedDeficitPeriods = [];
+    window.currentDeficits.forEach(deficit => {
+        lineTrainingPeriods.forEach(ltPeriod => {
+            if (ltPeriod.year === deficit.year && ltPeriod.fortnight === deficit.fortnight) {
+                affectedDeficitPeriods.push({
+                    fortnight: deficit.fortnight,
+                    year: deficit.year,
+                    monthName: MONTHS[Math.floor((deficit.fortnight - 1) / 2)]
+                });
+            }
+        });
+    });
+    
+    // Create smart recommendations based on actual impact
+    const recommendations = calculateSmartMoveRecommendations(solution.cohort, solution.pathway, affectedDeficitPeriods);
+    
+    return `
+        <div class="cohort-reschedule-item" data-cohort-id="${solution.cohort.id}">
+            <div class="cohort-checkbox-wrapper">
+                <input type="checkbox" class="cohort-move-checkbox" id="cohort-${solution.cohort.id}" 
+                    data-cohort-id="${solution.cohort.id}"
+                    data-original-year="${solution.cohort.startYear}"
+                    data-original-fortnight="${solution.cohort.startFortnight}">
+            </div>
+            <div class="cohort-info">
+                <label for="cohort-${solution.cohort.id}">
+                    <strong>${cohortName}</strong>
+                    <span class="cohort-meta">${solution.pathway.type} • ${solution.cohort.numTrainees} trainees</span>
+                </label>
+                <div class="impact-details">
+                    <span class="start-date">Starts: ${solution.currentStart}</span>
+                    <span class="lt-period">Line Training: ${formatLineTrainingPeriod(lineTrainingPeriods)}</span>
+                    ${affectedDeficitPeriods.length > 0 ? 
+                        `<span class="deficit-impact">⚠️ Impacts deficit in: ${affectedDeficitPeriods.map(p => `${p.monthName} ${p.year}`).join(', ')}</span>` : 
+                        '<span class="no-impact">ℹ️ Does not impact deficit periods</span>'}
+                </div>
+            </div>
+            <div class="move-selector">
+                <select class="new-date-select" data-cohort-id="${solution.cohort.id}">
+                    <option value="">Select move...</option>
+                    ${recommendations.map(rec => 
+                        `<option value="${rec.year}-${rec.fortnight}" title="${rec.reason}">
+                            ${rec.label} → ${rec.impact}
+                        </option>`
+                    ).join('')}
+                </select>
+            </div>
+        </div>
+    `;
+}
+
+function calculateLineTrainingPeriodsForCohort(cohort, pathway) {
+    const periods = [];
+    let currentFortnight = cohort.startFortnight;
+    let currentYear = cohort.startYear;
+    
+    // Go through each phase to find line training phases
+    pathway.phases.forEach(phase => {
+        if (phase.trainerDemandType) {
+            // This is a line training phase
+            for (let i = 0; i < phase.duration; i++) {
+                let fortnight = currentFortnight + i;
+                let year = currentYear;
+                
+                while (fortnight > FORTNIGHTS_PER_YEAR) {
+                    fortnight -= FORTNIGHTS_PER_YEAR;
+                    year++;
+                }
+                
+                periods.push({ 
+                    year, 
+                    fortnight, 
+                    phaseType: phase.name,
+                    demandType: phase.trainerDemandType,
+                    trainersNeeded: cohort.numTrainees * (phase.ratio || 1)
+                });
+            }
+        }
+        
+        // Move to next phase
+        currentFortnight += phase.duration;
+        while (currentFortnight > FORTNIGHTS_PER_YEAR) {
+            currentFortnight -= FORTNIGHTS_PER_YEAR;
+            currentYear++;
+        }
+    });
+    
+    return periods;
+}
+
+function formatLineTrainingPeriod(periods) {
+    if (periods.length === 0) return 'None';
+    
+    const firstPeriod = periods[0];
+    const lastPeriod = periods[periods.length - 1];
+    
+    const startMonth = MONTHS[Math.floor((firstPeriod.fortnight - 1) / 2)];
+    const endMonth = MONTHS[Math.floor((lastPeriod.fortnight - 1) / 2)];
+    
+    if (firstPeriod.year === lastPeriod.year) {
+        return `${startMonth}-${endMonth} ${firstPeriod.year}`;
+    } else {
+        return `${startMonth} ${firstPeriod.year} - ${endMonth} ${lastPeriod.year}`;
+    }
+}
+
+function calculateSmartMoveRecommendations(cohort, pathway, affectedDeficitPeriods) {
+    const recommendations = [];
+    
+    if (affectedDeficitPeriods.length === 0) {
+        // This cohort doesn't affect any deficit periods
+        return [{
+            year: cohort.startYear,
+            fortnight: cohort.startFortnight,
+            label: 'No move needed',
+            impact: 'Does not affect deficits',
+            reason: 'This cohort does not have line training during deficit periods'
+        }];
+    }
+    
+    // Calculate moves that would move line training out of deficit periods
+    const testOffsets = pathway.type === 'CP' ? 
+        [-4, -2, 2, 4] : // CP: move by months
+        [-6, -4, -2, -1, 1, 2, 4, 6]; // FO/CAD: move by fortnights
+    
+    testOffsets.forEach(offset => {
+        let newStartFortnight = cohort.startFortnight + offset;
+        let newStartYear = cohort.startYear;
+        
+        while (newStartFortnight > FORTNIGHTS_PER_YEAR) {
+            newStartFortnight -= FORTNIGHTS_PER_YEAR;
+            newStartYear++;
+        }
+        while (newStartFortnight < 1) {
+            newStartFortnight += FORTNIGHTS_PER_YEAR;
+            newStartYear--;
+        }
+        
+        // For CP, ensure it's an odd fortnight
+        if (pathway.type === 'CP' && newStartFortnight % 2 === 0) {
+            return;
+        }
+        
+        // Calculate new line training periods
+        const newLTPeriods = calculateLineTrainingPeriodsForCohort(
+            { ...cohort, startYear: newStartYear, startFortnight: newStartFortnight },
+            pathway
+        );
+        
+        // Check if this move helps
+        let stillAffectsDeficit = false;
+        let freedTrainers = 0;
+        
+        affectedDeficitPeriods.forEach(deficitPeriod => {
+            const stillInDeficit = newLTPeriods.some(lt => 
+                lt.year === deficitPeriod.year && lt.fortnight === deficitPeriod.fortnight
+            );
+            if (!stillInDeficit) {
+                freedTrainers += cohort.numTrainees;
+            } else {
+                stillAffectsDeficit = true;
+            }
+        });
+        
+        if (freedTrainers > 0) {
+            const moveLabel = pathway.type === 'CP' ?
+                (offset > 0 ? `+${offset/2} months` : `${offset/2} months`) :
+                (offset > 0 ? `+${offset} FN` : `${offset} FN`);
+                
+            recommendations.push({
+                year: newStartYear,
+                fortnight: newStartFortnight,
+                label: moveLabel,
+                impact: stillAffectsDeficit ? 
+                    `Frees ${freedTrainers} trainers (partial)` : 
+                    `Frees ${freedTrainers} trainers`,
+                reason: `Moves line training ${stillAffectsDeficit ? 'partially' : 'completely'} out of deficit periods`,
+                freedTrainers,
+                isComplete: !stillAffectsDeficit
+            });
+        }
+    });
+    
+    // Sort by most effective moves (complete solutions first, then by trainers freed)
+    recommendations.sort((a, b) => {
+        if (a.isComplete !== b.isComplete) return b.isComplete - a.isComplete;
+        return b.freedTrainers - a.freedTrainers;
+    });
+    
+    // If no good moves found, show why
+    if (recommendations.length === 0) {
+        recommendations.push({
+            year: cohort.startYear,
+            fortnight: cohort.startFortnight,
+            label: 'No beneficial moves',
+            impact: 'All moves still overlap deficit',
+            reason: 'Line training period is too long to avoid deficit periods'
+        });
+    }
+    
+    return recommendations.slice(0, 5); // Top 5 recommendations
+}
+
+function setupCohortRescheduleHandlers() {
+    // Handle checkbox changes
+    document.querySelectorAll('.cohort-move-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('change', updateDeficitPreview);
+    });
+    
+    // Handle date selection changes
+    document.querySelectorAll('.new-date-select').forEach(select => {
+        select.addEventListener('change', function() {
+            const cohortId = this.dataset.cohortId;
+            const checkbox = document.getElementById(`cohort-${cohortId}`);
+            if (this.value && !checkbox.checked) {
+                checkbox.checked = true;
+            }
+            updateDeficitPreview();
+        });
+    });
+    
+    // Update apply button state
+    updateDeficitPreview();
+}
+
+function updateReschedulePreview() {
+    // This function is no longer needed as we're using updateDeficitPreview directly
+    updateDeficitPreview();
+}
+
+function displayGeneralDeficitRecommendations() {
+    const deficitSolutions = document.getElementById('deficit-solutions');
+    const currentLocation = document.querySelector('.location-tab.active')?.dataset.location || 'AU';
+    
+    // Analyze deficit patterns
+    const deficitSummary = {};
+    let totalDeficitTrainees = 0;
+    
+    window.currentDeficits.forEach(deficit => {
+        const monthKey = `${MONTHS[Math.floor((deficit.fortnight - 1) / 2)]} ${deficit.year}`;
+        if (!deficitSummary[monthKey]) {
+            deficitSummary[monthKey] = {
+                totalDeficit: 0,
+                fortnights: [],
+                types: {}
+            };
+        }
+        
+        const total = Object.values(deficit.deficitsByType).reduce((sum, d) => sum + d.deficit, 0);
+        deficitSummary[monthKey].totalDeficit += total;
+        deficitSummary[monthKey].fortnights.push(deficit.fortnight);
+        totalDeficitTrainees += total;
+        
+        Object.entries(deficit.deficitsByType).forEach(([type, data]) => {
+            const typeName = type.replace('LT-', '');
+            deficitSummary[monthKey].types[typeName] = (deficitSummary[monthKey].types[typeName] || 0) + data.deficit;
+        });
+    });
+    
+    let html = `
+        <div class="general-recommendations">
+            <h3>Recommended Actions to Resolve ${Math.round(totalDeficitTrainees)} Trainer Deficit:</h3>
+            
+            <div class="recommendation-section">
+                <h4>1. Add New Cohorts in Available Periods</h4>
+                <p>Schedule new cohorts in periods with surplus capacity:</p>
+                <ul>
+    `;
+    
+    // Find periods with capacity in the same year as deficits
+    const deficitYear = window.currentDeficits[0]?.year || new Date().getFullYear();
+    let foundSurplus = false;
+    
+    // Get demand data
+    const { demand } = calculateDemand();
+    
+    for (let fn = 1; fn <= 24; fn++) {
+        const capacity = checkPeriodCapacity(deficitYear, fn, 0);
+        if (capacity.currentSurplus > 5) {
+            foundSurplus = true;
+            html += `<li>${MONTHS[Math.floor((fn - 1) / 2)]} ${deficitYear} FN${fn}: <span style="color: green;">+${Math.round(capacity.currentSurplus)} trainer capacity</span></li>`;
+        }
+    }
+    
+    if (!foundSurplus) {
+        html += `<li>Limited surplus capacity in ${deficitYear} - consider cross-location training</li>`;
+    }
+    
+    html += `
+                </ul>
+            </div>
+            
+            <div class="recommendation-section">
+                <h4>2. Reschedule Existing Cohorts</h4>
+                <p>If you have cohorts scheduled, move them from deficit periods:</p>
+                <ul>
+    `;
+    
+    Object.entries(deficitSummary).slice(0, 3).forEach(([month, data]) => {
+        const fnList = data.fortnights.map(fn => `FN${fn}`).join(', ');
+        html += `<li>${month} (${fnList}): Move ${Math.round(data.totalDeficit)} trainees to other periods</li>`;
+    });
+    
+    html += `
+                </ul>
+            </div>
+            
+            <div class="recommendation-section">
+                <h4>3. Training Type Considerations</h4>
+                <ul>
+    `;
+    
+    // Type-specific recommendations
+    Object.entries(deficitSummary).forEach(([month, data]) => {
+        if (data.types.CAD > 0) {
+            html += `<li><strong>CAD deficit in ${month}:</strong> Requires CATB/CATA/STP trainers only</li>`;
+        }
+        if (data.types.CP > 0) {
+            html += `<li><strong>CP deficit in ${month}:</strong> CP must start FN1, FN3, FN5, etc.</li>`;
+        }
+        if (data.types.FO > 0) {
+            html += `<li><strong>FO deficit in ${month}:</strong> Most flexible - any fortnight start</li>`;
+        }
+    });
+    
+    html += `
+                </ul>
+            </div>
+            
+            <div class="recommendation-section">
+                <h4>4. Immediate Actions</h4>
+                <ul>
+                    <li>Go to Planner tab and add cohorts in surplus periods</li>
+                    <li>Use Training Planner modal to optimize schedule</li>
+                    ${currentLocation === 'NZ' ? '<li>Consider AU cross-location for peak periods</li>' : ''}
+                    <li>Split large cohorts into smaller groups</li>
+                </ul>
+            </div>
+            
+            <div class="tip-box" style="background: #f0f8ff; padding: 15px; border-radius: 5px; margin-top: 20px; border-left: 4px solid #007bff;">
+                <strong>💡 No cohorts found for rescheduling</strong><br>
+                Add cohorts in the Planner tab that overlap with deficit periods to see specific rescheduling options.
+            </div>
+        </div>
+    `;
+    
+    deficitSolutions.innerHTML = html;
+}
+
+
+    </script>
 </body>
 </html>
