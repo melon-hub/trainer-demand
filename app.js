@@ -4160,6 +4160,35 @@ function renderGanttChart() {
     sortedGroups.forEach(groupName => {
         const cohorts = cohortGroups[groupName];
         
+        // Add group header if grouping is enabled
+        if (viewState.groupBy === 'type' && groupName !== 'All') {
+            const isCollapsed = viewState.collapsedGroups.includes(groupName);
+            html += `<tr class="group-header">`;
+            html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
+            html += `<button class="group-toggle-btn" onclick="toggleGroup('${groupName}')">`;
+            html += `<span class="toggle-icon">${isCollapsed ? '+' : '−'}</span> `;
+            html += `${groupName} (${cohorts.length} cohorts)</button>`;
+            html += `</td>`;
+            
+            // Fill remaining cells based on time range
+            let fillYear = range.startYear;
+            let fillFn = range.startFortnight;
+            
+            while (fillYear < range.endYear || (fillYear === range.endYear && fillFn <= range.endFortnight)) {
+                html += `<td class="group-header-cell"></td>`;
+                
+                fillFn++;
+                if (fillFn > FORTNIGHTS_PER_YEAR) {
+                    fillFn = 1;
+                    fillYear++;
+                }
+            }
+            html += '</tr>';
+            
+            // Skip cohorts if group is collapsed
+            if (isCollapsed) return;
+        }
+        
         // Render cohorts in this group
         cohorts.forEach((cohort, index) => {
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
