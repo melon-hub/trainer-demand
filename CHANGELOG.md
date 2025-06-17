@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.9.1] - 2025-01-29
+
+### 🐛 Bug Fixes
+- **Fixed JavaScript Error** - Added missing `startInteractiveTour` function to resolve ReferenceError
+- **Enhanced Trainee Summary Visibility** - Improved contrast and readability of training data display (CP/FO/CAD totals)
+  - High contrast dark background with white text
+  - Bold typography and better spacing
+  - Added subtle hover effects for better user feedback
+- **Cross-Location Button Improvements** - Made button more subdued and user-friendly
+  - Reduced size and visual prominence to save space
+  - Removed jumping animations that made it difficult to click
+  - Improved static positioning for better usability
+
+### ⚡ UI/UX Improvements
+- Better visual hierarchy for training summary data in header
+- More intuitive cross-location button design
+- Improved hover effects without disruptive animations
+- Enhanced readability across interface elements
+
+---
+
 ## [1.9.0] - 2025-01-29
 
 ### ✨ New Features
