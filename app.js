@@ -1437,26 +1437,8 @@ function setupEventListeners() {
         toggleFTEBtn.addEventListener('click', toggleFTESummary);
     }
     
-    // Toggle Commencement Summary button
-    const toggleCommencementBtn = document.getElementById('toggle-commencement-btn');
-    if (toggleCommencementBtn) {
-        toggleCommencementBtn.addEventListener('click', () => {
-            const commencementContainer = document.getElementById('commencement-summary-container');
-            const icon = toggleCommencementBtn.querySelector('.toggle-icon');
-            const isExpanded = toggleCommencementBtn.getAttribute('aria-expanded') === 'true';
-            
-            if (isExpanded) {
-                commencementContainer.style.display = 'none';
-                toggleCommencementBtn.setAttribute('aria-expanded', 'false');
-                icon.textContent = '+';
-            } else {
-                commencementContainer.style.display = 'block';
-                toggleCommencementBtn.setAttribute('aria-expanded', 'true');
-                icon.textContent = '-';
-                renderCommencementSummary();
-            }
-        });
-    }
+    // Render commencement summary on page load (no longer collapsible)
+    renderCommencementSummary();
     
     // Edit Priority button
     if (editPriorityBtn) {
@@ -2572,13 +2554,10 @@ function updateAllTables() {
     updateGanttTraineeSummary();
     perfMonitor.end('updateAllTables.updateTraineeSummary');
     
-    // Update commencement summary if it's expanded
-    const commencementBtn = document.getElementById('toggle-commencement-btn');
-    if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
-        perfMonitor.start('updateAllTables.renderCommencement');
-        renderCommencementSummary();
-        perfMonitor.end('updateAllTables.renderCommencement');
-    }
+    // Always render commencement summary since it's no longer collapsible
+    perfMonitor.start('updateAllTables.renderCommencement');
+    renderCommencementSummary();
+    perfMonitor.end('updateAllTables.renderCommencement');
     
     // Restore scroll positions
     scrollPositions.forEach(pos => {
@@ -2914,7 +2893,7 @@ function renderCommencementSummary() {
     }
     
     // FO + CAD row (AU total)
-    html += '<tr>';
+    html += '<tr class="summary-row">';
     html += '<td class="sticky-col type-label" style="font-style: italic; color: var(--text-secondary);">FO + CAD</td>';
     
     currentYear = range.startYear;
@@ -4181,35 +4160,6 @@ function renderGanttChart() {
     sortedGroups.forEach(groupName => {
         const cohorts = cohortGroups[groupName];
         
-        // Add group header if grouping is enabled
-        if (viewState.groupBy === 'type' && groupName !== 'All') {
-            const isCollapsed = viewState.collapsedGroups.includes(groupName);
-            html += `<tr class="group-header">`;
-            html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
-            html += `<button class="group-toggle-btn" onclick="toggleGroup('${groupName}')">`;
-            html += `<span class="toggle-icon">${isCollapsed ? '+' : '−'}</span> `;
-            html += `${groupName} (${cohorts.length} cohorts)</button>`;
-            html += `</td>`;
-            
-            // Fill remaining cells based on time range
-            let fillYear = range.startYear;
-            let fillFn = range.startFortnight;
-            
-            while (fillYear < range.endYear || (fillYear === range.endYear && fillFn <= range.endFortnight)) {
-                html += `<td class="group-header-cell"></td>`;
-                
-                fillFn++;
-                if (fillFn > FORTNIGHTS_PER_YEAR) {
-                    fillFn = 1;
-                    fillYear++;
-                }
-            }
-            html += '</tr>';
-            
-            // Skip cohorts if group is collapsed
-            if (isCollapsed) return;
-        }
-        
         // Render cohorts in this group
         cohorts.forEach((cohort, index) => {
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
@@ -4684,9 +4634,6 @@ function showDropIndicator(cell, year, fortnight) {
     
     cell.closest('.table-wrapper').appendChild(indicator);
 }
-
-// REMOVED - Using the showNotification function defined later in the file
-// This was causing a conflict with duplicate function names
 
 // Render Priority Settings Table
 function renderPrioritySettingsTable() {
@@ -6519,10 +6466,7 @@ function toggleCommencementCrossLocation() {
     }
     
     // Re-render the commencement summary
-    const commencementBtn = document.getElementById('toggle-commencement-btn');
-    if (commencementBtn && commencementBtn.getAttribute('aria-expanded') === 'true') {
-        renderCommencementSummary();
-    }
+    renderCommencementSummary();
 }
 
 // Toggle Demand Split View
@@ -7847,8 +7791,8 @@ function calculateOptimalSchedule(targets, targetDate, considerExisting = true, 
                         // Move to next available slot WITHOUT scheduling this cohort
                         if (type === 'CP') {
                             // CP: Skip to first fortnight of next month
-                            const currentMonthIndex = Math.floor((startFn - 1) / 2);
-                            const nextMonthIndex = currentMonthIndex + 1;
+                            const currMonthIndex = Math.floor((startFn - 1) / 2);
+                            const nextMonthIndex = currMonthIndex + 1;
                             if (nextMonthIndex >= 12) {
                                 startFn = 1;
                                 startYear++;
@@ -8956,7 +8900,7 @@ function loadScenarioData(scenario) {
         // console.log('AU cohorts:', auCohorts.length);
         // console.log('NZ cohorts:', nzCohorts.length);
         // console.log('NZ cohorts with cross-location training:',
-            nzCohorts.filter(c => c.crossLocationTraining && c.crossLocationTraining.AU).length);
+        //                         nzCohorts.filter(c => c.crossLocationTraining && c.crossLocationTraining.AU).length);
         
         locationData.AU.activeCohorts = auCohorts;
         locationData.NZ.activeCohorts = nzCohorts;
@@ -12110,7 +12054,7 @@ function generateEntryGrid() {
     }
     
     // FO+CAD Total row
-    html += '<tr class="total-row focad-total">';
+    html += '<tr class="total-row focad-total summary-row">';
     html += '<td class="pathway-cell">FO+CAD Total</td>';
     fortnights.forEach(fn => {
         html += `<td class="total-cell" data-type="FOCAD" data-year="${fn.year}" data-fn="${fn.fn1}">0</td>`;
@@ -13341,6 +13285,14 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// Interactive tour functionality
+function startInteractiveTour() {
+    showNotification('Interactive tour coming soon!', 'info');
+    // TODO: Implement interactive tour using intro.js style functionality
+}
+
+// Search help content
+
 // Search help content
 function searchHelp(query) {
     const results = [];
@@ -13405,12 +13357,6 @@ function displaySearchResults(results) {
             </div>
         `).join('')}
     `;
-}
-
-// Interactive tour functionality
-function startInteractiveTour() {
-    showNotification('Interactive tour coming soon!', 'info');
-    // TODO: Implement interactive tour using intro.js style functionality
 }
 
 // Add help icon tooltip

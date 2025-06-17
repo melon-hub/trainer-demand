@@ -356,20 +356,15 @@
             <!-- Training Commencement Summary Section -->
             <section class="commencement-summary-section">
                 <div class="section-header" style="position: relative;">
-                    <h2>
-                        <button id="toggle-commencement-btn" class="toggle-btn" aria-expanded="false">
-                            <span class="toggle-icon">+</span>
-                        </button>
-                        Training Commencement Summary
-                    </h2>
+                    <h2>Training Commencement Summary</h2>
                     <button id="commencement-cross-loc-btn" class="btn btn-secondary btn-sm" onclick="toggleCommencementCrossLocation()" title="Toggle cross-location commencements" style="position: absolute; right: 350px; top: 50%; transform: translateY(-50%);">
                         <span id="commencement-cross-loc-icon">🌐</span> <span id="commencement-cross-loc-text">Cross-Location OFF</span>
                     </button>
-                    <div id="trainee-summary" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 0.9em; color: var(--text-secondary);">
+                    <div id="trainee-summary" style="position: absolute; right: 20px; top: 50%; transform: translateY(-50%); font-size: 1.0em; color: var(--text-primary); font-weight: 500;">
                         <!-- Trainee summary will be populated here -->
                     </div>
                 </div>
-                <div id="commencement-summary-container" class="table-container" style="display: none;">
+                <div id="commencement-summary-container" class="table-container">
                     <!-- Commencement summary table will be generated here -->
                 </div>
             </section>
