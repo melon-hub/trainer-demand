@@ -1067,17 +1067,17 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
     </div>
 
     <!-- Import Training Modal -->
-    <div id="import-training-modal" class="modal">
+    <div id="import-training-modal" class="modal" role="dialog" aria-modal="true" aria-labelledby="import-training-modal-title">
         <div class="modal-content" style="max-width: 1000px;">
             <div class="modal-header">
-                <h2>Import Training Data</h2>
+                <h2 id="import-training-modal-title">Import Training Data</h2>
                 <button class="modal-close">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="import-controls">
                     <h3>Select File to Import</h3>
                     <div class="file-input-section" style="margin-bottom: 20px;">
-                        <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="margin-bottom: 10px;">
+                        <input type="file" id="import-training-file-input" accept=".csv,.xlsx,.xls" style="margin-bottom: 10px;">
                         <div class="import-format-hint" style="font-size: 0.9em; color: #666;">
                             Accepts CSV or Excel files. Expected columns: Pathway ID, Pathway Name, Type, Start Date, No. Trainees
                         </div>

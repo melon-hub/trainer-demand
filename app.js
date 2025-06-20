@@ -16221,13 +16221,13 @@ function initializeImportModal() {
     document.getElementById('import-location-label').textContent = `Importing to: ${currentLocation}`;
     
     // Reset UI
-    document.getElementById('import-file-input').value = '';
+    document.getElementById('import-training-file-input').value = '';
     document.getElementById('import-options-section').style.display = 'none';
     document.getElementById('import-validation-section').style.display = 'none';
     document.getElementById('import-training-confirm').disabled = true;
     
     // Set up file input listener
-    const fileInput = document.getElementById('import-file-input');
+    const fileInput = document.getElementById('import-training-file-input');
     fileInput.onchange = handleFileSelect;
     
     // Set up button listeners
