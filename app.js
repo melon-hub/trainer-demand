@@ -1713,6 +1713,52 @@ function setupEventListeners() {
         });
     }
     
+    // Export Training Button
+    const exportTrainingBtn = document.getElementById('export-training-btn');
+    const exportTrainingModal = document.getElementById('export-training-modal');
+    
+    if (exportTrainingBtn) {
+        exportTrainingBtn.addEventListener('click', () => {
+            exportTrainingModal.classList.add('active');
+            initializeExportModal();
+        });
+    }
+    
+    // Import Training Button
+    const importTrainingBtn = document.getElementById('import-training-btn');
+    const importTrainingModal = document.getElementById('import-training-modal');
+    
+    if (importTrainingBtn) {
+        importTrainingBtn.addEventListener('click', () => {
+            importTrainingModal.classList.add('active');
+            initializeImportModal();
+        });
+    }
+    
+    // Setup close buttons for export/import modals
+    document.querySelectorAll('#export-training-modal .modal-close, #export-training-modal .modal-cancel').forEach(btn => {
+        btn.addEventListener('click', () => {
+            exportTrainingModal.classList.remove('active');
+        });
+    });
+    
+    document.querySelectorAll('#import-training-modal .modal-close, #import-training-modal .modal-cancel').forEach(btn => {
+        btn.addEventListener('click', () => {
+            importTrainingModal.classList.remove('active');
+        });
+    });
+    
+    // Close modals when clicking outside
+    [exportTrainingModal, importTrainingModal].forEach(modal => {
+        if (modal) {
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.classList.remove('active');
+                }
+            });
+        }
+    });
+    
     // Function to validate and reset period if needed
     const validateAndResetPeriod = () => {
         const gridStartMonth = document.getElementById('grid-start-month');
@@ -5367,10 +5413,10 @@ function openPriorityModal() {
 }
 
 function closeModals() {
-    fteModal.classList.remove('active');
-    pathwayModal.classList.remove('active');
-    cohortModal.classList.remove('active');
-    priorityModal.classList.remove('active');
+    // Close all modals
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.classList.remove('active');
+    });
 }
 
 // Handle FTE Update
@@ -15798,5 +15844,761 @@ function displayGeneralDeficitRecommendations() {
     `;
     
     deficitSolutions.innerHTML = html;
+}
+
+// Export Training Functions
+function initializeExportModal() {
+    // Update location label
+    document.getElementById('export-location-label').textContent = `(${currentLocation})`;
+    
+    // Populate year dropdowns
+    const fromYearSelect = document.getElementById('export-from-year');
+    const toYearSelect = document.getElementById('export-to-year');
+    
+    fromYearSelect.innerHTML = '';
+    toYearSelect.innerHTML = '';
+    
+    for (let year = START_YEAR; year <= END_YEAR; year++) {
+        fromYearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+        toYearSelect.innerHTML += `<option value="${year}">${year}</option>`;
+    }
+    
+    // Populate fortnight dropdowns
+    const fromFortnightSelect = document.getElementById('export-from-fortnight');
+    const toFortnightSelect = document.getElementById('export-to-fortnight');
+    
+    fromFortnightSelect.innerHTML = '';
+    toFortnightSelect.innerHTML = '';
+    
+    for (let fn = 1; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+        const month = MONTHS[FORTNIGHT_TO_MONTH[fn]];
+        const period = fn % 2 === 1 ? '1-14' : '15-end';
+        const label = `FN${fn} - ${month} ${period}`;
+        fromFortnightSelect.innerHTML += `<option value="${fn}">${label}</option>`;
+        toFortnightSelect.innerHTML += `<option value="${fn}">${label}</option>`;
+    }
+    
+    // Set default range (current year)
+    const currentDate = new Date();
+    const currentYear = currentDate.getFullYear();
+    fromYearSelect.value = currentYear;
+    toYearSelect.value = currentYear;
+    fromFortnightSelect.value = 1;
+    toFortnightSelect.value = FORTNIGHTS_PER_YEAR;
+    
+    // Add event listeners
+    fromYearSelect.addEventListener('change', updateExportPreview);
+    toYearSelect.addEventListener('change', updateExportPreview);
+    fromFortnightSelect.addEventListener('change', updateExportPreview);
+    toFortnightSelect.addEventListener('change', updateExportPreview);
+    
+    // Radio button listeners
+    document.querySelectorAll('input[name="export-view"]').forEach(radio => {
+        radio.addEventListener('change', updateExportPreview);
+    });
+    
+    // Update preview
+    updateExportPreview();
+}
+
+function getDateFromFortnight(year, fortnight) {
+    const month = MONTHS[FORTNIGHT_TO_MONTH[fortnight]];
+    const day = fortnight % 2 === 1 ? 1 : 15;
+    return `${day} ${month} ${year}`;
+}
+
+function updateExportPreview() {
+    const fromYear = parseInt(document.getElementById('export-from-year').value);
+    const toYear = parseInt(document.getElementById('export-to-year').value);
+    const fromFortnight = parseInt(document.getElementById('export-from-fortnight').value);
+    const toFortnight = parseInt(document.getElementById('export-to-fortnight').value);
+    const viewType = document.querySelector('input[name="export-view"]:checked').value;
+    
+    // Get cohorts in range
+    const cohortsInRange = activeCohorts.filter(cohort => {
+        // Check if cohort starts within the selected range
+        if (cohort.startYear < fromYear || cohort.startYear > toYear) return false;
+        if (cohort.startYear === fromYear && cohort.startFortnight < fromFortnight) return false;
+        if (cohort.startYear === toYear && cohort.startFortnight > toFortnight) return false;
+        return true;
+    });
+    
+    const tbody = document.getElementById('export-preview-tbody');
+    const noDataDiv = document.getElementById('export-no-data');
+    const exportBtn = document.getElementById('export-training-excel');
+    
+    if (cohortsInRange.length === 0) {
+        tbody.innerHTML = '';
+        noDataDiv.style.display = 'block';
+        document.getElementById('export-preview-table').style.display = 'none';
+        exportBtn.disabled = true;
+        return;
+    }
+    
+    noDataDiv.style.display = 'none';
+    document.getElementById('export-preview-table').style.display = 'table';
+    exportBtn.disabled = false;
+    
+    let html = '';
+    
+    if (viewType === 'detailed') {
+        // Show one row per cohort
+        cohortsInRange.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (pathway) {
+                const startDate = getDateFromFortnight(cohort.startYear, cohort.startFortnight);
+                html += `
+                    <tr>
+                        <td>${pathway.id}</td>
+                        <td>${pathway.name}</td>
+                        <td>${pathway.type}</td>
+                        <td>${startDate}</td>
+                        <td>${cohort.numTrainees}</td>
+                    </tr>
+                `;
+            }
+        });
+    } else {
+        // Summary view - group by pathway
+        const pathwaySummary = {};
+        
+        cohortsInRange.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (pathway) {
+                if (!pathwaySummary[pathway.id]) {
+                    pathwaySummary[pathway.id] = {
+                        pathway: pathway,
+                        totalTrainees: 0,
+                        earliestStart: { year: cohort.startYear, fortnight: cohort.startFortnight }
+                    };
+                }
+                
+                pathwaySummary[pathway.id].totalTrainees += cohort.numTrainees;
+                
+                // Update earliest start
+                const current = pathwaySummary[pathway.id].earliestStart;
+                if (cohort.startYear < current.year || 
+                    (cohort.startYear === current.year && cohort.startFortnight < current.fortnight)) {
+                    pathwaySummary[pathway.id].earliestStart = { 
+                        year: cohort.startYear, 
+                        fortnight: cohort.startFortnight 
+                    };
+                }
+            }
+        });
+        
+        // Generate summary rows
+        Object.values(pathwaySummary).forEach(summary => {
+            const startDate = getDateFromFortnight(
+                summary.earliestStart.year, 
+                summary.earliestStart.fortnight
+            );
+            html += `
+                <tr>
+                    <td>${summary.pathway.id}</td>
+                    <td>${summary.pathway.name}</td>
+                    <td>${summary.pathway.type}</td>
+                    <td>${startDate}</td>
+                    <td>${summary.totalTrainees}</td>
+                </tr>
+            `;
+        });
+    }
+    
+    tbody.innerHTML = html;
+}
+
+// Export to Excel with validation
+document.getElementById('export-training-excel')?.addEventListener('click', () => {
+    const fromYear = parseInt(document.getElementById('export-from-year').value);
+    const toYear = parseInt(document.getElementById('export-to-year').value);
+    const fromFortnight = parseInt(document.getElementById('export-from-fortnight').value);
+    const toFortnight = parseInt(document.getElementById('export-to-fortnight').value);
+    const viewType = document.querySelector('input[name="export-view"]:checked').value;
+    
+    // Get cohorts in range
+    const cohortsInRange = activeCohorts.filter(cohort => {
+        if (cohort.startYear < fromYear || cohort.startYear > toYear) return false;
+        if (cohort.startYear === fromYear && cohort.startFortnight < fromFortnight) return false;
+        if (cohort.startYear === toYear && cohort.startFortnight > toFortnight) return false;
+        return true;
+    });
+    
+    // Build data array for Excel
+    const headers = ['Pathway ID', 'Pathway Name', 'Type', 'Start Date', 'No. Trainees'];
+    const data = [headers];
+    
+    if (viewType === 'detailed') {
+        cohortsInRange.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (pathway) {
+                const startDate = getDateFromFortnight(cohort.startYear, cohort.startFortnight);
+                data.push([
+                    pathway.id,
+                    pathway.name,
+                    pathway.type,
+                    startDate,
+                    cohort.numTrainees
+                ]);
+            }
+        });
+    } else {
+        // Summary view
+        const pathwaySummary = {};
+        
+        cohortsInRange.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (pathway) {
+                if (!pathwaySummary[pathway.id]) {
+                    pathwaySummary[pathway.id] = {
+                        pathway: pathway,
+                        totalTrainees: 0,
+                        earliestStart: { year: cohort.startYear, fortnight: cohort.startFortnight }
+                    };
+                }
+                
+                pathwaySummary[pathway.id].totalTrainees += cohort.numTrainees;
+                
+                const current = pathwaySummary[pathway.id].earliestStart;
+                if (cohort.startYear < current.year || 
+                    (cohort.startYear === current.year && cohort.startFortnight < current.fortnight)) {
+                    pathwaySummary[pathway.id].earliestStart = { 
+                        year: cohort.startYear, 
+                        fortnight: cohort.startFortnight 
+                    };
+                }
+            }
+        });
+        
+        Object.values(pathwaySummary).forEach(summary => {
+            const startDate = getDateFromFortnight(
+                summary.earliestStart.year, 
+                summary.earliestStart.fortnight
+            );
+            data.push([
+                summary.pathway.id,
+                summary.pathway.name,
+                summary.pathway.type,
+                startDate,
+                summary.totalTrainees
+            ]);
+        });
+    }
+    
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(data);
+    
+    // Set column widths
+    const colWidths = [
+        { wch: 12 }, // Pathway ID
+        { wch: 20 }, // Pathway Name
+        { wch: 10 }, // Type
+        { wch: 15 }, // Start Date
+        { wch: 15 }  // No. Trainees
+    ];
+    ws['!cols'] = colWidths;
+    
+    // Get list of valid pathway IDs
+    const pathwayIds = pathways.map(p => p.id).join(',');
+    const pathwayTypes = ['CP', 'FO', 'CAD'].join(',');
+    
+    // Add data validation
+    const lastRow = data.length + 10; // Extra rows for user to add data
+    
+    // Create data validation object
+    const dataValidations = [];
+    
+    // Pathway ID dropdown (column A, starting from row 2)
+    dataValidations.push({
+        type: 'list',
+        allowBlank: false,
+        showDropDown: true,
+        formula1: `"${pathwayIds}"`,
+        sqref: `A2:A${lastRow}`
+    });
+    
+    // Type dropdown (column C, starting from row 2)
+    dataValidations.push({
+        type: 'list',
+        allowBlank: false,
+        showDropDown: true,
+        formula1: `"${pathwayTypes}"`,
+        sqref: `C2:C${lastRow}`
+    });
+    
+    // Number validation for trainees (column E, starting from row 2)
+    dataValidations.push({
+        type: 'whole',
+        allowBlank: false,
+        showInputMessage: true,
+        prompt: 'Enter number of trainees',
+        promptTitle: 'Trainees',
+        operator: 'greaterThan',
+        formula1: '0',
+        sqref: `E2:E${lastRow}`
+    });
+    
+    // Apply data validations
+    ws['!dataValidation'] = dataValidations;
+    
+    // Add instructions sheet
+    const instructionsData = [
+        ['Training Data Import Instructions'],
+        [''],
+        ['Column Requirements:'],
+        ['Column', 'Description', 'Valid Values', 'Example'],
+        ['Pathway ID', 'Training pathway identifier', pathwayIds.split(',').join(', '), 'A202'],
+        ['Pathway Name', 'Full pathway description', 'Auto-filled based on ID', 'A202 - CP'],
+        ['Type', 'Training type', 'CP, FO, CAD', 'CP'],
+        ['Start Date', 'Training start date', 'Format: D MMM YYYY', '1 Jan 2025'],
+        ['No. Trainees', 'Number of trainees', 'Positive numbers only', '12'],
+        [''],
+        ['Date Format Examples:'],
+        ['Valid Formats', 'Example'],
+        ['D MMM YYYY', '1 Jan 2025'],
+        ['DD MMM YYYY', '01 Jan 2025'],
+        ['DD-MMM-YYYY', '01-Jan-2025'],
+        ['DD/MM/YYYY', '01/01/2025'],
+        [''],
+        ['Notes:'],
+        ['- Pathway ID must exist in the system'],
+        ['- Dates will be converted to fortnights automatically'],
+        ['- Save as CSV or XLSX for import'],
+        ['- The system will validate all data on import']
+    ];
+    
+    const wsInstructions = XLSX.utils.aoa_to_sheet(instructionsData);
+    wsInstructions['!cols'] = [{ wch: 20 }, { wch: 40 }, { wch: 30 }, { wch: 15 }];
+    
+    // Add conditional formatting for headers
+    wsInstructions['A1'].s = {
+        font: { bold: true, sz: 16 },
+        fill: { fgColor: { rgb: "4472C4" } },
+        alignment: { horizontal: "center" }
+    };
+    
+    // Add worksheets to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Training Data');
+    XLSX.utils.book_append_sheet(wb, wsInstructions, 'Instructions');
+    
+    // Generate Excel file
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' });
+    
+    // Convert to blob
+    function s2ab(s) {
+        const buf = new ArrayBuffer(s.length);
+        const view = new Uint8Array(buf);
+        for (let i = 0; i < s.length; i++) view[i] = s.charCodeAt(i) & 0xFF;
+        return buf;
+    }
+    
+    const blob = new Blob([s2ab(wbout)], { type: 'application/octet-stream' });
+    
+    // Download file
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `training_export_${currentLocation}_${fromYear}_FN${fromFortnight}_to_${toYear}_FN${toFortnight}.xlsx`;
+    link.click();
+    URL.revokeObjectURL(url);
+    
+    // Close modal
+    document.getElementById('export-training-modal').classList.remove('active');
+    showNotification('Training data exported with validation dropdowns', 'success');
+});
+
+// Import Training Functions
+let importedData = [];
+let validatedData = [];
+
+function initializeImportModal() {
+    // Reset state
+    importedData = [];
+    validatedData = [];
+    
+    // Update location label
+    document.getElementById('import-location-label').textContent = `Importing to: ${currentLocation}`;
+    
+    // Reset UI
+    document.getElementById('import-file-input').value = '';
+    document.getElementById('import-options-section').style.display = 'none';
+    document.getElementById('import-validation-section').style.display = 'none';
+    document.getElementById('import-training-confirm').disabled = true;
+    
+    // Set up file input listener
+    const fileInput = document.getElementById('import-file-input');
+    fileInput.onchange = handleFileSelect;
+    
+    // Set up button listeners
+    document.getElementById('skip-invalid-btn')?.addEventListener('click', skipInvalidRows);
+    document.getElementById('fix-dates-btn')?.addEventListener('click', autoFixDates);
+    document.getElementById('import-training-confirm')?.addEventListener('click', confirmImport);
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const fileName = file.name.toLowerCase();
+    
+    if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
+        // Handle Excel file
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                const data = new Uint8Array(e.target.result);
+                const workbook = XLSX.read(data, { type: 'array' });
+                
+                // Get the first worksheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to CSV
+                const csv = XLSX.utils.sheet_to_csv(worksheet);
+                parseCSV(csv);
+            } catch (error) {
+                showNotification('Error reading Excel file: ' + error.message, 'error');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    } else if (fileName.endsWith('.csv')) {
+        // Handle CSV file
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            const csv = e.target.result;
+            parseCSV(csv);
+        };
+        reader.readAsText(file);
+    } else {
+        showNotification('Please select a CSV or Excel file', 'error');
+    }
+}
+
+function parseCSV(csv) {
+    const lines = csv.trim().split('\n');
+    if (lines.length < 2) {
+        showNotification('CSV file is empty or invalid', 'error');
+        return;
+    }
+    
+    // Skip header row
+    const dataLines = lines.slice(1);
+    importedData = [];
+    
+    dataLines.forEach((line, index) => {
+        if (!line.trim()) return;
+        
+        // Parse CSV line (handle quoted values)
+        const values = parseCSVLine(line);
+        
+        if (values.length >= 5) {
+            importedData.push({
+                rowNum: index + 2, // +2 because of header and 0-index
+                pathwayId: values[0].trim().replace(/"/g, ''),
+                pathwayName: values[1].trim().replace(/"/g, ''),
+                type: values[2].trim().replace(/"/g, ''),
+                startDate: values[3].trim().replace(/"/g, ''),
+                numTrainees: values[4].trim().replace(/"/g, '')
+            });
+        }
+    });
+    
+    if (importedData.length === 0) {
+        showNotification('No valid data found in CSV', 'error');
+        return;
+    }
+    
+    // Show options and validate
+    document.getElementById('import-options-section').style.display = 'block';
+    validateImportData();
+}
+
+function parseCSVLine(line) {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+    
+    for (let i = 0; i < line.length; i++) {
+        const char = line[i];
+        
+        if (char === '"') {
+            inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+            values.push(current);
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+    values.push(current);
+    
+    return values;
+}
+
+function validateImportData() {
+    validatedData = [];
+    let validCount = 0;
+    let warningCount = 0;
+    let errorCount = 0;
+    
+    importedData.forEach(row => {
+        const validation = validateRow(row);
+        validatedData.push({
+            ...row,
+            validation: validation,
+            status: validation.errors.length > 0 ? 'error' : 
+                    validation.warnings.length > 0 ? 'warning' : 'valid'
+        });
+        
+        if (validation.errors.length > 0) errorCount++;
+        else if (validation.warnings.length > 0) warningCount++;
+        else validCount++;
+    });
+    
+    // Update UI
+    displayValidationResults(validCount, warningCount, errorCount);
+}
+
+function validateRow(row) {
+    const errors = [];
+    const warnings = [];
+    
+    // Validate pathway
+    const pathway = pathways.find(p => p.id === row.pathwayId);
+    if (!pathway) {
+        errors.push(`Unknown pathway ID: ${row.pathwayId}`);
+    } else {
+        // Check if type matches
+        if (pathway.type !== row.type) {
+            warnings.push(`Type mismatch: Expected ${pathway.type}, got ${row.type}`);
+        }
+        // Check if name matches
+        if (pathway.name !== row.pathwayName && row.pathwayName) {
+            warnings.push(`Name mismatch: Expected "${pathway.name}"`);
+        }
+    }
+    
+    // Validate date
+    const dateResult = parseDateToFortnight(row.startDate);
+    if (!dateResult) {
+        errors.push(`Invalid date format: ${row.startDate}`);
+    } else {
+        row.parsedYear = dateResult.year;
+        row.parsedFortnight = dateResult.fortnight;
+        
+        // Check if date is in valid range
+        if (dateResult.year < START_YEAR || dateResult.year > END_YEAR) {
+            errors.push(`Year ${dateResult.year} outside valid range (${START_YEAR}-${END_YEAR})`);
+        }
+    }
+    
+    // Validate trainees
+    const numTrainees = parseInt(row.numTrainees);
+    if (isNaN(numTrainees) || numTrainees <= 0) {
+        errors.push(`Invalid number of trainees: ${row.numTrainees}`);
+    } else {
+        row.parsedTrainees = numTrainees;
+    }
+    
+    return { errors, warnings };
+}
+
+function parseDateToFortnight(dateStr) {
+    // Try multiple date formats
+    const formats = [
+        // "1 Jan 2025" format
+        /^(\d{1,2})\s+(\w{3,})\s+(\d{4})$/,
+        // "01-Jan-2025" format
+        /^(\d{1,2})-(\w{3,})-(\d{4})$/,
+        // "01/01/2025" format
+        /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/
+    ];
+    
+    for (const format of formats) {
+        const match = dateStr.match(format);
+        if (match) {
+            let day, month, year;
+            
+            if (format === formats[2]) {
+                // Numeric format
+                day = parseInt(match[1]);
+                month = parseInt(match[2]) - 1; // 0-indexed
+                year = parseInt(match[3]);
+            } else {
+                // Text month format
+                day = parseInt(match[1]);
+                const monthStr = match[2].substring(0, 3);
+                month = MONTHS.findIndex(m => m.toLowerCase() === monthStr.toLowerCase());
+                year = parseInt(match[3]);
+                
+                if (month === -1) continue;
+            }
+            
+            // Calculate fortnight
+            const fortnight = day <= 14 ? (month * 2) + 1 : (month * 2) + 2;
+            
+            return { year, fortnight, month, day };
+        }
+    }
+    
+    return null;
+}
+
+function displayValidationResults(valid, warning, error) {
+    // Show validation section
+    document.getElementById('import-validation-section').style.display = 'block';
+    
+    // Update summary
+    const summary = document.getElementById('validation-summary');
+    const total = valid + warning + error;
+    
+    let summaryClass = 'success';
+    let summaryText = `All ${total} rows are valid and ready to import.`;
+    
+    if (error > 0) {
+        summaryClass = 'error';
+        summaryText = `Found ${error} error${error > 1 ? 's' : ''} in ${total} rows. `;
+        summaryText += `${valid} valid, ${warning} warning${warning > 1 ? 's' : ''}.`;
+    } else if (warning > 0) {
+        summaryClass = 'warning';
+        summaryText = `${valid} valid rows with ${warning} warning${warning > 1 ? 's' : ''} in ${total} total rows.`;
+    }
+    
+    summary.className = `validation-summary ${summaryClass}`;
+    summary.textContent = summaryText;
+    
+    // Show preview table
+    displayPreviewTable();
+    
+    // Enable import button if there are valid rows
+    document.getElementById('import-training-confirm').disabled = valid === 0;
+    
+    // Show fix options if there are issues
+    document.getElementById('fix-options').style.display = (warning > 0 || error > 0) ? 'block' : 'none';
+}
+
+function displayPreviewTable() {
+    const tbody = document.getElementById('import-preview-tbody');
+    let html = '';
+    
+    validatedData.forEach(row => {
+        const statusIcon = row.status === 'valid' ? '✓' : 
+                          row.status === 'warning' ? '⚠' : '✗';
+        const rowClass = `import-row-${row.status}`;
+        const issues = [...row.validation.errors, ...row.validation.warnings].join('; ');
+        
+        html += `
+            <tr class="${rowClass}">
+                <td class="status-icon ${row.status}">${statusIcon}</td>
+                <td>${row.pathwayId}</td>
+                <td>${row.pathwayName}</td>
+                <td>${row.type}</td>
+                <td>${row.startDate}</td>
+                <td>${row.numTrainees}</td>
+                <td style="font-size: 0.9em;">${issues}</td>
+            </tr>
+        `;
+    });
+    
+    tbody.innerHTML = html;
+}
+
+function skipInvalidRows() {
+    validatedData = validatedData.filter(row => row.status !== 'error');
+    
+    // Recount
+    const valid = validatedData.filter(row => row.status === 'valid').length;
+    const warning = validatedData.filter(row => row.status === 'warning').length;
+    
+    displayValidationResults(valid, warning, 0);
+    showNotification('Invalid rows removed', 'info');
+}
+
+function autoFixDates() {
+    let fixed = 0;
+    
+    validatedData.forEach(row => {
+        if (row.validation.errors.some(e => e.includes('Invalid date format'))) {
+            // Try to fix common date issues
+            let fixedDate = row.startDate;
+            
+            // Remove extra spaces
+            fixedDate = fixedDate.replace(/\s+/g, ' ').trim();
+            
+            // Try to parse again
+            const dateResult = parseDateToFortnight(fixedDate);
+            if (dateResult) {
+                row.startDate = `${dateResult.day} ${MONTHS[dateResult.month]} ${dateResult.year}`;
+                row.parsedYear = dateResult.year;
+                row.parsedFortnight = dateResult.fortnight;
+                
+                // Re-validate
+                row.validation = validateRow(row);
+                row.status = row.validation.errors.length > 0 ? 'error' : 
+                            row.validation.warnings.length > 0 ? 'warning' : 'valid';
+                fixed++;
+            }
+        }
+    });
+    
+    if (fixed > 0) {
+        // Recount and display
+        const valid = validatedData.filter(row => row.status === 'valid').length;
+        const warning = validatedData.filter(row => row.status === 'warning').length;
+        const error = validatedData.filter(row => row.status === 'error').length;
+        
+        displayValidationResults(valid, warning, error);
+        showNotification(`Fixed ${fixed} date format issue${fixed > 1 ? 's' : ''}`, 'success');
+    } else {
+        showNotification('No date format issues to fix', 'info');
+    }
+}
+
+function confirmImport() {
+    const mode = document.querySelector('input[name="import-mode"]:checked').value;
+    const validRows = validatedData.filter(row => row.status !== 'error');
+    
+    if (validRows.length === 0) {
+        showNotification('No valid rows to import', 'error');
+        return;
+    }
+    
+    // Clear existing cohorts if replace mode
+    if (mode === 'replace') {
+        activeCohorts = [];
+    }
+    
+    // Import cohorts
+    let imported = 0;
+    validRows.forEach(row => {
+        const pathway = pathways.find(p => p.id === row.pathwayId);
+        if (pathway && row.parsedYear && row.parsedFortnight && row.parsedTrainees) {
+            activeCohorts.push({
+                id: nextCohortId++,
+                numTrainees: row.parsedTrainees,
+                pathwayId: row.pathwayId,
+                startYear: row.parsedYear,
+                startFortnight: row.parsedFortnight,
+                location: currentLocation,
+                crossLocationTraining: {}
+            });
+            imported++;
+        }
+    });
+    
+    // Update UI
+    updateAllTables();
+    renderGanttChart();
+    markDirty();
+    
+    // Close modal
+    document.getElementById('import-training-modal').classList.remove('active');
+    
+    // Show success
+    const message = mode === 'replace' ? 
+        `Replaced all cohorts with ${imported} imported cohort${imported > 1 ? 's' : ''}` :
+        `Added ${imported} cohort${imported > 1 ? 's' : ''}`;
+    showNotification(message, 'success');
 }
 

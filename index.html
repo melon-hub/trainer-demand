@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pilot Trainer Supply/Demand Planner</title>
-    <link rel="stylesheet" href="styles.css?v=2025012714">
+    <link rel="stylesheet" href="styles.css?v=2025012720">
     <script>
         // Apply dark mode immediately to prevent flash
         const isDarkMode = localStorage.getItem('darkMode') === 'true';
@@ -273,7 +273,11 @@
             <section class="add-cohort-section">
                 <div class="section-header">
                     <h2>Add New Cohort</h2>
-                    <button id="training-planner-btn" class="btn btn-secondary">Training Planner</button>
+                    <div class="header-buttons">
+                        <button id="training-planner-btn" class="btn btn-secondary">Training Planner</button>
+                        <button id="export-training-btn" class="btn btn-secondary">Export Training</button>
+                        <button id="import-training-btn" class="btn btn-secondary">Import Training</button>
+                    </div>
                 </div>
                 <form id="add-cohort-form" class="add-cohort-form">
                     <div class="form-group">
@@ -1062,6 +1066,157 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
         </div>
     </div>
 
+    <!-- Import Training Modal -->
+    <div id="import-training-modal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2>Import Training Data</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="import-controls">
+                    <h3>Select File to Import</h3>
+                    <div class="file-input-section" style="margin-bottom: 20px;">
+                        <input type="file" id="import-file-input" accept=".csv,.xlsx,.xls" style="margin-bottom: 10px;">
+                        <div class="import-format-hint" style="font-size: 0.9em; color: #666;">
+                            Accepts CSV or Excel files. Expected columns: Pathway ID, Pathway Name, Type, Start Date, No. Trainees
+                        </div>
+                    </div>
+                    
+                    <div class="import-options" style="margin-bottom: 20px; display: none;" id="import-options-section">
+                        <h4>Import Options</h4>
+                        <label style="display: block; margin-bottom: 10px;">
+                            <input type="radio" name="import-mode" value="replace" checked>
+                            Replace all existing cohorts
+                        </label>
+                        <label style="display: block;">
+                            <input type="radio" name="import-mode" value="append">
+                            Add to existing cohorts
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="validation-section" id="import-validation-section" style="display: none;">
+                    <h3>Validation Results</h3>
+                    <div class="validation-summary" id="validation-summary" style="margin-bottom: 15px; padding: 10px; border-radius: 5px;">
+                        <!-- Summary will be shown here -->
+                    </div>
+                    
+                    <div class="preview-section">
+                        <div id="import-preview-container" style="max-height: 400px; overflow-y: auto;">
+                            <table class="data-table" id="import-preview-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40px;">Status</th>
+                                        <th>Pathway ID</th>
+                                        <th>Pathway Name</th>
+                                        <th>Type</th>
+                                        <th>Start Date</th>
+                                        <th>No. Trainees</th>
+                                        <th>Issues</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="import-preview-tbody">
+                                    <!-- Preview data will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <div class="fix-options" id="fix-options" style="margin-top: 15px; display: none;">
+                        <h4>Quick Fixes</h4>
+                        <button class="btn btn-secondary" id="skip-invalid-btn" style="margin-right: 10px;">
+                            Skip Invalid Rows
+                        </button>
+                        <button class="btn btn-secondary" id="fix-dates-btn" style="margin-right: 10px;">
+                            Auto-fix Date Formats
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <span id="import-location-label" style="color: #007bff; margin-right: auto;"></span>
+                <button id="import-training-confirm" class="btn btn-primary" disabled>Import Valid Cohorts</button>
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Export Training Modal -->
+    <div id="export-training-modal" class="modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <div class="modal-header">
+                <h2>Export Training Data</h2>
+                <button class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="export-controls">
+                    <h3>Select Date Range</h3>
+                    <div class="date-range-selector" style="display: flex; gap: 20px; margin-bottom: 20px;">
+                        <div class="date-input-group">
+                            <label>From:</label>
+                            <select id="export-from-year" style="width: 100px;">
+                                <!-- Years will be populated dynamically -->
+                            </select>
+                            <select id="export-from-fortnight" style="width: 150px;">
+                                <!-- Fortnights will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="date-input-group">
+                            <label>To:</label>
+                            <select id="export-to-year" style="width: 100px;">
+                                <!-- Years will be populated dynamically -->
+                            </select>
+                            <select id="export-to-fortnight" style="width: 150px;">
+                                <!-- Fortnights will be populated dynamically -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="export-options" style="margin-bottom: 20px;">
+                        <label>
+                            <input type="radio" name="export-view" value="detailed" checked>
+                            Detailed View (one row per cohort)
+                        </label>
+                        <label style="margin-left: 20px;">
+                            <input type="radio" name="export-view" value="summary">
+                            Summary View (grouped by pathway)
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="preview-section">
+                    <h3>Preview <span id="export-location-label" style="color: #007bff;"></span></h3>
+                    <div id="export-preview-container" style="max-height: 400px; overflow-y: auto;">
+                        <table class="data-table" id="export-preview-table">
+                            <thead>
+                                <tr>
+                                    <th>Pathway ID</th>
+                                    <th>Pathway Name</th>
+                                    <th>Type</th>
+                                    <th>Start Date</th>
+                                    <th>No. Trainees</th>
+                                </tr>
+                            </thead>
+                            <tbody id="export-preview-tbody">
+                                <!-- Preview data will be populated here -->
+                            </tbody>
+                        </table>
+                        <div id="export-no-data" style="text-align: center; padding: 40px; color: #666; display: none;">
+                            No training cohorts found in the selected date range.
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="export-training-excel" class="btn btn-primary" disabled>Export to Excel</button>
+                <button class="btn btn-secondary modal-cancel">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SheetJS library for Excel export/import -->
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
 </html>

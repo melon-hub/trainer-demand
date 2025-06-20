@@ -257,6 +257,94 @@ body.dark-mode .help-version {
     color: #999;
 }
 
+/* Header Buttons */
+.header-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+/* Export Modal Styles */
+.date-input-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.date-input-group label {
+    font-weight: 600;
+    min-width: 40px;
+}
+
+.export-options label {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.export-options input[type="radio"] {
+    margin-right: 5px;
+}
+
+/* Import Validation Styles */
+.validation-summary.success {
+    background-color: #d4edda;
+    border: 1px solid #c3e6cb;
+    color: #155724;
+}
+
+.validation-summary.warning {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    color: #856404;
+}
+
+.validation-summary.error {
+    background-color: #f8d7da;
+    border: 1px solid #f5c6cb;
+    color: #721c24;
+}
+
+.import-row-valid {
+    background-color: #f0f8f0;
+}
+
+.import-row-warning {
+    background-color: #fffbf0;
+}
+
+.import-row-error {
+    background-color: #fff0f0;
+}
+
+body.dark-mode .import-row-valid {
+    background-color: #1a2a1a;
+}
+
+body.dark-mode .import-row-warning {
+    background-color: #2a2a1a;
+}
+
+body.dark-mode .import-row-error {
+    background-color: #2a1a1a;
+}
+
+.status-icon {
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.status-icon.valid {
+    color: #28a745;
+}
+
+.status-icon.warning {
+    color: #ffc107;
+}
+
+.status-icon.error {
+    color: #dc3545;
+}
+
 /* Help Content Styles */
 .help-content h2 {
     margin-bottom: 20px;
@@ -1578,6 +1666,20 @@ select:focus {
     transition: all 0.3s ease;
 }
 
+/* Override ALL secondary button styles in light mode */
+body:not(.dark-mode) .btn-secondary,
+body:not(.dark-mode) button.btn-secondary,
+body:not(.dark-mode) input.btn-secondary,
+body:not(.dark-mode) a.btn-secondary,
+html body:not(.dark-mode) .btn-secondary,
+.btn-secondary:not(.dark-mode .btn-secondary) {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+    text-shadow: none !important;
+    background-image: none !important;
+}
+
 .btn-primary {
     background-color: #3498db;
     color: white;
@@ -1596,14 +1698,7 @@ select:focus {
     background-color: #e67e22;
 }
 
-.btn-secondary {
-    background-color: #95a5a6;
-    color: white;
-}
-
-.btn-secondary:hover {
-    background-color: #7f8c8d;
-}
+/* REMOVED - Moved to end of file for proper cascade */
 
 /* Enhanced styling for cross-location button visibility */
 #commencement-cross-loc-btn {
@@ -3359,6 +3454,41 @@ body.dark-mode table tr td[style*="background-color"] {
     font-size: 14px;
 }
 
+/* Ensure small secondary buttons are visible in light mode */
+.btn-secondary.btn-sm {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+.btn-secondary.btn-sm:hover {
+    background-color: #dee2e6 !important;
+    color: #212529 !important;
+    border-color: #adb5bd !important;
+}
+
+/* Force light mode button styles with highest specificity */
+:root body:not(.dark-mode) .btn-secondary,
+:root body:not(.dark-mode) button.btn-secondary,
+:root body:not(.dark-mode) input[type="button"].btn-secondary,
+:root body:not(.dark-mode) input[type="submit"].btn-secondary,
+:root body:not(.dark-mode) a.btn-secondary {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+    text-shadow: none !important;
+}
+
+:root body:not(.dark-mode) .btn-secondary:hover,
+:root body:not(.dark-mode) button.btn-secondary:hover,
+:root body:not(.dark-mode) input[type="button"].btn-secondary:hover,
+:root body:not(.dark-mode) input[type="submit"].btn-secondary:hover,
+:root body:not(.dark-mode) a.btn-secondary:hover {
+    background-color: #dee2e6 !important;
+    color: #212529 !important;
+    border-color: #adb5bd !important;
+}
+
 /* Scenario Cards */
 .scenario-list {
     display: flex;
@@ -3984,10 +4114,65 @@ body.dark-mode .btn-primary:hover {
     background-color: #0b5ed7;
 }
 
+body.dark-mode .btn-secondary {
+    background-color: #4a4a4a;
+    color: #e0e0e0;
+    border-color: #5a5a5a;
+}
+
+body.dark-mode .btn-secondary:hover {
+    background-color: #5a5a5a;
+    color: #f0f0f0;
+    border-color: #6a6a6a;
+}
+
 /* New Scenario button */
 #new-scenario {
     margin-right: 10px;
     font-weight: 600;
+}
+
+/* Fix for any buttons that might not have inherited proper styles */
+body:not(.dark-mode) button.btn-secondary,
+body:not(.dark-mode) .btn.btn-secondary,
+body:not(.dark-mode) input.btn-secondary,
+body:not(.dark-mode) a.btn-secondary {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+body:not(.dark-mode) button.btn-secondary:hover,
+body:not(.dark-mode) .btn.btn-secondary:hover,
+body:not(.dark-mode) input.btn-secondary:hover,
+body:not(.dark-mode) a.btn-secondary:hover {
+    background-color: #dee2e6 !important;
+    color: #212529 !important;
+    border-color: #adb5bd !important;
+}
+
+/* Ensure these styles apply even to dynamically created elements */
+html:not(.dark-mode) .btn-secondary {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+/* Specific fix for scenario view buttons */
+#scenarios-view .btn-secondary,
+.scenario-actions .btn-secondary,
+.scenarios-header .btn-secondary {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+}
+
+body:not(.dark-mode) #scenarios-view .btn-secondary:hover,
+body:not(.dark-mode) .scenario-actions .btn-secondary:hover,
+body:not(.dark-mode) .scenarios-header .btn-secondary:hover {
+    background-color: #dee2e6 !important;
+    color: #212529 !important;
+    border-color: #adb5bd !important;
 }
 
 /* Scenario card location stats */
@@ -5208,17 +5393,19 @@ body.dark-mode #grid-container {
     display: flex;
     gap: 8px;
     justify-content: flex-end;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
+    min-width: 0;
 }
 
 .load-btn, .duplicate-btn, .export-btn, .delete-btn {
-    padding: 6px 12px;
+    padding: 5px 10px;
     border: none;
     border-radius: 4px;
-    font-size: 13px;
+    font-size: 12px;
     cursor: pointer;
     transition: background-color 0.3s ease;
     white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .load-btn {
@@ -7975,4 +8162,117 @@ body.dark-mode #trainee-summary:hover {
 }
 
 .training-type-main td {
+}
+
+/* FINAL OVERRIDE - Light mode secondary button styles - MUST BE LAST */
+body:not(.dark-mode) .btn-secondary,
+body:not(.dark-mode) button.btn-secondary,
+body:not(.dark-mode) .btn.btn-secondary,
+body:not(.dark-mode) input.btn-secondary,
+body:not(.dark-mode) a.btn-secondary {
+    background-color: #e9ecef !important;
+    color: #495057 !important;
+    border: 1px solid #dee2e6 !important;
+    text-shadow: none !important;
+    background-image: none !important;
+}
+
+body:not(.dark-mode) .btn-secondary:hover,
+body:not(.dark-mode) button.btn-secondary:hover,
+body:not(.dark-mode) .btn.btn-secondary:hover,
+body:not(.dark-mode) input.btn-secondary:hover,
+body:not(.dark-mode) a.btn-secondary:hover {
+    background-color: #dee2e6 !important;
+    color: #212529 !important;
+    border-color: #adb5bd !important;
+    text-shadow: none !important;
+    background-image: none !important;
+}
+
+/* Scenario action buttons retain their colors in light mode */
+body:not(.dark-mode) .scenario-actions .load-btn {
+    background-color: #3498db !important;
+    color: white !important;
+    border: none !important;
+}
+
+body:not(.dark-mode) .scenario-actions .load-btn:hover {
+    background-color: #2980b9 !important;
+    color: white !important;
+}
+
+body:not(.dark-mode) .scenario-actions .duplicate-btn {
+    background-color: #27ae60 !important;
+    color: white !important;
+    border: none !important;
+}
+
+body:not(.dark-mode) .scenario-actions .duplicate-btn:hover {
+    background-color: #229954 !important;
+    color: white !important;
+}
+
+body:not(.dark-mode) .scenario-actions .export-btn {
+    background-color: #f39c12 !important;
+    color: white !important;
+    border: none !important;
+}
+
+body:not(.dark-mode) .scenario-actions .export-btn:hover {
+    background-color: #e67e22 !important;
+    color: white !important;
+}
+
+body:not(.dark-mode) .scenario-actions .delete-btn {
+    background-color: #e74c3c !important;
+    color: white !important;
+    border: none !important;
+}
+
+body:not(.dark-mode) .scenario-actions .delete-btn:hover {
+    background-color: #c0392b !important;
+    color: white !important;
+}
+
+/* Clear Highlights button visibility in light mode */
+body:not(.dark-mode) .clear-highlights-btn {
+    background-color: #0d6efd !important;
+    color: white !important;
+    border: 1px solid #0a58ca !important;
+}
+
+body:not(.dark-mode) .clear-highlights-btn:hover {
+    background-color: #0a58ca !important;
+    color: white !important;
+}
+
+/* Location toggle (AU/NZ) text color fixes */
+body:not(.dark-mode) .location-toggle:not(.active) {
+    color: #212529 !important;
+}
+
+/* Save As New Scenario button visibility fix */
+body:not(.dark-mode) #save-current-scenario.btn-primary {
+    background-color: #0d6efd !important;
+    color: white !important;
+    border: 1px solid #0a58ca !important;
+}
+
+body:not(.dark-mode) #save-current-scenario.btn-primary:hover {
+    background-color: #0a58ca !important;
+    color: white !important;
+    border-color: #0257d5 !important;
+}
+
+/* Base styles for secondary buttons */
+.btn-secondary {
+    background-color: #e9ecef;
+    color: #495057;
+    border: 1px solid #dee2e6;
+}
+
+.btn-secondary:hover {
+    background-color: #dee2e6;
+    color: #212529;
+    border-color: #adb5bd;
 }
