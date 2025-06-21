@@ -23,16 +23,17 @@ A web-based application for managing pilot training cohorts and forecasting trai
 7. **Training Planner**: Grid entry, bulk input, and optimization tools
 
 ## Technology Stack
-- Pure JavaScript (ES6+)
+- Pure JavaScript (ES6+) with namespace organization
 - HTML5
 - CSS3
-- No external dependencies or frameworks
+- Chart.js for visualizations
+- No build tools or frameworks required
 
 ## Project Structure
 ```
 trainer-view/
 ├── index.html                      # Main application HTML
-├── app.js                         # Core application logic (~7000+ lines)
+├── app.js                         # Core application logic (~9000+ lines, namespace organized)
 ├── styles.css                     # Application styling with dark mode
 ├── trainer-view-standalone.html   # Single-file version with embedded CSS/JS
 ├── README.md                      # Project documentation
@@ -87,6 +88,11 @@ Simply open `index.html` in a modern web browser. No build process or server req
 - Edge
 
 ## Version History
+- **v1.12** (January 2025): Namespace organization
+  - Implemented TrainerApp namespace structure
+  - Better code organization with logical grouping
+  - Maintained 100% backward compatibility
+  - Fixed non-existent function references
 - **v1.5** (May 2025): Enhanced cross-location visibility
   - Split view toggle for demand tables
   - Cross-location cohorts display in Gantt

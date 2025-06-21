@@ -69,9 +69,22 @@ Training demands are served in priority order with cascading allocation:
 - `priorityConfig[]`: Configurable priority allocation rules
 - `crossLocationTraining{}`: Fortnight-level cross-location assignments
 
+### Code Organization (v1.10+)
+
+The application now uses a namespace structure for better organization:
+- `TrainerApp.Config` - Configuration constants
+- `TrainerApp.State` - Application state
+- `TrainerApp.Utils` - Utility functions
+- `TrainerApp.Calculations` - Business logic
+- `TrainerApp.UI` - User interface components (Dashboard, Planner, Settings, Scenarios, Modals, Charts)
+- `TrainerApp.Data` - Data management
+- `TrainerApp.ImportExport` - Import/Export functionality
+- `TrainerApp.Help` - Help system
+
+All functions remain globally accessible for backward compatibility.
+
 ### Key Functions
 - `calculateDemand()`: Calculates trainer demand with cross-location support
-- `calculateCrossLocationDemand()`: Two-pass algorithm for cross-location allocation
 - `calculateSupplyDeficit()`: Calculates surplus/deficit with cascading allocation
 - `renderGanttChart()`: Renders timeline with cross-location cohorts section
 - `updateDashboardV2()`: Updates enhanced dashboard metrics

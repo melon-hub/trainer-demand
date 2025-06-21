@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E2E Test Debug</title>
+    <style>
+        body { font-family: monospace; margin: 20px; }
+        .error { color: red; }
+        .success { color: green; }
+        pre { background: #f4f4f4; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>E2E Test Debug</h1>
+    <div id="status"></div>
+    <div id="errors"></div>
+    
+    <!-- Hidden elements that E2E test expects -->
+    <div id="toast-container" style="display:none;"></div>
+    <div id="scenarios-panel" style="display:none;"></div>
+    <div id="scenarios-overlay" style="display:none;"></div>
+    
+    <script>
+        // Capture errors before loading anything
+        const errors = [];
+        window.addEventListener('error', function(e) {
+            errors.push({
+                message: e.message,
+                source: e.filename,
+                line: e.lineno,
+                col: e.colno,
+                error: e.error
+            });
+        });
+    </script>
+    
+    <!-- Load dependencies in correct order -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <script>
+        // Check if dependencies loaded
+        document.getElementById('status').innerHTML = `
+            <h2>Dependency Check:</h2>
+            <div class="${typeof Chart !== 'undefined' ? 'success' : 'error'}">
+                Chart.js: ${typeof Chart !== 'undefined' ? '✅ Loaded' : '❌ Failed'}
+            </div>
+            <div class="${typeof XLSX !== 'undefined' ? 'success' : 'error'}">
+                SheetJS: ${typeof XLSX !== 'undefined' ? '✅ Loaded' : '❌ Failed'}
+            </div>
+        `;
+    </script>
+    
+    <script src="app.js"></script>
+    
+    <script>
+        // Wait for everything to load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const statusDiv = document.getElementById('status');
+                const errorsDiv = document.getElementById('errors');
+                
+                // Check core objects
+                statusDiv.innerHTML += `
+                    <h2>Core Objects Check:</h2>
+                    <div class="${typeof TrainerApp === 'object' ? 'success' : 'error'}">
+                        TrainerApp: ${typeof TrainerApp === 'object' ? '✅ Loaded' : '❌ Failed'}
+                    </div>
+                    <div class="${typeof locationData === 'object' ? 'success' : 'error'}">
+                        locationData: ${typeof locationData === 'object' ? '✅ Loaded' : '❌ Failed'}
+                    </div>
+                    <div class="${Array.isArray(pathways) ? 'success' : 'error'}">
+                        pathways: ${Array.isArray(pathways) ? '✅ Loaded' : '❌ Failed'}
+                    </div>
+                    <div class="${Array.isArray(activeCohorts) ? 'success' : 'error'}">
+                        activeCohorts: ${Array.isArray(activeCohorts) ? '✅ Loaded' : '❌ Failed'}
+                    </div>
+                `;
+                
+                // Check key functions
+                statusDiv.innerHTML += '<h2>Key Functions Check:</h2>';
+                const functions = [
+                    'calculateDemand',
+                    'calculateSupplyDeficit',
+                    'showNotification',
+                    'updateDashboardV2',
+                    'renderGanttChart',
+                    'parseCSV',
+                    'getCurrentState',
+                    'switchLocation',
+                    'markDirty',
+                    'getScenarios'
+                ];
+                
+                functions.forEach(func => {
+                    const exists = typeof window[func] === 'function';
+                    statusDiv.innerHTML += `
+                        <div class="${exists ? 'success' : 'error'}">
+                            ${func}: ${exists ? '✅ Exists' : '❌ Missing'}
+                        </div>
+                    `;
+                });
+                
+                // Display errors
+                if (errors.length > 0) {
+                    errorsDiv.innerHTML = '<h2>Errors:</h2>';
+                    errors.forEach(err => {
+                        errorsDiv.innerHTML += `
+                            <div class="error">
+                                ${err.message} (${err.source}:${err.line}:${err.col})
+                                ${err.error ? `<pre>${err.error.stack}</pre>` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    errorsDiv.innerHTML = '<h2 class="success">✅ No errors detected</h2>';
+                }
+                
+                // Try running a simple test
+                errorsDiv.innerHTML += '<h2>Simple Function Test:</h2>';
+                try {
+                    const state = getCurrentState();
+                    errorsDiv.innerHTML += '<div class="success">✅ getCurrentState() works</div>';
+                    
+                    const scenarios = getScenarios();
+                    errorsDiv.innerHTML += '<div class="success">✅ getScenarios() works</div>';
+                    
+                    const demand = calculateDemand();
+                    errorsDiv.innerHTML += '<div class="success">✅ calculateDemand() works</div>';
+                } catch (e) {
+                    errorsDiv.innerHTML += `<div class="error">❌ Function test failed: ${e.message}</div>`;
+                }
+            }, 1000);
+        });
+    </script>
+</body>
+</html>

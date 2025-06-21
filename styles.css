@@ -1,8 +1,42 @@
+/* Performance Optimizations */
+:root {
+    --column-width: 50px;
+    --bg-primary: #f5f5f5;
+    --bg-secondary: #fff;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --border-color: #ddd;
+    --shadow-light: 0 1px 3px rgba(0,0,0,0.1);
+    --shadow-medium: 0 2px 6px rgba(0,0,0,0.15);
+}
+
 /* General Styles */
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+}
+
+/* Enable hardware acceleration for smooth scrolling */
+.table-wrapper {
+    will-change: scroll-position;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Optimize table rendering */
+.data-table {
+    table-layout: fixed;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+
+/* Use CSS containment for better performance */
+.view {
+    contain: layout style;
+}
+
+.modal {
+    contain: layout style paint;
 }
 
 /* Prevent flicker on page load */

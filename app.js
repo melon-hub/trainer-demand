@@ -1,14 +1,56 @@
-// Configuration Constants
-const START_YEAR = 2024;
-const END_YEAR = 2034;
-const FORTNIGHTS_PER_YEAR = 24;
+/**
+ * Pilot Trainer Supply/Demand Planner
+ * Organized with namespace pattern for better maintainability
+ */
 
-// Debug mode - set to true to enable console logging
-const DEBUG_MODE = false;
+// Create main application namespace
+const TrainerApp = {
+    // Configuration
+    Config: {
+        START_YEAR: 2024,
+        END_YEAR: 2034,
+        FORTNIGHTS_PER_YEAR: 24,
+        DEBUG_MODE: false
+    },
+    
+    // Utility functions
+    Utils: {},
+    
+    // Calculation functions
+    Calculations: {},
+    
+    // UI Management
+    UI: {
+        Dashboard: {},
+        Planner: {},
+        Settings: {},
+        Scenarios: {},
+        Modals: {},
+        Charts: {}
+    },
+    
+    // Data Management
+    Data: {},
+    
+    // State Management
+    State: {},
+    
+    // Import/Export
+    ImportExport: {},
+    
+    // Help System
+    Help: {}
+};
 
-// Month mapping for fortnights
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const FORTNIGHT_TO_MONTH = {
+// Legacy global constants for backward compatibility
+const START_YEAR = TrainerApp.Config.START_YEAR;
+const END_YEAR = TrainerApp.Config.END_YEAR;
+const FORTNIGHTS_PER_YEAR = TrainerApp.Config.FORTNIGHTS_PER_YEAR;
+const DEBUG_MODE = TrainerApp.Config.DEBUG_MODE;
+
+// Add to Config namespace
+TrainerApp.Config.MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+TrainerApp.Config.FORTNIGHT_TO_MONTH = {
     1: 0, 2: 0,       // Jan
     3: 1, 4: 1,       // Feb
     5: 2, 6: 2,       // Mar
@@ -22,12 +64,8 @@ const FORTNIGHT_TO_MONTH = {
     21: 10, 22: 10,   // Nov
     23: 11, 24: 11    // Dec
 };
-
-// Trainer categories
-const TRAINER_CATEGORIES = ['CATB', 'CATA', 'STP', 'RHS', 'LHS'];
-
-// Trainer qualifications mapping - what each trainer type CAN do
-const TRAINER_QUALIFICATIONS = {
+TrainerApp.Config.TRAINER_CATEGORIES = ['CATB', 'CATA', 'STP', 'RHS', 'LHS'];
+TrainerApp.Config.TRAINER_QUALIFICATIONS = {
     'CATB': ['LT-CAD', 'LT-CP', 'LT-FO'],  // Can do all LT types
     'CATA': ['LT-CAD', 'LT-CP', 'LT-FO'],  // Can do all LT types
     'STP': ['LT-CAD', 'LT-CP', 'LT-FO'],   // Can do all LT types
@@ -35,8 +73,14 @@ const TRAINER_QUALIFICATIONS = {
     'LHS': ['LT-FO']                        // Can only do LT-FO
 };
 
-// Priority configuration - editable
-let priorityConfig = [
+// Legacy globals for backward compatibility
+const MONTHS = TrainerApp.Config.MONTHS;
+const FORTNIGHT_TO_MONTH = TrainerApp.Config.FORTNIGHT_TO_MONTH;
+const TRAINER_CATEGORIES = TrainerApp.Config.TRAINER_CATEGORIES;
+const TRAINER_QUALIFICATIONS = TrainerApp.Config.TRAINER_QUALIFICATIONS;
+
+// Move state to State namespace
+TrainerApp.State.priorityConfig = [
     {
         priority: 'P1',
         trainingType: 'LT-CAD',
@@ -57,18 +101,15 @@ let priorityConfig = [
     }
 ];
 
-// Location state
-var currentLocation = 'AU';  // Default location - using var to avoid temporal dead zone
+TrainerApp.State.currentLocation = 'AU';  // Default location
 
-// Help System State
-let helpState = {
+TrainerApp.State.helpState = {
     currentSection: 'getting-started',
     searchQuery: '',
     tourActive: false
 };
 
-// Drag and Drop State
-let dragState = {
+TrainerApp.State.dragState = {
     isDragging: false,
     draggedCohort: null,
     originalStartYear: null,
@@ -79,8 +120,7 @@ let dragState = {
     cellWidth: 50 // Will be updated from CSS
 };
 
-// Location-aware data structure
-let locationData = {
+TrainerApp.State.locationData = {
     AU: {
         pathways: [],
         trainerFTE: {},
@@ -94,6 +134,13 @@ let locationData = {
         activeCohorts: []
     }
 };
+
+// Legacy globals for backward compatibility
+let priorityConfig = TrainerApp.State.priorityConfig;
+var currentLocation = TrainerApp.State.currentLocation;
+let helpState = TrainerApp.State.helpState;
+let dragState = TrainerApp.State.dragState;
+let locationData = TrainerApp.State.locationData;
 
 // Data Structures - Training pathways (legacy - will be migrated)
 let pathways = [
@@ -16937,4 +16984,94 @@ function confirmImport() {
         `Added ${imported} cohort${imported > 1 ? 's' : ''}`;
     showNotification(message, 'success');
 }
+
+// ============================================================================
+// NAMESPACE ASSIGNMENTS - Organize functions into logical groups
+// ============================================================================
+
+// After all functions are defined, assign them to the namespace structure
+// This allows gradual migration while maintaining backward compatibility
+
+// Utility functions
+TrainerApp.Utils.showNotification = showNotification;
+TrainerApp.Utils.showCenterNotification = showCenterNotification;
+TrainerApp.Utils.removeToast = removeToast;
+TrainerApp.Utils.showAlertDialog = showAlertDialog;
+TrainerApp.Utils.showConfirmDialog = showConfirmDialog;
+TrainerApp.Utils.updateCurrentScenarioDisplay = updateCurrentScenarioDisplay;
+TrainerApp.Utils.markDirty = markDirty;
+
+// Calculation functions
+TrainerApp.Calculations.calculateDemand = calculateDemand;
+TrainerApp.Calculations.calculateSupplyDeficit = calculateSupplyDeficit;
+// TrainerApp.Calculations.calculateDemandByCategory = calculateDemandByCategory; // Function doesn't exist
+TrainerApp.Calculations.calculateLineTrainingPeriods = calculateLineTrainingPeriods;
+// TrainerApp.Calculations.calculateCrossLocationDemand = calculateCrossLocationDemand; // Function doesn't exist
+TrainerApp.Calculations.getCategoryDemand = getCategoryDemand;
+TrainerApp.Calculations.calculateAverageDemand = calculateAverageDemand;
+TrainerApp.Calculations.calculateMetricTrends = calculateMetricTrends;
+TrainerApp.Calculations.calculateMetricsForPeriod = calculateMetricsForPeriod;
+
+// Dashboard UI functions
+TrainerApp.UI.Dashboard.updateDashboardV2 = updateDashboardV2;
+TrainerApp.UI.Dashboard.updateDashboardForNavigation = updateDashboardForNavigation;
+TrainerApp.UI.Dashboard.navigateDashboard = navigateDashboard;
+// TrainerApp.UI.Dashboard.updateMetricsCards = updateMetricsCards; // Function doesn't exist
+// TrainerApp.UI.Dashboard.updateDemandOverTimeChart = updateDemandOverTimeChart; // Function doesn't exist
+// TrainerApp.UI.Dashboard.updateTrainingDistributionChart = updateTrainingDistributionChart; // Function doesn't exist
+// TrainerApp.UI.Dashboard.updateUtilizationTrendChart = updateUtilizationTrendChart; // Function doesn't exist
+// TrainerApp.UI.Dashboard.updateSmartAlerts = updateSmartAlerts; // Function doesn't exist
+// TrainerApp.UI.Dashboard.renderPipelineView = renderPipelineView; // Function doesn't exist
+
+// Planner UI functions  
+TrainerApp.UI.Planner.renderGanttChart = renderGanttChart;
+TrainerApp.UI.Planner.renderDemandTable = renderDemandTable;
+TrainerApp.UI.Planner.renderSurplusDeficitTable = renderSurplusDeficitTable;
+TrainerApp.UI.Planner.updateAllTables = updateAllTables;
+TrainerApp.UI.Planner.handleDragStart = handleDragStart;
+TrainerApp.UI.Planner.handleDragEnd = handleDragEnd;
+TrainerApp.UI.Planner.handleDragOver = handleDragOver;
+TrainerApp.UI.Planner.handleDrop = handleDrop;
+TrainerApp.UI.Planner.setupGanttDragAndDrop = setupGanttDragAndDrop;
+
+// Settings UI functions
+TrainerApp.UI.Settings.renderPathwaysTable = renderPathwaysTable;
+TrainerApp.UI.Settings.renderFTESummaryTable = renderFTESummaryTable;
+TrainerApp.UI.Settings.renderPrioritySettingsTable = renderPrioritySettingsTable;
+TrainerApp.UI.Settings.editPathway = editPathway;
+TrainerApp.UI.Settings.openAddPathwayModal = openAddPathwayModal;
+TrainerApp.UI.Settings.handlePathwaySave = handlePathwaySave;
+TrainerApp.UI.Settings.openFTEModal = openFTEModal;
+
+// Import/Export functions
+// TrainerApp.ImportExport.showExportModal = showExportModal; // Function doesn't exist
+TrainerApp.ImportExport.updateExportPreview = updateExportPreview;
+// TrainerApp.ImportExport.exportToExcel = exportToExcel; // Function doesn't exist
+TrainerApp.ImportExport.handleFileSelect = handleFileSelect;
+TrainerApp.ImportExport.parseCSV = parseCSV;
+TrainerApp.ImportExport.confirmImport = confirmImport;
+
+// Scenario Management functions
+TrainerApp.UI.Scenarios.openScenariosPanel = openScenariosPanel;
+TrainerApp.UI.Scenarios.closeScenariosPanel = closeScenariosPanel;
+TrainerApp.UI.Scenarios.renderScenarioList = renderScenarioList;
+TrainerApp.UI.Scenarios.loadScenario = loadScenario;
+TrainerApp.UI.Scenarios.saveCurrentScenario = saveCurrentScenario;
+TrainerApp.UI.Scenarios.createNewScenario = createNewScenario;
+TrainerApp.UI.Scenarios.deleteScenario = deleteScenario;
+TrainerApp.UI.Scenarios.duplicateScenario = duplicateScenario;
+
+// Help System functions
+TrainerApp.Help.showHelpModal = showHelpModal;
+TrainerApp.Help.loadHelpSection = loadHelpSection;
+TrainerApp.Help.searchHelp = searchHelp;
+TrainerApp.Help.startInteractiveTour = startInteractiveTour;
+
+// Data Management functions
+TrainerApp.Data.saveDefaultFTE = saveDefaultFTE;
+TrainerApp.Data.loadDefaultFTE = loadDefaultFTE;
+TrainerApp.Data.saveDefaultPathways = saveDefaultPathways;
+TrainerApp.Data.loadDefaultPathways = loadDefaultPathways;
+TrainerApp.Data.getCurrentState = getCurrentState;
+TrainerApp.Data.migrateDataToLocations = migrateDataToLocations;
 

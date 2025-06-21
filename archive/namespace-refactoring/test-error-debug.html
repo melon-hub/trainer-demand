@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Error Debug Test</title>
+    <style>
+        body {
+            font-family: monospace;
+            margin: 20px;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        pre { background: #f4f4f4; padding: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Error Debug Test</h1>
+    <div id="errors"></div>
+    <div id="console-errors"></div>
+    
+    <script>
+        // Capture console errors
+        const originalError = console.error;
+        const consoleErrors = [];
+        console.error = function(...args) {
+            consoleErrors.push(args);
+            originalError.apply(console, args);
+        };
+        
+        // Capture window errors with more detail
+        const windowErrors = [];
+        window.addEventListener('error', function(event) {
+            windowErrors.push({
+                message: event.message,
+                source: event.filename,
+                lineno: event.lineno,
+                colno: event.colno,
+                error: event.error
+            });
+        });
+        
+        // Also catch unhandled promise rejections
+        window.addEventListener('unhandledrejection', function(event) {
+            windowErrors.push({
+                message: 'Unhandled Promise Rejection: ' + event.reason,
+                promise: event.promise
+            });
+        });
+    </script>
+    
+    <!-- Load app.js and let it fully initialize -->
+    <script src="app.js"></script>
+    
+    <script>
+        // Wait for everything to load
+        window.addEventListener('load', function() {
+            setTimeout(function() {
+                const errorsDiv = document.getElementById('errors');
+                const consoleDiv = document.getElementById('console-errors');
+                
+                // Display window errors
+                if (windowErrors.length > 0) {
+                    errorsDiv.innerHTML = '<h2>Window Errors:</h2>';
+                    windowErrors.forEach((err, index) => {
+                        errorsDiv.innerHTML += `
+                            <div class="error">
+                                <strong>Error ${index + 1}:</strong><br>
+                                Message: ${err.message}<br>
+                                ${err.source ? `Source: ${err.source}<br>` : ''}
+                                ${err.lineno ? `Line: ${err.lineno}, Column: ${err.colno}<br>` : ''}
+                                ${err.error ? `<pre>${err.error.stack || err.error}</pre>` : ''}
+                            </div>
+                        `;
+                    });
+                } else {
+                    errorsDiv.innerHTML = '<div class="success">✅ No window errors detected</div>';
+                }
+                
+                // Display console errors
+                if (consoleErrors.length > 0) {
+                    consoleDiv.innerHTML = '<h2>Console Errors:</h2>';
+                    consoleErrors.forEach((args, index) => {
+                        consoleDiv.innerHTML += `
+                            <div class="error">
+                                <strong>Console Error ${index + 1}:</strong><br>
+                                <pre>${args.map(arg => String(arg)).join(' ')}</pre>
+                            </div>
+                        `;
+                    });
+                } else {
+                    consoleDiv.innerHTML += '<div class="success">✅ No console errors detected</div>';
+                }
+                
+                // Additional checks
+                consoleDiv.innerHTML += '<h2>Additional Checks:</h2>';
+                
+                // Check if app initialized
+                try {
+                    consoleDiv.innerHTML += `<div class="success">✅ TrainerApp exists: ${typeof TrainerApp === 'object'}</div>`;
+                    consoleDiv.innerHTML += `<div class="success">✅ locationData exists: ${typeof locationData === 'object'}</div>`;
+                    consoleDiv.innerHTML += `<div class="success">✅ pathways exists: ${Array.isArray(pathways)}</div>`;
+                    consoleDiv.innerHTML += `<div class="success">✅ activeCohorts exists: ${Array.isArray(activeCohorts)}</div>`;
+                } catch (e) {
+                    consoleDiv.innerHTML += `<div class="error">❌ Initialization check failed: ${e.message}</div>`;
+                }
+                
+                // Note about Script error
+                consoleDiv.innerHTML += `
+                    <h2>About "Script error. (line 0)":</h2>
+                    <div class="warning">
+                        This generic error often occurs when:
+                        <ul>
+                            <li>A script from a different origin (like Chart.js CDN) has an error</li>
+                            <li>Browser extensions interfere with the page</li>
+                            <li>CORS policies prevent detailed error information</li>
+                        </ul>
+                        If the app is working correctly, this can usually be ignored.
+                    </div>
+                `;
+            }, 1000); // Wait 1 second for any async errors
+        });
+    </script>
+</body>
+</html>

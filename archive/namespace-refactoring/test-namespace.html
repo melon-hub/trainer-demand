@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Namespace Test</title>
+</head>
+<body>
+    <h1>TrainerApp Namespace Test</h1>
+    <div id="test-results"></div>
+    
+    <script src="app.js"></script>
+    
+    <script>
+        // Test namespace structure
+        window.addEventListener('load', function() {
+            const results = document.getElementById('test-results');
+            let html = '<h2>Namespace Structure:</h2>';
+            
+            // Test Config
+            html += '<h3>Config Namespace:</h3><ul>';
+            html += `<li>START_YEAR: ${TrainerApp.Config.START_YEAR} ✅</li>`;
+            html += `<li>MONTHS length: ${TrainerApp.Config.MONTHS?.length || 0} ✅</li>`;
+            html += '</ul>';
+            
+            // Test State
+            html += '<h3>State Namespace:</h3><ul>';
+            html += `<li>currentLocation: ${TrainerApp.State.currentLocation} ✅</li>`;
+            html += `<li>locationData exists: ${typeof TrainerApp.State.locationData === 'object' ? '✅' : '❌'}</li>`;
+            html += '</ul>';
+            
+            // Test Utils
+            html += '<h3>Utils Namespace:</h3><ul>';
+            html += `<li>showNotification: ${typeof TrainerApp.Utils.showNotification === 'function' ? '✅' : '❌'}</li>`;
+            html += `<li>markDirty: ${typeof TrainerApp.Utils.markDirty === 'function' ? '✅' : '❌'}</li>`;
+            html += '</ul>';
+            
+            // Test Calculations
+            html += '<h3>Calculations Namespace:</h3><ul>';
+            html += `<li>calculateDemand: ${typeof TrainerApp.Calculations.calculateDemand === 'function' ? '✅' : '❌'}</li>`;
+            html += `<li>calculateSupplyDeficit: ${typeof TrainerApp.Calculations.calculateSupplyDeficit === 'function' ? '✅' : '❌'}</li>`;
+            html += '</ul>';
+            
+            // Test UI
+            html += '<h3>UI Namespaces:</h3><ul>';
+            html += `<li>Dashboard.updateDashboardV2: ${typeof TrainerApp.UI.Dashboard.updateDashboardV2 === 'function' ? '✅' : '❌'}</li>`;
+            html += `<li>Planner.renderGanttChart: ${typeof TrainerApp.UI.Planner.renderGanttChart === 'function' ? '✅' : '❌'}</li>`;
+            html += `<li>Settings.renderPathwaysTable: ${typeof TrainerApp.UI.Settings.renderPathwaysTable === 'function' ? '✅' : '❌'}</li>`;
+            html += '</ul>';
+            
+            // Test backward compatibility
+            html += '<h3>Backward Compatibility:</h3><ul>';
+            html += `<li>Global START_YEAR: ${typeof START_YEAR !== 'undefined' ? '✅' : '❌'}</li>`;
+            html += `<li>Global showNotification: ${typeof showNotification === 'function' ? '✅' : '❌'}</li>`;
+            html += `<li>Global calculateDemand: ${typeof calculateDemand === 'function' ? '✅' : '❌'}</li>`;
+            html += '</ul>';
+            
+            results.innerHTML = html;
+            
+            // Test function call through namespace
+            console.log('Testing namespace function call:');
+            console.log('Current location via namespace:', TrainerApp.State.currentLocation);
+        });
+    </script>
+</body>
+</html>

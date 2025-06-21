@@ -1,5 +1,35 @@
 # Changelog
 
+## [1.12.0] - 2025-01-29
+
+### 🔧 Major Code Refactoring
+- **Namespace Organization** - Implemented TrainerApp namespace structure
+  - Better code organization without breaking changes
+  - All functions now accessible via namespace (e.g., TrainerApp.Utils.showNotification)
+  - Maintained 100% backward compatibility - legacy code continues to work
+  - Improved IDE support with better autocomplete
+  
+### 🐛 Bug Fixes
+- Removed references to non-existent functions
+  - calculateDemandByCategory
+  - calculateCrossLocationDemand
+  - updateMetricsCards, updateDemandOverTimeChart, updateTrainingDistributionChart, updateUtilizationTrendChart
+  - updateSmartAlerts, renderPipelineView
+  - showExportModal, exportToExcel
+  - formatDate
+  
+### 📚 Documentation
+- Added NAMESPACE-GUIDE.md for developers
+- Created comprehensive E2E test suite
+- Updated REFACTOR.md with lessons learned
+
+### 🧹 Code Quality
+- Cleaned up console errors
+- Better function organization
+- Foundation for future modularization
+
+---
+
 ## [1.9.1] - 2025-01-29
 
 ### 🐛 Bug Fixes

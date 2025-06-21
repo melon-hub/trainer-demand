@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trainer App E2E Test Suite (Clean)</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .test-container {
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #f9f9f9;
+        }
+        .test-result {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 3px;
+        }
+        .test-pass {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .test-fail {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .test-summary {
+            font-size: 18px;
+            font-weight: bold;
+            margin: 20px 0;
+            padding: 20px;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 5px;
+        }
+        /* Hide all mock elements */
+        .mock-elements { display: none !important; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Trainer App E2E Test Suite (Clean Version)</h1>
+        <p>This version tests only what actually exists in the app</p>
+        
+        <div class="test-summary" id="test-summary"></div>
+        
+        <button onclick="runTests()" class="btn btn-primary">Run Tests</button>
+        <button onclick="clearResults()" class="btn btn-secondary">Clear Results</button>
+        
+        <div id="test-results"></div>
+    </div>
+    
+    <!-- Mock DOM structure required by app.js -->
+    <div class="mock-elements">
+        <!-- All required elements to prevent errors -->
+        <button id="dashboard-tab"></button>
+        <button id="planner-tab"></button>
+        <button id="settings-tab"></button>
+        <button id="scenarios-tab"></button>
+        <div id="dashboard-content"></div>
+        <div id="planner-content"></div>
+        <div id="settings-content"></div>
+        <div id="scenarios-content"></div>
+        <div id="total-trainees-v2"></div>
+        <div id="trainer-utilization-v2"></div>
+        <div id="upcoming-completions-v2"></div>
+        <div id="capacity-warnings-v2"></div>
+        <div id="total-trainees-trend"></div>
+        <div id="trainer-utilization-trend"></div>
+        <div id="upcoming-completions-trend"></div>
+        <div id="capacity-warnings-trend"></div>
+        <div id="total-trainees-period"></div>
+        <div id="trainer-utilization-period"></div>
+        <div id="upcoming-completions-period"></div>
+        <div id="capacity-warnings-period"></div>
+        <div id="toast-container"></div>
+        <div id="scenarios-panel"></div>
+        <div id="scenarios-overlay"></div>
+        <span id="current-scenario-name"></span>
+        <button id="update-scenario-btn"></button>
+        <div id="scenario-save-status"></div>
+        <div id="current-year"></div>
+        <div id="current-fortnight"></div>
+        <canvas id="demandChart"></canvas>
+        <canvas id="distributionChart"></canvas>
+        <canvas id="utilizationChart"></canvas>
+        <div id="dashboard-toggle"></div>
+        <div id="dashboard-v1"></div>
+        <div id="dashboard-v2"></div>
+        <button id="dashboard-toggle-btn"></button>
+        <div id="alert-container"></div>
+        <div id="metric-cards"></div>
+        <div id="enhanced-pipeline"></div>
+        <div id="smart-alerts"></div>
+        <div id="demand-time-range"></div>
+    </div>
+    
+    <!-- Load dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    
+    <!-- Prevent auto-init -->
+    <script>
+        window._originalInit = window.init;
+        window.init = function() {
+            console.log('Prevented auto-initialization');
+        };
+    </script>
+    
+    <script src="app.js"></script>
+    
+    <script>
+        // Restore original init
+        if (window._originalInit) {
+            window.init = window._originalInit;
+        }
+        
+        const tests = [];
+        let passCount = 0;
+        let failCount = 0;
+        
+        function test(name, fn) {
+            try {
+                const result = fn();
+                tests.push({
+                    name: name,
+                    passed: result === true,
+                    error: result === true ? null : 'Test returned false'
+                });
+                if (result === true) passCount++;
+                else failCount++;
+            } catch (e) {
+                tests.push({
+                    name: name,
+                    passed: false,
+                    error: e.toString()
+                });
+                failCount++;
+            }
+        }
+        
+        function runTests() {
+            tests.length = 0;
+            passCount = 0;
+            failCount = 0;
+            
+            // 1. Namespace Tests
+            test('TrainerApp namespace exists', () => typeof TrainerApp === 'object');
+            test('TrainerApp.Config exists', () => typeof TrainerApp.Config === 'object');
+            test('TrainerApp.State exists', () => typeof TrainerApp.State === 'object');
+            test('TrainerApp.Utils exists', () => typeof TrainerApp.Utils === 'object');
+            test('TrainerApp.Calculations exists', () => typeof TrainerApp.Calculations === 'object');
+            test('TrainerApp.UI exists', () => typeof TrainerApp.UI === 'object');
+            
+            // 2. Configuration Tests
+            test('START_YEAR is 2024', () => TrainerApp.Config.START_YEAR === 2024);
+            test('END_YEAR is 2034', () => TrainerApp.Config.END_YEAR === 2034);
+            test('MONTHS has 12 months', () => TrainerApp.Config.MONTHS.length === 12);
+            test('TRAINER_CATEGORIES has 5 types', () => TrainerApp.Config.TRAINER_CATEGORIES.length === 5);
+            
+            // 3. State Tests
+            test('currentLocation exists', () => typeof TrainerApp.State.currentLocation === 'string');
+            test('locationData exists', () => typeof TrainerApp.State.locationData === 'object');
+            test('priorityConfig exists', () => Array.isArray(TrainerApp.State.priorityConfig));
+            
+            // 4. Global Variables (Backward Compatibility)
+            test('Global START_YEAR exists', () => typeof START_YEAR === 'number');
+            test('Global pathways exists', () => Array.isArray(pathways));
+            test('Global activeCohorts exists', () => Array.isArray(activeCohorts));
+            test('Global trainerFTE exists', () => typeof trainerFTE === 'object');
+            test('Global locationData exists', () => typeof locationData === 'object');
+            
+            // 5. Core Functions
+            test('calculateDemand exists', () => typeof calculateDemand === 'function');
+            test('calculateSupplyDeficit exists', () => typeof calculateSupplyDeficit === 'function');
+            test('showNotification exists', () => typeof showNotification === 'function');
+            test('updateDashboardV2 exists', () => typeof updateDashboardV2 === 'function');
+            test('renderGanttChart exists', () => typeof renderGanttChart === 'function');
+            test('updateAllTables exists', () => typeof updateAllTables === 'function');
+            test('parseCSV exists', () => typeof parseCSV === 'function');
+            test('getScenarios exists', () => typeof getScenarios === 'function');
+            test('getCurrentState exists', () => typeof getCurrentState === 'function');
+            test('switchLocation exists', () => typeof switchLocation === 'function');
+            test('switchView exists', () => typeof switchView === 'function');
+            test('getTimeRangeForView exists', () => typeof getTimeRangeForView === 'function');
+            
+            // 6. Namespace Function Access
+            test('TrainerApp.Utils.showNotification accessible', () => typeof TrainerApp.Utils.showNotification === 'function');
+            test('TrainerApp.Calculations.calculateDemand accessible', () => typeof TrainerApp.Calculations.calculateDemand === 'function');
+            test('TrainerApp.UI.Dashboard.updateDashboardV2 accessible', () => typeof TrainerApp.UI.Dashboard.updateDashboardV2 === 'function');
+            
+            // 7. Data Integrity
+            test('Pathways have correct structure', () => {
+                return pathways.length > 0 && 
+                       pathways[0].hasOwnProperty('id') && 
+                       pathways[0].hasOwnProperty('phases') &&
+                       Array.isArray(pathways[0].phases);
+            });
+            
+            test('Priority config has correct structure', () => {
+                return priorityConfig.length === 3 &&
+                       priorityConfig[0].hasOwnProperty('priority') &&
+                       priorityConfig[0].hasOwnProperty('trainingType');
+            });
+            
+            // 8. Function Execution Tests
+            test('getScenarios returns array', () => {
+                const scenarios = getScenarios();
+                return Array.isArray(scenarios);
+            });
+            
+            test('getCurrentState returns object', () => {
+                const state = getCurrentState();
+                return typeof state === 'object' && state.hasOwnProperty('cohorts');
+            });
+            
+            test('showNotification executes without error', () => {
+                try {
+                    showNotification('Test', 'info', 100);
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            });
+            
+            displayResults();
+        }
+        
+        function displayResults() {
+            const resultsDiv = document.getElementById('test-results');
+            const summaryDiv = document.getElementById('test-summary');
+            
+            let html = '<h2>Test Results:</h2>';
+            tests.forEach(test => {
+                const className = test.passed ? 'test-pass' : 'test-fail';
+                const status = test.passed ? '✅ PASS' : '❌ FAIL';
+                html += `<div class="test-result ${className}">
+                    ${status} - ${test.name}
+                    ${test.error ? `<br><small>Error: ${test.error}</small>` : ''}
+                </div>`;
+            });
+            
+            resultsDiv.innerHTML = html;
+            
+            const total = passCount + failCount;
+            const percentage = total > 0 ? ((passCount / total) * 100).toFixed(1) : 0;
+            summaryDiv.innerHTML = `
+                <h2>Summary</h2>
+                <div style="color: ${failCount === 0 ? 'green' : 'orange'}">
+                    Total Tests: ${total}<br>
+                    Passed: ${passCount} ✅<br>
+                    Failed: ${failCount} ❌<br>
+                    Success Rate: ${percentage}%
+                </div>
+            `;
+        }
+        
+        function clearResults() {
+            document.getElementById('test-results').innerHTML = '';
+            document.getElementById('test-summary').innerHTML = '';
+        }
+        
+        // Auto-run on load
+        window.addEventListener('load', function() {
+            setTimeout(runTests, 500);
+        });
+    </script>
+</body>
+</html>
