@@ -102,6 +102,9 @@ let pathways = [
         name: "A202 - CP",
         type: "CP",
         comments: "",
+        startRank: "",
+        endRank: "",
+        usableMonths: 0,
         phases: [
             { 
                 name: "GS+SIM", 
@@ -122,6 +125,9 @@ let pathways = [
         name: "A210 - FO",
         type: "FO",
         comments: "",
+        startRank: "",
+        endRank: "",
+        usableMonths: 0,
         phases: [
             { 
                 name: "GS+SIM", 
@@ -148,6 +154,9 @@ let pathways = [
         name: "A209 - CAD",
         type: "CAD",
         comments: "",
+        startRank: "",
+        endRank: "",
+        usableMonths: 0,
         phases: [
             { 
                 name: "GS+SIM", 
@@ -174,6 +183,9 @@ let pathways = [
         name: "A212 - CAD",
         type: "CAD",
         comments: "",
+        startRank: "",
+        endRank: "",
+        usableMonths: 0,
         phases: [
             { 
                 name: "GS+SIM", 
@@ -200,6 +212,9 @@ let pathways = [
         name: "A211 - CAD",
         type: "CAD",
         comments: "",
+        startRank: "",
+        endRank: "",
+        usableMonths: 0,
         phases: [
             { 
                 name: "GS+SIM", 
@@ -226,6 +241,9 @@ let pathways = [
         name: "A203 - CP",
         type: "CP",
         comments: "",
+        startRank: "",
+        endRank: "",
+        usableMonths: 0,
         phases: [
             { 
                 name: "GS+SIM", 
@@ -844,6 +862,36 @@ function saveDefaultFTE() {
     localStorage.setItem('defaultFTE', JSON.stringify(defaultFTE));
 }
 
+function saveDefaultPathways() {
+    const defaultPathways = {
+        AU: JSON.parse(JSON.stringify(locationData.AU.pathways)),
+        NZ: JSON.parse(JSON.stringify(locationData.NZ.pathways))
+    };
+    localStorage.setItem('defaultPathways', JSON.stringify(defaultPathways));
+    // console.log('Saved pathways to localStorage');
+}
+
+function loadDefaultPathways() {
+    const defaultPathways = localStorage.getItem('defaultPathways');
+    if (defaultPathways) {
+        try {
+            const parsed = JSON.parse(defaultPathways);
+            if (parsed.AU) {
+                locationData.AU.pathways = JSON.parse(JSON.stringify(parsed.AU));
+            }
+            if (parsed.NZ) {
+                locationData.NZ.pathways = JSON.parse(JSON.stringify(parsed.NZ));
+            }
+            // Update global pathways with current location
+            pathways = locationData[currentLocation].pathways;
+            return true;
+        } catch (e) {
+            console.error('Failed to load default pathways:', e);
+        }
+    }
+    return false;
+}
+
 function loadDefaultFTE() {
     const defaultFTE = localStorage.getItem('defaultFTE');
     if (defaultFTE) {
@@ -1144,6 +1192,13 @@ function init() {
         // console.log('NZ FTE after loading defaults:', locationData.NZ.trainerFTE);
     } else {
         // console.log('No default FTE found in localStorage');
+    }
+    
+    // Load default pathways if available
+    if (loadDefaultPathways()) {
+        // console.log('Loaded default pathways from localStorage');
+    } else {
+        // console.log('No default pathways found in localStorage');
     }
     perfMonitor.end('init.loadDefaults');
     
@@ -4834,6 +4889,9 @@ function renderPathwaysTable() {
                     <th>ID</th>
                     <th>Pathway Name</th>
                     <th>Type</th>
+                    <th>Start Rank</th>
+                    <th>End Rank</th>
+                    <th>Usable (months)</th>
                     <th>Phases</th>
                     <th>Duration</th>
                     <th>Comments</th>
@@ -4845,7 +4903,7 @@ function renderPathwaysTable() {
 
     // Render CP pathways
     if (cpPathways.length > 0) {
-        html += '<tr><td colspan="7" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">Captain (CP) Pathways</td></tr>';
+        html += '<tr><td colspan="10" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">Captain (CP) Pathways</td></tr>';
         cpPathways.forEach(pathway => {
             const totalDuration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
             const phaseSummary = pathway.phases.map(p => `${p.name} (${p.duration}fn)`).join(', ');
@@ -4855,6 +4913,9 @@ function renderPathwaysTable() {
                     <td>${pathway.id}</td>
                     <td>${pathway.name}</td>
                     <td>${pathway.type}</td>
+                    <td>${pathway.startRank || '-'}</td>
+                    <td>${pathway.endRank || '-'}</td>
+                    <td>${pathway.usableMonths || 0}</td>
                     <td style="font-size: 0.9em;">${phaseSummary}</td>
                     <td>${totalDuration}fn</td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${pathway.comments || '-'}</td>
@@ -4868,7 +4929,7 @@ function renderPathwaysTable() {
     
     // Render FO/CAD pathways
     if (otherPathways.length > 0) {
-        html += '<tr><td colspan="7" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">First Officer (FO) / Cadet (CAD) Pathways</td></tr>';
+        html += '<tr><td colspan="10" style="background-color: #f0f0f0; font-weight: bold; padding: 10px;">First Officer (FO) / Cadet (CAD) Pathways</td></tr>';
         otherPathways.forEach(pathway => {
             const totalDuration = pathway.phases.reduce((sum, phase) => sum + phase.duration, 0);
             const phaseSummary = pathway.phases.map(p => `${p.name} (${p.duration}fn)`).join(', ');
@@ -4878,6 +4939,9 @@ function renderPathwaysTable() {
                     <td>${pathway.id}</td>
                     <td>${pathway.name}</td>
                     <td>${pathway.type}</td>
+                    <td>${pathway.startRank || '-'}</td>
+                    <td>${pathway.endRank || '-'}</td>
+                    <td>${pathway.usableMonths || 0}</td>
                     <td style="font-size: 0.9em;">${phaseSummary}</td>
                     <td>${totalDuration}fn</td>
                     <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis;">${pathway.comments || '-'}</td>
@@ -5309,12 +5373,20 @@ function openAddPathwayModal() {
     document.getElementById('pathway-modal-title').textContent = 'Add New Pathway';
     document.getElementById('pathway-name').value = '';
     
-    // Add pathway type selector if not exists
+    // Restructure form for better layout
     const pathwayForm = document.getElementById('pathway-edit-form');
-    const typeGroup = pathwayForm.querySelector('.pathway-type-group');
-    if (!typeGroup) {
-        const pathwayNameGroup = pathwayForm.querySelector('.form-group');
-        const typeHtml = `
+    
+    // Clear and rebuild form structure
+    const existingGroups = pathwayForm.querySelectorAll('.form-group, .pathway-form-row, .rank-form-row');
+    existingGroups.forEach(group => group.remove());
+    
+    // Add pathway name, type, and comments in three-column layout
+    const mainFieldsHtml = `
+        <div class="pathway-form-row three-column">
+            <div class="form-group">
+                <label for="pathway-name">Pathway Name:</label>
+                <input type="text" id="pathway-name" name="pathwayName" required>
+            </div>
             <div class="form-group pathway-type-group">
                 <label for="pathway-type">Pathway Type:</label>
                 <select id="pathway-type" name="pathwayType" required>
@@ -5323,30 +5395,49 @@ function openAddPathwayModal() {
                     <option value="CAD">Cadet (CAD)</option>
                 </select>
             </div>
-        `;
-        pathwayNameGroup.insertAdjacentHTML('afterend', typeHtml);
-    }
-    
-    // Add comments field if not exists
-    const commentsGroup = pathwayForm.querySelector('.comments-group');
-    if (!commentsGroup) {
-        const typeGroupElement = pathwayForm.querySelector('.pathway-type-group');
-        const commentsHtml = `
             <div class="form-group comments-group">
-                <label for="pathway-comments">Comments (optional):</label>
-                <textarea id="pathway-comments" name="pathwayComments" rows="3" 
-                    placeholder="Add any notes or special considerations for this pathway..."
-                    style="width: 100%; resize: vertical;"></textarea>
+                <label for="pathway-comments">Comments:</label>
+                <input type="text" id="pathway-comments" name="pathwayComments" 
+                    placeholder="Short notes...">
+            </div>
+        </div>
+    `;
+    pathwayForm.insertAdjacentHTML('afterbegin', mainFieldsHtml);
+    
+    // Add rank fields and usable months in three-column layout
+    const rankGroup = pathwayForm.querySelector('.rank-form-row');
+    if (!rankGroup) {
+        const commentsGroupElement = pathwayForm.querySelector('.comments-group');
+        const rankHtml = `
+            <div class="rank-form-row">
+                <div class="form-group">
+                    <label for="start-rank">Start Rank</label>
+                    <input type="text" id="start-rank" name="startRank" 
+                        placeholder="e.g., NBFO">
+                </div>
+                <div class="form-group">
+                    <label for="end-rank">End Rank</label>
+                    <input type="text" id="end-rank" name="endRank" 
+                        placeholder="e.g., NBCP">
+                </div>
+                <div class="form-group">
+                    <label for="usable-months">Usable After (months)</label>
+                    <input type="number" id="usable-months" name="usableMonths" min="0" value="0"
+                        placeholder="Months after start">
+                </div>
             </div>
         `;
-        typeGroupElement.insertAdjacentHTML('afterend', commentsHtml);
+        commentsGroupElement.insertAdjacentHTML('afterend', rankHtml);
     }
     
-    // Clear comments field
+    // Clear all fields
     const commentsField = document.getElementById('pathway-comments');
     if (commentsField) {
         commentsField.value = '';
     }
+    document.getElementById('start-rank').value = '';
+    document.getElementById('end-rank').value = '';
+    document.getElementById('usable-months').value = '0';
     
     // Clear any editing ID from previous edits
     delete pathwayForm.dataset.editingPathwayId;
@@ -5513,16 +5604,22 @@ function handlePathwaySave(e) {
     const pathwayName = formData.get('pathwayName');
     const pathwayType = formData.get('pathwayType') || 'FO';
     const pathwayComments = formData.get('pathwayComments') || '';
+    const startRank = formData.get('startRank') || '';
+    const endRank = formData.get('endRank') || '';
+    const usableMonths = parseInt(formData.get('usableMonths') || '0');
     const editingPathwayId = e.target.dataset.editingPathwayId;
 
     const phases = [];
-    const phaseGroups = document.querySelectorAll('.phase-input-group');
+    const phaseRows = document.querySelectorAll('#pathway-phases-container tbody tr');
     
-    phaseGroups.forEach((group, index) => {
-        const phaseNameSelect = group.querySelector(`select[name="phase-name-${index}"]`);
+    phaseRows.forEach((row, index) => {
+        const phaseNameSelect = row.querySelector(`select[name="phase-name-${index}"]`);
         const phaseName = phaseNameSelect ? phaseNameSelect.value : '';
-        const duration = parseInt(group.querySelector(`input[name="phase-duration-${index}"]`).value);
-        const ratio = parseInt(group.querySelector(`input[name="phase-ratio-${index}"]`).value);
+        const durationInput = row.querySelector(`input[name="phase-duration-${index}"]`);
+        const ratioInput = row.querySelector(`input[name="phase-ratio-${index}"]`);
+        
+        const duration = durationInput ? parseInt(durationInput.value) : 0;
+        const ratio = ratioInput ? parseInt(ratioInput.value) : 0;
 
         if (phaseName && duration && ratio) {
             // Determine trainerDemandType based on phase name
@@ -5550,6 +5647,9 @@ function handlePathwaySave(e) {
                     name: pathwayName,
                     type: pathwayType,
                     comments: pathwayComments,
+                    startRank: startRank,
+                    endRank: endRank,
+                    usableMonths: usableMonths,
                     phases: phases
                 };
             }
@@ -5563,57 +5663,94 @@ function handlePathwaySave(e) {
                 name: pathwayName,
                 type: pathwayType,
                 comments: pathwayComments,
+                startRank: startRank,
+                endRank: endRank,
+                usableMonths: usableMonths,
                 phases: phases
             };
             pathways.push(newPathway);
         }
 
+        // Update location-specific pathways
+        locationData[currentLocation].pathways = pathways;
+        
+        // Save pathways to localStorage
+        saveDefaultPathways();
+        
         populatePathwaySelect();
         closeModals();
         renderPathwaysTable();
+        markDirty();
     }
 }
 
 // Add Phase Input
 function addPhaseInput() {
     const container = document.getElementById('pathway-phases-container');
-    const phaseCount = container.querySelectorAll('.phase-input-group').length;
+    const tbody = container.querySelector('tbody');
+    if (!tbody) {
+        // Initialize table if it doesn't exist
+        container.innerHTML = `
+            <table class="phases-table">
+                <thead>
+                    <tr>
+                        <th class="phase-number">#</th>
+                        <th class="phase-name-col">Phase Name</th>
+                        <th class="duration-col">Duration (fortnights)</th>
+                        <th class="ratio-col">Student:Trainer Ratio</th>
+                        <th class="actions-col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        `;
+    }
+    
+    const phaseCount = container.querySelectorAll('tbody tr').length;
+    const phaseNumber = phaseCount + 1;
     
     const phaseHtml = `
-        <div class="phase-input-group">
-            <div class="phase-header">
-                <h4>Phase ${phaseCount + 1}</h4>
+        <tr class="phase-row">
+            <td class="phase-number">${phaseNumber}</td>
+            <td>
+                <select name="phase-name-${phaseCount}" required>
+                    <option value="">Select phase</option>
+                    <option value="GS+SIM">GS+SIM</option>
+                    <option value="LT-CAD">LT-CAD</option>
+                    <option value="LT-CP">LT-CP</option>
+                    <option value="LT-FO">LT-FO</option>
+                </select>
+            </td>
+            <td>
+                <input type="number" name="phase-duration-${phaseCount}" min="1" required>
+            </td>
+            <td>
+                <input type="number" name="phase-ratio-${phaseCount}" min="1" required>
+            </td>
+            <td class="actions-col">
                 <button type="button" class="remove-phase-btn" onclick="removePhase(this)">Remove</button>
-            </div>
-            <div class="phase-fields">
-                <div class="form-group">
-                    <label>Phase Name:</label>
-                    <select name="phase-name-${phaseCount}" required>
-                        <option value="">Select phase</option>
-                        <option value="GS+SIM">GS+SIM (visual only - no demand tracking)</option>
-                        <option value="LT-CAD">LT-CAD</option>
-                        <option value="LT-CP">LT-CP</option>
-                        <option value="LT-FO">LT-FO</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label>Duration (fortnights):</label>
-                    <input type="number" name="phase-duration-${phaseCount}" min="1" required>
-                </div>
-                <div class="form-group">
-                    <label>Student:Trainer Ratio:</label>
-                    <input type="number" name="phase-ratio-${phaseCount}" min="1" required>
-                </div>
-            </div>
-        </div>
+            </td>
+        </tr>
     `;
 
-    container.insertAdjacentHTML('beforeend', phaseHtml);
+    const tableBody = container.querySelector('tbody');
+    tableBody.insertAdjacentHTML('beforeend', phaseHtml);
 }
 
 // Remove Phase
 function removePhase(button) {
-    button.closest('.phase-input-group').remove();
+    const row = button.closest('tr');
+    row.remove();
+    
+    // Update phase numbers
+    const container = document.getElementById('pathway-phases-container');
+    const rows = container.querySelectorAll('tbody tr');
+    rows.forEach((row, index) => {
+        const numberCell = row.querySelector('.phase-number');
+        if (numberCell) {
+            numberCell.textContent = index + 1;
+        }
+    });
 }
 
 // Edit Pathway
@@ -5627,78 +5764,103 @@ function editPathway(pathwayId) {
     // Fill in pathway name
     document.getElementById('pathway-name').value = pathway.name;
     
-    // Add pathway type selector if not exists
+    // Restructure form for better layout
     const pathwayForm = document.getElementById('pathway-edit-form');
-    let typeGroup = pathwayForm.querySelector('.pathway-type-group');
-    if (!typeGroup) {
-        const pathwayNameGroup = pathwayForm.querySelector('.form-group');
-        const typeHtml = `
+    
+    // Clear and rebuild form structure
+    const existingGroups = pathwayForm.querySelectorAll('.form-group, .pathway-form-row, .rank-form-row');
+    existingGroups.forEach(group => group.remove());
+    
+    // Add pathway name, type, and comments in three-column layout
+    const mainFieldsHtml = `
+        <div class="pathway-form-row three-column">
+            <div class="form-group">
+                <label for="pathway-name">Pathway Name:</label>
+                <input type="text" id="pathway-name" name="pathwayName" required value="${pathway.name}">
+            </div>
             <div class="form-group pathway-type-group">
                 <label for="pathway-type">Pathway Type:</label>
                 <select id="pathway-type" name="pathwayType" required>
-                    <option value="CP">Captain (CP)</option>
-                    <option value="FO">First Officer (FO)</option>
-                    <option value="CAD">Cadet (CAD)</option>
+                    <option value="CP" ${pathway.type === 'CP' ? 'selected' : ''}>Captain (CP)</option>
+                    <option value="FO" ${pathway.type === 'FO' ? 'selected' : ''}>First Officer (FO)</option>
+                    <option value="CAD" ${pathway.type === 'CAD' ? 'selected' : ''}>Cadet (CAD)</option>
                 </select>
             </div>
-        `;
-        pathwayNameGroup.insertAdjacentHTML('afterend', typeHtml);
-    }
-    
-    // Add comments field if not exists
-    const commentsGroup = pathwayForm.querySelector('.comments-group');
-    if (!commentsGroup) {
-        const typeGroupElement = pathwayForm.querySelector('.pathway-type-group');
-        const commentsHtml = `
             <div class="form-group comments-group">
-                <label for="pathway-comments">Comments (optional):</label>
-                <textarea id="pathway-comments" name="pathwayComments" rows="3" 
-                    placeholder="Add any notes or special considerations for this pathway..."
-                    style="width: 100%; resize: vertical;"></textarea>
+                <label for="pathway-comments">Comments:</label>
+                <input type="text" id="pathway-comments" name="pathwayComments" 
+                    placeholder="Short notes..." value="${pathway.comments || ''}">
             </div>
-        `;
-        typeGroupElement.insertAdjacentHTML('afterend', commentsHtml);
-    }
+        </div>
+    `;
+    pathwayForm.insertAdjacentHTML('afterbegin', mainFieldsHtml);
     
-    // Set pathway type and comments
-    document.getElementById('pathway-type').value = pathway.type || 'FO';
-    document.getElementById('pathway-comments').value = pathway.comments || '';
+    // Add rank fields and usable months in three-column layout
+    const rankHtml = `
+        <div class="rank-form-row">
+            <div class="form-group">
+                <label for="start-rank">Start Rank</label>
+                <input type="text" id="start-rank" name="startRank" 
+                    placeholder="e.g., NBFO" value="${pathway.startRank || ''}">
+            </div>
+            <div class="form-group">
+                <label for="end-rank">End Rank</label>
+                <input type="text" id="end-rank" name="endRank" 
+                    placeholder="e.g., NBCP" value="${pathway.endRank || ''}">
+            </div>
+            <div class="form-group">
+                <label for="usable-months">Usable After (months)</label>
+                <input type="number" id="usable-months" name="usableMonths" min="0" 
+                    value="${pathway.usableMonths || 0}" placeholder="Months after start">
+            </div>
+        </div>
+    `;
+    pathwayForm.querySelector('.pathway-form-row').insertAdjacentHTML('afterend', rankHtml);
     
-    // Clear existing phases
+    // Clear existing phases and initialize table
     const phasesContainer = document.getElementById('pathway-phases-container');
-    phasesContainer.innerHTML = '';
+    phasesContainer.innerHTML = `
+        <table class="phases-table">
+            <thead>
+                <tr>
+                    <th class="phase-number">#</th>
+                    <th class="phase-name-col">Phase Name</th>
+                    <th class="duration-col">Duration (fortnights)</th>
+                    <th class="ratio-col">Student:Trainer Ratio</th>
+                    <th class="actions-col">Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    `;
     
     // Add existing phases
+    const tbody = phasesContainer.querySelector('tbody');
     pathway.phases.forEach((phase, index) => {
         const phaseHtml = `
-            <div class="phase-input-group">
-                <div class="phase-header">
-                    <h4>Phase ${index + 1}</h4>
+            <tr class="phase-row">
+                <td class="phase-number">${index + 1}</td>
+                <td>
+                    <select name="phase-name-${index}" required>
+                        <option value="">Select phase</option>
+                        <option value="GS+SIM" ${phase.name === 'GS+SIM' ? 'selected' : ''}>GS+SIM</option>
+                        <option value="LT-CAD" ${phase.name === 'LT-CAD' ? 'selected' : ''}>LT-CAD</option>
+                        <option value="LT-CP" ${phase.name === 'LT-CP' ? 'selected' : ''}>LT-CP</option>
+                        <option value="LT-FO" ${phase.name === 'LT-FO' ? 'selected' : ''}>LT-FO</option>
+                    </select>
+                </td>
+                <td>
+                    <input type="number" name="phase-duration-${index}" min="1" value="${phase.duration}" required>
+                </td>
+                <td>
+                    <input type="number" name="phase-ratio-${index}" min="1" value="${phase.ratio}" required>
+                </td>
+                <td class="actions-col">
                     <button type="button" class="remove-phase-btn" onclick="removePhase(this)">Remove</button>
-                </div>
-                <div class="phase-fields">
-                    <div class="form-group">
-                        <label>Phase Name:</label>
-                        <select name="phase-name-${index}" required>
-                            <option value="">Select phase</option>
-                            <option value="GS+SIM" ${phase.name === 'GS+SIM' ? 'selected' : ''}>GS+SIM (visual only - no demand tracking)</option>
-                            <option value="LT-CAD" ${phase.name === 'LT-CAD' ? 'selected' : ''}>LT-CAD</option>
-                            <option value="LT-CP" ${phase.name === 'LT-CP' ? 'selected' : ''}>LT-CP</option>
-                            <option value="LT-FO" ${phase.name === 'LT-FO' ? 'selected' : ''}>LT-FO</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Duration (fortnights):</label>
-                        <input type="number" name="phase-duration-${index}" min="1" value="${phase.duration}" required>
-                    </div>
-                    <div class="form-group">
-                        <label>Student:Trainer Ratio:</label>
-                        <input type="number" name="phase-ratio-${index}" min="1" value="${phase.ratio}" required>
-                    </div>
-                </div>
-            </div>
+                </td>
+            </tr>
         `;
-        phasesContainer.insertAdjacentHTML('beforeend', phaseHtml);
+        tbody.insertAdjacentHTML('beforeend', phaseHtml);
     });
     
     // Store the pathway ID for saving
@@ -8792,12 +8954,13 @@ function loadScenarioDataOnly(scenario) {
     // Load the scenario state
     if (scenario.state.locationData) {
         // New format with location data
+        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        
         // Check if we should preserve existing FTE values
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
         if (savedDefaultFTE) {
             // Preserve saved FTE instead of using scenario's FTE
             // console.log('Preserving saved default FTE values for new format scenario');
-            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
             // Override scenario FTE with saved defaults
             try {
                 const parsed = JSON.parse(savedDefaultFTE);
@@ -8810,9 +8973,24 @@ function loadScenarioDataOnly(scenario) {
             } catch (e) {
                 console.error('Error applying saved FTE to scenario:', e);
             }
-        } else {
-            // No saved defaults, use scenario's data as-is
-            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        }
+        
+        // Check if we should preserve existing pathway values
+        const savedDefaultPathways = localStorage.getItem('defaultPathways');
+        if (savedDefaultPathways) {
+            // Preserve saved pathways instead of using scenario's pathways
+            // console.log('Preserving saved default pathways for new format scenario');
+            try {
+                const parsed = JSON.parse(savedDefaultPathways);
+                if (parsed.AU) {
+                    locationData.AU.pathways = JSON.parse(JSON.stringify(parsed.AU));
+                }
+                if (parsed.NZ) {
+                    locationData.NZ.pathways = JSON.parse(JSON.stringify(parsed.NZ));
+                }
+            } catch (e) {
+                console.error('Error applying saved pathways to scenario:', e);
+            }
         }
         
         // Only use scenario's location if we don't have a saved preference
@@ -8830,8 +9008,29 @@ function loadScenarioDataOnly(scenario) {
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
-        pathways = [...scenario.state.pathways];
         priorityConfig = [...scenario.state.priorityConfig];
+        
+        // Check if we should preserve existing pathway values
+        const savedDefaultPathways = localStorage.getItem('defaultPathways');
+        if (savedDefaultPathways) {
+            // Keep our saved pathway values, don't use scenario's pathways
+            // console.log('Preserving saved default pathways instead of using scenario pathways');
+            try {
+                const parsed = JSON.parse(savedDefaultPathways);
+                if (parsed.AU) {
+                    pathways = JSON.parse(JSON.stringify(parsed.AU));
+                } else {
+                    // Fallback to scenario pathways if no AU pathways saved
+                    pathways = [...scenario.state.pathways];
+                }
+            } catch (e) {
+                console.error('Error applying saved pathways:', e);
+                pathways = [...scenario.state.pathways];
+            }
+        } else {
+            // No saved defaults, use scenario's pathways
+            pathways = [...scenario.state.pathways];
+        }
         
         // Check if we should preserve existing FTE values
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
@@ -8860,7 +9059,20 @@ function loadScenarioDataOnly(scenario) {
         locationData.NZ.activeCohorts = nzCohorts;
         
         // Copy settings to NZ location
-        locationData.NZ.pathways = [...pathways];
+        if (savedDefaultPathways) {
+            try {
+                const parsed = JSON.parse(savedDefaultPathways);
+                if (parsed.NZ) {
+                    locationData.NZ.pathways = JSON.parse(JSON.stringify(parsed.NZ));
+                } else {
+                    locationData.NZ.pathways = [...pathways];
+                }
+            } catch (e) {
+                locationData.NZ.pathways = [...pathways];
+            }
+        } else {
+            locationData.NZ.pathways = [...pathways];
+        }
         locationData.NZ.priorityConfig = [...priorityConfig];
         
         // Don't override the saved location preference
@@ -8944,8 +9156,29 @@ function loadScenarioData(scenario) {
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
-        pathways = [...scenario.state.pathways];
         priorityConfig = [...scenario.state.priorityConfig];
+        
+        // Check if we should preserve existing pathway values
+        const savedDefaultPathways = localStorage.getItem('defaultPathways');
+        if (savedDefaultPathways) {
+            // Keep our saved pathway values, don't use scenario's pathways
+            // console.log('Preserving saved default pathways instead of using scenario pathways');
+            try {
+                const parsed = JSON.parse(savedDefaultPathways);
+                if (parsed.AU) {
+                    pathways = JSON.parse(JSON.stringify(parsed.AU));
+                } else {
+                    // Fallback to scenario pathways if no AU pathways saved
+                    pathways = [...scenario.state.pathways];
+                }
+            } catch (e) {
+                console.error('Error applying saved pathways:', e);
+                pathways = [...scenario.state.pathways];
+            }
+        } else {
+            // No saved defaults, use scenario's pathways
+            pathways = [...scenario.state.pathways];
+        }
         
         // Check if we should preserve existing FTE values
         const savedDefaultFTE = localStorage.getItem('defaultFTE');
@@ -8981,7 +9214,20 @@ function loadScenarioData(scenario) {
         locationData.NZ.activeCohorts = nzCohorts;
         
         // Copy settings to NZ location
-        locationData.NZ.pathways = [...pathways];
+        if (savedDefaultPathways) {
+            try {
+                const parsed = JSON.parse(savedDefaultPathways);
+                if (parsed.NZ) {
+                    locationData.NZ.pathways = JSON.parse(JSON.stringify(parsed.NZ));
+                } else {
+                    locationData.NZ.pathways = [...pathways];
+                }
+            } catch (e) {
+                locationData.NZ.pathways = [...pathways];
+            }
+        } else {
+            locationData.NZ.pathways = [...pathways];
+        }
         if (!savedDefaultFTE) {
             // Only copy FTE if we're not preserving defaults
             locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
@@ -15947,13 +16193,30 @@ function updateExportPreview() {
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
             if (pathway) {
                 const startDate = getDateFromFortnight(cohort.startYear, cohort.startFortnight);
+                const trainingType = pathway.startRank && pathway.endRank ? 
+                    `${pathway.startRank}_${pathway.endRank}` : '-';
+                
+                // Calculate usable date
+                const startDateObj = new Date(cohort.startYear, 
+                    FORTNIGHT_TO_MONTH[cohort.startFortnight] || 0, 
+                    cohort.startFortnight % 2 === 1 ? 1 : 15);
+                const usableDateObj = new Date(startDateObj);
+                usableDateObj.setMonth(usableDateObj.getMonth() + (pathway.usableMonths || 0));
+                const usableDate = usableDateObj.toLocaleDateString('en-AU', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+                
                 html += `
                     <tr>
+                        <td>${trainingType}</td>
                         <td>${pathway.id}</td>
                         <td>${pathway.name}</td>
                         <td>${pathway.type}</td>
                         <td>${startDate}</td>
                         <td>${cohort.numTrainees}</td>
+                        <td>${usableDate}</td>
                     </tr>
                 `;
             }
@@ -15993,13 +16256,30 @@ function updateExportPreview() {
                 summary.earliestStart.year, 
                 summary.earliestStart.fortnight
             );
+            const trainingType = summary.pathway.startRank && summary.pathway.endRank ? 
+                `${summary.pathway.startRank}_${summary.pathway.endRank}` : '-';
+            
+            // Calculate usable date for earliest start
+            const startDateObj = new Date(summary.earliestStart.year, 
+                FORTNIGHT_TO_MONTH[summary.earliestStart.fortnight] || 0, 
+                summary.earliestStart.fortnight % 2 === 1 ? 1 : 15);
+            const usableDateObj = new Date(startDateObj);
+            usableDateObj.setMonth(usableDateObj.getMonth() + (summary.pathway.usableMonths || 0));
+            const usableDate = usableDateObj.toLocaleDateString('en-AU', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+            
             html += `
                 <tr>
+                    <td>${trainingType}</td>
                     <td>${summary.pathway.id}</td>
                     <td>${summary.pathway.name}</td>
                     <td>${summary.pathway.type}</td>
                     <td>${startDate}</td>
                     <td>${summary.totalTrainees}</td>
+                    <td>${usableDate}</td>
                 </tr>
             `;
         });
@@ -16025,7 +16305,7 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
     });
     
     // Build data array for Excel
-    const headers = ['Pathway ID', 'Pathway Name', 'Type', 'Start Date', 'No. Trainees'];
+    const headers = ['Training Type', 'Pathway ID', 'Pathway Name', 'Type', 'Start Date', 'No. Trainees', 'Usable Date'];
     const data = [headers];
     
     if (viewType === 'detailed') {
@@ -16033,12 +16313,29 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
             if (pathway) {
                 const startDate = getDateFromFortnight(cohort.startYear, cohort.startFortnight);
+                const trainingType = pathway.startRank && pathway.endRank ? 
+                    `${pathway.startRank}_${pathway.endRank}` : '-';
+                
+                // Calculate usable date
+                const startDateObj = new Date(cohort.startYear, 
+                    FORTNIGHT_TO_MONTH[cohort.startFortnight] || 0, 
+                    cohort.startFortnight % 2 === 1 ? 1 : 15);
+                const usableDateObj = new Date(startDateObj);
+                usableDateObj.setMonth(usableDateObj.getMonth() + (pathway.usableMonths || 0));
+                const usableDate = usableDateObj.toLocaleDateString('en-AU', {
+                    day: 'numeric',
+                    month: 'short',
+                    year: 'numeric'
+                });
+                
                 data.push([
+                    trainingType,
                     pathway.id,
                     pathway.name,
                     pathway.type,
                     startDate,
-                    cohort.numTrainees
+                    cohort.numTrainees,
+                    usableDate
                 ]);
             }
         });
@@ -16075,12 +16372,29 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
                 summary.earliestStart.year, 
                 summary.earliestStart.fortnight
             );
+            const trainingType = summary.pathway.startRank && summary.pathway.endRank ? 
+                `${summary.pathway.startRank}_${summary.pathway.endRank}` : '-';
+            
+            // Calculate usable date for earliest start
+            const startDateObj = new Date(summary.earliestStart.year, 
+                FORTNIGHT_TO_MONTH[summary.earliestStart.fortnight] || 0, 
+                summary.earliestStart.fortnight % 2 === 1 ? 1 : 15);
+            const usableDateObj = new Date(startDateObj);
+            usableDateObj.setMonth(usableDateObj.getMonth() + (summary.pathway.usableMonths || 0));
+            const usableDate = usableDateObj.toLocaleDateString('en-AU', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric'
+            });
+            
             data.push([
+                trainingType,
                 summary.pathway.id,
                 summary.pathway.name,
                 summary.pathway.type,
                 startDate,
-                summary.totalTrainees
+                summary.totalTrainees,
+                usableDate
             ]);
         });
     }
@@ -16091,11 +16405,13 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
     
     // Set column widths
     const colWidths = [
+        { wch: 15 }, // Training Type
         { wch: 12 }, // Pathway ID
         { wch: 20 }, // Pathway Name
         { wch: 10 }, // Type
         { wch: 15 }, // Start Date
-        { wch: 15 }  // No. Trainees
+        { wch: 15 }, // No. Trainees
+        { wch: 15 }  // Usable Date
     ];
     ws['!cols'] = colWidths;
     
@@ -16109,25 +16425,25 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
     // Create data validation object
     const dataValidations = [];
     
-    // Pathway ID dropdown (column A, starting from row 2)
+    // Pathway ID dropdown (column B, starting from row 2)
     dataValidations.push({
         type: 'list',
         allowBlank: false,
         showDropDown: true,
         formula1: `"${pathwayIds}"`,
-        sqref: `A2:A${lastRow}`
+        sqref: `B2:B${lastRow}`
     });
     
-    // Type dropdown (column C, starting from row 2)
+    // Type dropdown (column D, starting from row 2)
     dataValidations.push({
         type: 'list',
         allowBlank: false,
         showDropDown: true,
         formula1: `"${pathwayTypes}"`,
-        sqref: `C2:C${lastRow}`
+        sqref: `D2:D${lastRow}`
     });
     
-    // Number validation for trainees (column E, starting from row 2)
+    // Number validation for trainees (column F, starting from row 2)
     dataValidations.push({
         type: 'whole',
         allowBlank: false,
@@ -16136,7 +16452,7 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
         promptTitle: 'Trainees',
         operator: 'greaterThan',
         formula1: '0',
-        sqref: `E2:E${lastRow}`
+        sqref: `F2:F${lastRow}`
     });
     
     // Apply data validations
@@ -16148,11 +16464,13 @@ document.getElementById('export-training-excel')?.addEventListener('click', () =
         [''],
         ['Column Requirements:'],
         ['Column', 'Description', 'Valid Values', 'Example'],
+        ['Training Type', 'Rank progression', 'StartRank_EndRank format', 'NBFO_NBCP'],
         ['Pathway ID', 'Training pathway identifier', pathwayIds.split(',').join(', '), 'A202'],
         ['Pathway Name', 'Full pathway description', 'Auto-filled based on ID', 'A202 - CP'],
         ['Type', 'Training type', 'CP, FO, CAD', 'CP'],
         ['Start Date', 'Training start date', 'Format: D MMM YYYY', '1 Jan 2025'],
         ['No. Trainees', 'Number of trainees', 'Positive numbers only', '12'],
+        ['Usable Date', 'When trainee becomes usable', 'Calculated from start + usable months', '1 Jul 2025'],
         [''],
         ['Date Format Examples:'],
         ['Valid Formats', 'Example'],
@@ -16292,14 +16610,16 @@ function parseCSV(csv) {
         // Parse CSV line (handle quoted values)
         const values = parseCSVLine(line);
         
-        if (values.length >= 5) {
+        if (values.length >= 7) {
             importedData.push({
                 rowNum: index + 2, // +2 because of header and 0-index
-                pathwayId: values[0].trim().replace(/"/g, ''),
-                pathwayName: values[1].trim().replace(/"/g, ''),
-                type: values[2].trim().replace(/"/g, ''),
-                startDate: values[3].trim().replace(/"/g, ''),
-                numTrainees: values[4].trim().replace(/"/g, '')
+                trainingType: values[0].trim().replace(/"/g, ''),
+                pathwayId: values[1].trim().replace(/"/g, ''),
+                pathwayName: values[2].trim().replace(/"/g, ''),
+                type: values[3].trim().replace(/"/g, ''),
+                startDate: values[4].trim().replace(/"/g, ''),
+                numTrainees: values[5].trim().replace(/"/g, ''),
+                usableDate: values[6].trim().replace(/"/g, '')
             });
         }
     });
@@ -16364,6 +16684,14 @@ function validateRow(row) {
     const errors = [];
     const warnings = [];
     
+    // Validate training type (optional but if provided should match)
+    if (row.trainingType && row.trainingType !== '-') {
+        const parts = row.trainingType.split('_');
+        if (parts.length !== 2) {
+            warnings.push(`Training type should be in format StartRank_EndRank: ${row.trainingType}`);
+        }
+    }
+    
     // Validate pathway
     const pathway = pathways.find(p => p.id === row.pathwayId);
     if (!pathway) {
@@ -16399,6 +16727,14 @@ function validateRow(row) {
         errors.push(`Invalid number of trainees: ${row.numTrainees}`);
     } else {
         row.parsedTrainees = numTrainees;
+    }
+    
+    // Validate usable date (optional, just check format if provided)
+    if (row.usableDate && row.usableDate !== '-') {
+        const usableDateResult = parseDateToFortnight(row.usableDate);
+        if (!usableDateResult) {
+            warnings.push(`Invalid usable date format: ${row.usableDate}`);
+        }
     }
     
     return { errors, warnings };

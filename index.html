@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pilot Trainer Supply/Demand Planner</title>
-    <link rel="stylesheet" href="styles.css?v=2025012720">
+    <link rel="stylesheet" href="styles.css?v=2025012722">
     <script>
         // Apply dark mode immediately to prevent flash
         const isDarkMode = localStorage.getItem('darkMode') === 'true';
@@ -507,6 +507,7 @@
                             <label for="pathway-name">Pathway Name:</label>
                             <input type="text" id="pathway-name" name="pathwayName" required>
                         </div>
+                        <h4 style="margin-top: 20px; margin-bottom: 10px;">Training Phases</h4>
                         <div id="pathway-phases-container">
                             <!-- Phase inputs will be generated here -->
                         </div>
@@ -1079,7 +1080,7 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                     <div class="file-input-section" style="margin-bottom: 20px;">
                         <input type="file" id="import-training-file-input" accept=".csv,.xlsx,.xls" style="margin-bottom: 10px;">
                         <div class="import-format-hint" style="font-size: 0.9em; color: #666;">
-                            Accepts CSV or Excel files. Expected columns: Pathway ID, Pathway Name, Type, Start Date, No. Trainees
+                            Accepts CSV or Excel files. Expected columns: Training Type, Pathway ID, Pathway Name, Type, Start Date, No. Trainees, Usable Date
                         </div>
                     </div>
                     
@@ -1191,11 +1192,13 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                         <table class="data-table" id="export-preview-table">
                             <thead>
                                 <tr>
+                                    <th>Training Type</th>
                                     <th>Pathway ID</th>
                                     <th>Pathway Name</th>
                                     <th>Type</th>
                                     <th>Start Date</th>
                                     <th>No. Trainees</th>
+                                    <th>Usable Date</th>
                                 </tr>
                             </thead>
                             <tbody id="export-preview-tbody">

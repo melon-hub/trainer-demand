@@ -2999,7 +2999,7 @@ body.dark-mode .gantt-phase-cell {
 
 /* Improved Add New Pathway Modal - Condensed */
 #pathway-modal .modal-content {
-    max-width: 900px !important;
+    max-width: 850px !important;
     padding: 0 !important;
 }
 
@@ -3030,7 +3030,142 @@ body.dark-mode .gantt-phase-cell {
 }
 
 #pathway-modal .form-group {
-    margin-bottom: 0;
+    margin-bottom: 12px;
+}
+
+/* Default two-column layout for pathway fields */
+#pathway-modal .pathway-form-row {
+    display: grid;
+    grid-template-columns: 1.5fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+/* Three-column layout for main fields */
+#pathway-modal .pathway-form-row.three-column {
+    grid-template-columns: 1fr 1fr 1fr;
+}
+
+/* Three-column layout for rank fields */
+#pathway-modal .rank-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 15px;
+    margin-bottom: 15px;
+}
+
+/* Phases table layout */
+#pathway-modal .phases-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+}
+
+#pathway-modal .phases-table th {
+    background-color: #f8f9fa;
+    padding: 10px;
+    text-align: left;
+    font-weight: 600;
+    font-size: 14px;
+    color: #495057;
+    border-bottom: 2px solid #dee2e6;
+}
+
+body.dark-mode #pathway-modal .phases-table th {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+    border-bottom-color: #444;
+}
+
+#pathway-modal .phases-table td {
+    padding: 8px;
+    vertical-align: middle;
+    border-bottom: 1px solid #dee2e6;
+}
+
+body.dark-mode #pathway-modal .phases-table td {
+    border-bottom-color: #444;
+}
+
+/* Phase number column */
+#pathway-modal .phases-table .phase-number {
+    width: 40px;
+    text-align: center;
+    font-weight: 600;
+    color: #6c757d;
+}
+
+body.dark-mode #pathway-modal .phases-table .phase-number {
+    color: #adb5bd;
+}
+
+/* Phase name column */
+#pathway-modal .phases-table .phase-name-col {
+    width: 50%;
+}
+
+/* Duration and ratio columns */
+#pathway-modal .phases-table .duration-col,
+#pathway-modal .phases-table .ratio-col {
+    width: 15%;
+}
+
+/* Actions column */
+#pathway-modal .phases-table .actions-col {
+    width: 80px;
+    text-align: center;
+}
+
+/* Inputs in table */
+#pathway-modal .phases-table select,
+#pathway-modal .phases-table input[type="number"] {
+    width: 100%;
+    padding: 6px 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    background-color: white;
+    font-size: 14px;
+}
+
+body.dark-mode #pathway-modal .phases-table select,
+body.dark-mode #pathway-modal .phases-table input[type="number"] {
+    background-color: #333;
+    border-color: #555;
+    color: #e0e0e0;
+}
+
+/* Remove button in table */
+#pathway-modal .remove-phase-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 5px 12px;
+    border-radius: 4px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#pathway-modal .remove-phase-btn:hover {
+    background-color: #c82333;
+}
+
+/* Add phase button */
+#pathway-modal #add-phase-btn {
+    margin-top: 10px;
+}
+
+/* Ensure all pathway modal inputs have consistent width */
+#pathway-modal input[type="text"],
+#pathway-modal input[type="number"],
+#pathway-modal select {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* Full width for comments */
+#pathway-modal .full-width-group {
+    grid-column: 1 / -1;
 }
 
 #pathway-modal label {
@@ -3089,9 +3224,9 @@ body.dark-mode .gantt-phase-cell {
 #pathway-modal .phase-input-group {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
-    padding: 12px;
+    padding: 10px 12px;
     border-radius: 6px;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
     transition: border-color 0.2s;
 }
 
@@ -3103,7 +3238,7 @@ body.dark-mode .gantt-phase-cell {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 8px;
 }
 
 #pathway-modal .phase-header h4 {
@@ -3116,6 +3251,28 @@ body.dark-mode .gantt-phase-cell {
     display: grid;
     grid-template-columns: 2fr 1fr 1fr;
     gap: 10px;
+}
+
+/* Horizontal phase layout */
+#pathway-modal .phase-fields-horizontal {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: 10px;
+    align-items: center;
+}
+
+#pathway-modal .phase-fields-horizontal .form-group {
+    margin-bottom: 0;
+}
+
+#pathway-modal .phase-compact {
+    padding: 8px 12px;
+}
+
+#pathway-modal .phase-single-row {
+    display: flex;
+    align-items: center;
+    gap: 15px;
 }
 
 #pathway-modal .add-phase-btn {
