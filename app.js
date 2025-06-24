@@ -4528,8 +4528,23 @@ function calculateDemand() {
         let currentFortnight = cohort.startFortnight;
         let phaseStartFortnight = 0; // Track fortnight within overall cohort timeline
 
-        pathway.phases.forEach(phase => {
-            for (let i = 0; i < phase.duration; i++) {
+        pathway.phases.forEach((phase, pIndex) => {
+            // Check if this phase has LT extension (same logic as renderGanttChart)
+            let effectiveDuration = phase.duration;
+            let isLastLTPhase = false;
+            
+            // Check if this is the last LT phase and has an extension
+            if (phase.trainerDemandType && cohort.ltExtension && cohort.ltExtension.type === phase.name) {
+                isLastLTPhase = pIndex === pathway.phases.length - 1 || 
+                    !pathway.phases.slice(pIndex + 1).some(p => p.trainerDemandType);
+                
+                if (isLastLTPhase) {
+                    effectiveDuration += cohort.ltExtension.amount || 0;
+                    if (effectiveDuration < 1) effectiveDuration = 1; // Minimum 1 fortnight
+                }
+            }
+            
+            for (let i = 0; i < effectiveDuration; i++) {
                 if (currentYear > END_YEAR) break;
                 
                 // Only track demand for line training phases with trainerDemandType
@@ -4603,7 +4618,7 @@ function calculateDemand() {
             }
             
             // Update phase start fortnight for next phase
-            phaseStartFortnight += phase.duration;
+            phaseStartFortnight += effectiveDuration; // Use effectiveDuration instead of phase.duration
         });
     });
 
@@ -4714,8 +4729,23 @@ function calculateDemand() {
         let currentFortnight = cohort.startFortnight;
         let phaseStartFortnight = 0;
         
-        pathway.phases.forEach(phase => {
-            for (let i = 0; i < phase.duration; i++) {
+        pathway.phases.forEach((phase, pIndex) => {
+            // Check if this phase has LT extension (same logic as renderGanttChart)
+            let effectiveDuration = phase.duration;
+            let isLastLTPhase = false;
+            
+            // Check if this is the last LT phase and has an extension
+            if (phase.trainerDemandType && cohort.ltExtension && cohort.ltExtension.type === phase.name) {
+                isLastLTPhase = pIndex === pathway.phases.length - 1 || 
+                    !pathway.phases.slice(pIndex + 1).some(p => p.trainerDemandType);
+                
+                if (isLastLTPhase) {
+                    effectiveDuration += cohort.ltExtension.amount || 0;
+                    if (effectiveDuration < 1) effectiveDuration = 1; // Minimum 1 fortnight
+                }
+            }
+            
+            for (let i = 0; i < effectiveDuration; i++) {
                 if (currentYear > END_YEAR) break;
                 
                 if (phase.trainerDemandType) {
@@ -4757,7 +4787,7 @@ function calculateDemand() {
                     currentYear++;
                 }
             }
-            phaseStartFortnight += phase.duration;
+            phaseStartFortnight += effectiveDuration; // Use effectiveDuration instead of phase.duration
         });
     });
     
@@ -5053,6 +5083,10 @@ function renderGanttChart() {
                 
                 // Check if this is an extension fortnight
                 const isExtension = isLastLTPhase && i >= phase.duration;
+                // Check if this is the last cell of a shortened phase
+                const isShortened = isLastLTPhase && cohort.ltExtension && 
+                    cohort.ltExtension.type === phase.name && cohort.ltExtension.amount < 0 &&
+                    i === effectiveDuration - 1; // Only on the very last visible cell
                 
                 cellData[key] = {
                     phase: phase,
@@ -5064,7 +5098,8 @@ function renderGanttChart() {
                     originalDuration: phase.duration,
                     usesCrossLocation: usesCrossLocation,
                     crossLocationTo: crossLocationTo,
-                    isExtension: isExtension
+                    isExtension: isExtension,
+                    isShortened: isShortened
                 };
                 
                 tempFortnight++;
@@ -5124,10 +5159,19 @@ function renderGanttChart() {
                 
                 // Add extension indicator
                 if (cell.isExtension) {
-                    tooltip += `\n🔴 Extension fortnight`;
+                    tooltip += `\n🔴 Training Extended`;
                     
                     // Add red dot indicator for extensions (top-left corner)
                     cellContent += `<span style="position: absolute; top: 2px; left: 2px; width: 6px; height: 6px; background: #dc3545; border-radius: 50%; z-index: 100; box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.3);"></span>`;
+                }
+                
+                // Add shortened indicator
+                if (cell.isShortened) {
+                    const shortenedAmount = Math.abs(cohort.ltExtension.amount);
+                    tooltip += `\n🟠 Training Shortened by ${shortenedAmount} fortnight${shortenedAmount > 1 ? 's' : ''}`;
+                    
+                    // Add orange left-pointing triangle indicator (bottom-right corner, pointing left like an arrow)
+                    cellContent += `<span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-right: 4px solid #f39c12; border-top: 4px solid transparent; border-bottom: 4px solid transparent; z-index: 100;"></span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
@@ -5292,13 +5336,21 @@ function renderGanttChart() {
     html += '</tbody>';
     html += '</table></div>';
     
-    // Add legend for cross-location indicators
+    // Add legend for indicators
     html += '<div class="gantt-legend" style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; font-size: 13px; color: var(--text-secondary);">';
     html += '<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">';
     html += '<span style="font-weight: 600;">Legend:</span>';
     html += '<div style="display: flex; align-items: center; gap: 5px;">';
+    html += '<span style="width: 6px; height: 6px; background: #dc3545; border-radius: 50%; display: inline-block;"></span>';
+    html += '<span>Extended training</span>';
+    html += '</div>';
+    html += '<div style="display: flex; align-items: center; gap: 5px;">';
+    html += '<span style="width: 0; height: 0; border-right: 4px solid #f39c12; border-top: 4px solid transparent; border-bottom: 4px solid transparent; display: inline-block;"></span>';
+    html += '<span>Shortened training</span>';
+    html += '</div>';
+    html += '<div style="display: flex; align-items: center; gap: 5px;">';
     html += '<span style="width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; display: inline-block;"></span>';
-    html += '<span>Cross-location training (using trainers from other location)</span>';
+    html += '<span>Cross-location training</span>';
     html += '</div>';
     html += '</div>';
     html += '</div>';
@@ -7161,16 +7213,16 @@ function updateLTExtensionPreview() {
     const preview = document.getElementById('lt-extension-preview');
     
     if (extensionAmount === 0) {
-        preview.textContent = 'No extension applied';
+        preview.textContent = 'No adjustment applied';
         preview.style.color = '#666';
     } else if (extensionAmount > 0 && extensionType) {
         preview.textContent = `Will extend ${extensionType} by ${extensionAmount} fortnight${extensionAmount > 1 ? 's' : ''} (added to end)`;
         preview.style.color = '#28a745';
     } else if (extensionAmount < 0 && extensionType) {
         preview.textContent = `Will shorten ${extensionType} by ${Math.abs(extensionAmount)} fortnight${Math.abs(extensionAmount) > 1 ? 's' : ''} (removed from end)`;
-        preview.style.color = '#dc3545';
+        preview.style.color = '#f39c12';
     } else if (extensionAmount !== 0 && !extensionType) {
-        preview.textContent = 'Please select an LT type to extend';
+        preview.textContent = 'Please select an LT type to adjust';
         preview.style.color = '#ffc107';
     }
     
@@ -7221,20 +7273,24 @@ function generateLTConfigurationTable(cohort, extensionAmount = 0, extensionType
                 const globalFortnight = (currentYear - 2024) * FORTNIGHTS_PER_YEAR + currentFortnight;
                 const isExtension = phase.name === extensionType && isLastLTPhase && 
                     extensionAmount > 0 && i >= phase.duration;
+                const isShortened = phase.name === extensionType && isLastLTPhase && 
+                    extensionAmount < 0 && i === phaseDuration - 1; // Only on the very last visible cell
                 
                 phaseFortnights.push({
                     fortnight: currentFortnight,
                     year: currentYear,
                     globalFortnight: globalFortnight,
                     phase: phase.name,
-                    isExtension: isExtension
+                    isExtension: isExtension,
+                    isShortened: isShortened
                 });
                 allLTFortnights.push({
                     fortnight: currentFortnight,
                     year: currentYear,
                     globalFortnight: globalFortnight,
                     phase: phase.name,
-                    isExtension: isExtension
+                    isExtension: isExtension,
+                    isShortened: isShortened
                 });
                 
                 currentFortnight++;
@@ -7297,7 +7353,9 @@ function generateLTConfigurationTable(cohort, extensionAmount = 0, extensionType
     // Fortnight row
     html += `<tr>`;
     allLTFortnights.forEach(fn => {
-        const cellClass = fn.isExtension ? 'extension-cell' : '';
+        let cellClass = '';
+        if (fn.isExtension) cellClass = 'extension-cell';
+        else if (fn.isShortened) cellClass = 'shortened-cell';
         html += `<th class="fortnight-header ${cellClass}">FN${String(fn.fortnight).padStart(2, '0')}</th>`;
     });
     html += `</tr>`;
@@ -7328,16 +7386,18 @@ function generateLTConfigurationTable(cohort, extensionAmount = 0, extensionType
     html += `<tr>`;
     html += `<td class="location-label">${cohort.location} (home)</td>`;
     
-    allLTFortnights.forEach((fn, index) => {
-        const otherLocation = cohort.location === 'AU' ? 'NZ' : 'AU';
-        const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
-        const cellClass = fn.isExtension ? 'extension-cell' : '';
-        
-        html += `<td class="radio-cell ${cellClass}">`;
-        html += `<input type="radio" name="lt-loc-${index}" value="${cohort.location}" 
-                ${!usesCrossLocation ? 'checked' : ''} data-phase="${fn.phase}" data-fortnight="${fn.globalFortnight}">`;
-        html += `</td>`;
-    });
+            allLTFortnights.forEach((fn, index) => {
+            const otherLocation = cohort.location === 'AU' ? 'NZ' : 'AU';
+            const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
+            let cellClass = '';
+            if (fn.isExtension) cellClass = 'extension-cell';
+            else if (fn.isShortened) cellClass = 'shortened-cell';
+            
+            html += `<td class="radio-cell ${cellClass}">`;
+            html += `<input type="radio" name="lt-loc-${index}" value="${cohort.location}" 
+                    ${!usesCrossLocation ? 'checked' : ''} data-phase="${fn.phase}" data-fortnight="${fn.globalFortnight}">`;
+            html += `</td>`;
+        });
     html += `</tr>`;
     
     // Other location row (if cross-location is enabled)
@@ -7349,7 +7409,9 @@ function generateLTConfigurationTable(cohort, extensionAmount = 0, extensionType
         
         allLTFortnights.forEach((fn, index) => {
             const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
-            const cellClass = fn.isExtension ? 'extension-cell' : '';
+            let cellClass = '';
+            if (fn.isExtension) cellClass = 'extension-cell';
+            else if (fn.isShortened) cellClass = 'shortened-cell';
             
             html += `<td class="radio-cell ${cellClass}">`;
             html += `<input type="radio" name="lt-loc-${index}" value="${otherLocation}" 
@@ -7855,35 +7917,57 @@ function performMerge() {
 
 // Split cohort functionality
 function initSplitCohort() {
-    const splitIntoInput = document.getElementById('split-into');
-    const splitSizeInput = document.getElementById('split-size');
+    const splitOutInput = document.getElementById('split-out-amount');
+    const splitSizeInput = document.getElementById('split-size'); // Hidden compatibility input
     const splitPreview = document.getElementById('split-preview');
     const splitBtn = document.getElementById('split-cohort-btn');
     const numTraineesInput = document.getElementById('edit-num-trainees');
     
+    // New table display elements
+    const currentTraineesDisplay = document.getElementById('current-trainees-display');
+    
     function updateSplitPreview() {
         const totalTrainees = parseInt(numTraineesInput.value) || 0;
-        const splitCount = parseInt(splitIntoInput.value) || 2;
+        const splitOutAmount = parseInt(splitOutInput.value) || 1;
+        
+        // Update current trainees display
+        if (currentTraineesDisplay) {
+            currentTraineesDisplay.textContent = totalTrainees;
+        }
         
         if (totalTrainees > 0) {
-            const baseSize = Math.floor(totalTrainees / splitCount);
-            const remainder = totalTrainees % splitCount;
+            const remaining = totalTrainees - splitOutAmount;
             
-            splitSizeInput.value = baseSize;
+            // Ensure split amount is valid
+            if (splitOutAmount >= totalTrainees) {
+                splitOutInput.value = totalTrainees - 1;
+                return updateSplitPreview();
+            }
             
-            if (remainder > 0) {
-                splitPreview.textContent = `Will create ${splitCount - remainder} cohorts with ${baseSize} trainees and ${remainder} cohorts with ${baseSize + 1} trainees`;
-            } else {
-                splitPreview.textContent = `Will create ${splitCount} cohorts with ${baseSize} trainees each`;
+            if (splitOutAmount < 1) {
+                splitOutInput.value = 1;
+                return updateSplitPreview();
+            }
+            
+            // Update max attribute
+            splitOutInput.max = totalTrainees - 1;
+            
+            // Update enhanced preview with remaining amount
+            if (splitPreview) {
+                splitPreview.textContent = `✅ Will create 2 cohorts: ${splitOutAmount} trainees and ${remaining} remaining`;
+                splitPreview.classList.remove('has-variation');
             }
         } else {
-            splitSizeInput.value = '';
-            splitPreview.textContent = '';
+            // Clear all displays when no trainees
+            if (splitPreview) {
+                splitPreview.textContent = '';
+                splitPreview.classList.remove('has-variation');
+            }
         }
     }
     
     // Update preview when inputs change
-    splitIntoInput.addEventListener('input', updateSplitPreview);
+    splitOutInput.addEventListener('input', updateSplitPreview);
     numTraineesInput.addEventListener('input', updateSplitPreview);
     
     // Handle split button click
@@ -7893,26 +7977,28 @@ function initSplitCohort() {
         if (!cohort) return;
         
         const totalTrainees = parseInt(numTraineesInput.value) || cohort.numTrainees;
-        const splitCount = parseInt(splitIntoInput.value) || 2;
+        const splitOutAmount = parseInt(splitOutInput.value) || 1;
         
-        if (splitCount < 2 || splitCount > totalTrainees) {
-            showNotification('Invalid split count', 'error');
+        if (splitOutAmount >= totalTrainees || splitOutAmount < 1) {
+            showNotification('Invalid split amount - must be between 1 and ' + (totalTrainees - 1), 'error');
             return;
         }
         
-        const baseSize = Math.floor(totalTrainees / splitCount);
-        const remainder = totalTrainees % splitCount;
+        const remainingTrainees = totalTrainees - splitOutAmount;
         
-        // Create new cohorts
-        const newCohorts = [];
-        for (let i = 0; i < splitCount; i++) {
-            const size = i < remainder ? baseSize + 1 : baseSize;
-            newCohorts.push({
+        // Create two new cohorts
+        const newCohorts = [
+            {
                 ...cohort,
-                id: Date.now() + i, // Generate unique IDs
-                numTrainees: size
-            });
-        }
+                id: Date.now(), // Generate unique ID for split out cohort
+                numTrainees: splitOutAmount
+            },
+            {
+                ...cohort,
+                id: Date.now() + 1, // Generate unique ID for remaining cohort
+                numTrainees: remainingTrainees
+            }
+        ];
         
         // Replace original cohort with new ones
         const cohortIndex = locationData[currentLocation].activeCohorts.findIndex(c => c.id === cohortId);
@@ -7941,7 +8027,7 @@ function initSplitCohort() {
             markDirty();
             
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
-            showNotification(`Split ${totalTrainees} x ${pathway.name} into ${splitCount} cohorts`, 'success');
+            showNotification(`Split ${totalTrainees} x ${pathway.name} into ${splitOutAmount} + ${remainingTrainees} trainees`, 'success');
         }, 100);
     });
     

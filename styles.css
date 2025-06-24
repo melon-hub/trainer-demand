@@ -1994,12 +1994,13 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
 /* Month headers */
 .month-header {
     text-align: center;
-    background-color: #e9ecef;
+    background-color: #e9ecef !important;
     font-weight: 600;
     padding: 6px;
     border: 1px solid #ddd;
     position: relative;
     white-space: nowrap;
+    z-index: 15;
 }
 
 /* Fortnight headers */
@@ -2011,8 +2012,9 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
     font-size: 11px;
     padding: 4px;
     border: 1px solid #ddd;
-    background-color: #f8f9fa;
+    background-color: #f8f9fa !important;
     position: relative;
+    z-index: 14;
 }
 
 /* Data cells with consistent width */
@@ -2023,6 +2025,7 @@ body.dark-mode .checkbox-group input[type="checkbox"]:disabled + label {
     text-align: center;
     padding: 8px 4px;
     border: 1px solid #eee;
+    z-index: 1;
 }
 
 /* Ensure tbody first column cells are also sticky */
@@ -2767,6 +2770,7 @@ body.dark-mode .gantt-remove-btn:hover {
     max-width: var(--column-width) !important;
     text-align: center;
     vertical-align: middle;
+    z-index: 1;
 }
 
 /* Ensure phase cells keep their background colors in dark mode */
@@ -4851,6 +4855,12 @@ body.dark-mode .scenario-btn.save-btn:hover {
     cursor: pointer;
 }
 
+/* Ensure gantt fortnight headers have proper z-index to prevent color bleed-through */
+.gantt-fortnight-header {
+    z-index: 14;
+    background-color: #f8f9fa !important;
+}
+
 /* Column highlighting - clean column outline */
 .column-highlighted {
     position: relative !important;
@@ -5044,11 +5054,11 @@ body.dark-mode .sticky-first-column {
 }
 
 body.dark-mode .fortnight-header {
-    background-color: #3a3a3a;
+    background-color: #3a3a3a !important;
 }
 
 body.dark-mode .month-header {
-    background-color: #444;
+    background-color: #444 !important;
 }
 
 body.dark-mode .total-row {
@@ -6479,7 +6489,7 @@ body.dark-mode .preview-value {
 
 #cohort-modal .cohort-edit-layout {
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 350px 1fr;
     gap: 20px;
     align-items: start;
 }
@@ -6583,86 +6593,193 @@ body.dark-mode .preview-value {
     margin-top: 4px;
 }
 
-/* Split Cohort Section */
+/* Split Cohort Section - Improved Professional Table Style */
 #cohort-modal .split-cohort-section {
-    border-top: 1px solid var(--border-color);
     margin-top: 16px;
-    padding: 16px;
-    background: var(--bg-secondary);
-    border-radius: 8px;
-    border: 1px solid var(--border-color);
+    text-align: left !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    overflow: hidden !important;
 }
 
-#cohort-modal .split-cohort-section h4 {
-    margin: 0 0 8px 0;
+#cohort-modal .split-cohort-header {
+    margin-bottom: 12px;
+}
+
+#cohort-modal .split-cohort-header h4 {
+    margin: 0 0 6px 0;
     font-size: 14px;
     color: var(--text-primary);
     font-weight: 600;
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
 }
 
-#cohort-modal .split-cohort-section h4::before {
-    content: "✂️";
-    font-size: 12px;
-}
-
-#cohort-modal .split-cohort-section p {
+#cohort-modal .split-cohort-header p {
     font-size: 12px;
     color: var(--text-secondary);
-    margin: 0 0 12px 0;
+    margin: 0;
     line-height: 1.4;
 }
 
-#cohort-modal .split-cohort-controls {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 12px;
+#cohort-modal .split-cohort-table {
+    overflow-x: auto;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     margin-bottom: 12px;
+    width: 100%;
+    max-width: 100%;
 }
 
-#cohort-modal .split-cohort-input-group {
+#cohort-modal .split-table-inner {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+}
+
+#cohort-modal .split-row {
+    display: table-row;
+}
+
+#cohort-modal .split-header {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid #dee2e6;
+}
+
+#cohort-modal .split-label {
+    display: table-cell;
+    padding: 8px 12px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-right: 1px solid #dee2e6;
+    text-align: center;
+    vertical-align: middle;
+    min-width: 80px;
+}
+
+#cohort-modal .split-label:last-child {
+    border-right: none;
+}
+
+#cohort-modal .split-data {
+    min-height: 44px;
+}
+
+#cohort-modal .split-cell {
+    display: table-cell;
+    padding: 8px 12px;
+    font-size: 13px;
+    border-right: 1px solid #dee2e6;
+    text-align: center;
+    vertical-align: middle;
+    background-color: var(--bg-primary);
+    position: relative;
+    min-width: 80px;
+}
+
+#cohort-modal .split-cell:last-child {
+    border-right: none;
+}
+
+#cohort-modal .current-cohort {
+    color: var(--text-primary);
+    font-weight: 500;
+}
+
+#cohort-modal .split-input {
+    justify-content: center;
+}
+
+#cohort-modal .split-input-group {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 8px;
-    font-size: 13px;
+    flex-wrap: wrap;
+}
+
+#cohort-modal .split-number-input {
+    width: 45px;
+    padding: 4px 6px;
+    border: 1px solid var(--border-color);
+    border-radius: 3px;
+    text-align: center;
+    font-size: 12px;
+    font-weight: 500;
+    background: var(--bg-primary);
     color: var(--text-primary);
 }
 
-#cohort-modal .split-cohort-input-group input {
-    width: 50px;
-    min-width: 50px;
-    text-align: center;
-    font-weight: 500;
-    border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 4px 6px;
+#cohort-modal .input-label {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
 }
 
-#cohort-modal .split-cohort-preview {
+#cohort-modal .split-btn-inline {
+    font-size: 11px;
+    padding: 4px 8px;
+    margin-left: 4px;
+}
+
+#cohort-modal .split-preview-enhanced {
+    padding: 8px 12px;
     background: var(--bg-tertiary);
     border: 1px solid var(--border-color);
-    border-radius: 4px;
-    padding: 8px 12px;
+    border-radius: 6px;
     font-size: 12px;
     color: var(--text-secondary);
     text-align: center;
-    margin-bottom: 12px;
+    margin-top: 8px;
 }
 
-#cohort-modal .split-cohort-actions {
-    display: flex;
-    justify-content: flex-end;
+#cohort-modal .split-preview-enhanced.has-variation {
+    background: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+    color: var(--text-primary);
 }
 
-#cohort-modal .split-cohort-actions button {
-    padding: 8px 16px;
-    font-size: 13px;
-    font-weight: 500;
-    border-radius: 4px;
-    transition: all 0.2s ease;
+#cohort-modal .split-preview-enhanced:empty {
+    display: none;
+}
+
+/* Dark mode specific adjustments */
+.dark-mode #cohort-modal .split-label,
+.dark-mode #cohort-modal .split-cell {
+    border-color: #444 !important;
+}
+
+.dark-mode #cohort-modal .split-number-input {
+    background: var(--bg-secondary);
+    border-color: #444;
+}
+
+/* Responsive adjustments for split cohort table */
+@media (max-width: 480px) {
+    #cohort-modal .split-cohort-table {
+        font-size: 10px;
+    }
+    
+    #cohort-modal .split-label,
+    #cohort-modal .split-cell {
+        padding: 6px 8px;
+        min-width: 70px;
+    }
+    
+    #cohort-modal .split-number-input {
+        width: 35px;
+        font-size: 11px;
+    }
+    
+    #cohort-modal .input-label {
+        font-size: 10px;
+    }
 }
 
 /* LT Configuration Table */
@@ -6756,9 +6873,31 @@ body.dark-mode .preview-value {
     box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.3);
 }
 
+/* Shortened indicators (orange triangles) */
+#cohort-modal .lt-config-table .shortened-cell {
+    background-color: rgba(241, 156, 18, 0.1) !important;
+    position: relative;
+}
+
+#cohort-modal .lt-config-table .shortened-cell::after {
+    content: '';
+    position: absolute;
+    bottom: 2px;
+    right: 2px;
+    width: 0;
+    height: 0;
+    border-right: 4px solid #f39c12;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+}
+
 /* Dark mode specific adjustments */
 .dark-mode #cohort-modal .lt-config-table .extension-cell {
     background-color: rgba(220, 53, 69, 0.2) !important;
+}
+
+.dark-mode #cohort-modal .lt-config-table .shortened-cell {
+    background-color: rgba(241, 156, 18, 0.2) !important;
 }
 
 .dark-mode #cohort-modal .lt-config-table th,
@@ -6788,16 +6927,10 @@ body.dark-mode .preview-value {
 }
 
 @media (max-width: 480px) {
-    #cohort-modal .split-cohort-controls,
     #cohort-modal .lt-extension-controls {
         flex-direction: column;
         align-items: stretch;
         gap: 10px;
-    }
-    
-    #cohort-modal .split-cohort-controls button {
-        margin-left: 0;
-        width: 100%;
     }
     
     #cohort-modal .lt-extension-controls input,

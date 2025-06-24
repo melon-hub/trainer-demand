@@ -438,7 +438,7 @@
                     <div id="scenario-status-display" class="scenario-status-display">
                         <span id="scenario-status-text" class="scenario-status-text"><strong>Scenario:</strong> New Scenario</span>
                         <button id="scenario-save-btn" class="scenario-btn" title="Save scenario" style="display: none;">Save</button>
-                        <button id="scenario-update-btn" class="scenario-btn" title="Update current scenario" style="display: none;">📝 Update</button>
+                        <button id="scenario-update-btn" class="scenario-btn" title="Save current scenario" style="display: none;">📝 Save</button>
                     </div>
                 </div>
             </section>
@@ -739,28 +739,42 @@
 
                                 <!-- Split Cohort Section -->
                                 <div class="form-group split-cohort-section">
-                                    <h4>Split Cohort</h4>
-                                    <p>Split this cohort into multiple smaller cohorts with the same settings</p>
-                                    
-                                    <div class="split-cohort-controls">
-                                        <div class="split-cohort-input-group">
-                                            <span>Split into:</span>
-                                            <input type="number" id="split-into" min="2" max="10" value="2">
-                                            <span>cohorts</span>
-                                        </div>
-                                        
-                                        <div class="split-cohort-input-group">
-                                            <span>of</span>
-                                            <input type="number" id="split-size" min="1" readonly>
-                                            <span>trainees each</span>
-                                        </div>
-                                        
-                                        <div class="split-cohort-actions">
-                                            <button type="button" id="split-cohort-btn" class="btn btn-secondary">Split</button>
-                                        </div>
+                                    <div class="split-cohort-header">
+                                        <h4>✂️ Split Cohort</h4>
+                                        <p>Divide this cohort into smaller groups with identical settings</p>
                                     </div>
                                     
-                                    <div id="split-preview" class="split-cohort-preview"></div>
+                                    <div class="split-cohort-table">
+                                        <table class="split-table-inner">
+                                            <thead>
+                                                <tr class="split-row split-header">
+                                                    <th class="split-label">Current Cohort</th>
+                                                    <th class="split-label">Split Out</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                <tr class="split-row split-data">
+                                                    <td class="split-cell current-cohort">
+                                                        <strong id="current-trainees-display">8</strong> trainees
+                                                    </td>
+                                                    <td class="split-cell split-input">
+                                                        <div class="split-input-group">
+                                                            <input type="number" id="split-out-amount" min="1" value="1" class="split-number-input">
+                                                            <span class="input-label">trainees</span>
+                                                            <button type="button" id="split-cohort-btn" class="btn btn-secondary btn-sm split-btn-inline">
+                                                                Split
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                    
+                                    <div id="split-preview" class="split-preview-enhanced"></div>
+                                    
+                                    <!-- Hidden original input for compatibility -->
+                                    <input type="number" id="split-size" min="1" readonly style="display: none;">
                                 </div>
                             </div>
 
@@ -774,9 +788,9 @@
                                 
                                 <!-- LT Extension Controls (below the table) -->
                                 <div class="lt-extension-section">
-                                    <h5>Extension Settings</h5>
+                                    <h5>Duration Adjustment</h5>
                                     <div class="lt-extension-controls">
-                                        <label for="lt-extension-amount">Extend by:</label>
+                                        <label for="lt-extension-amount">Adjust by:</label>
                                         <input type="number" id="lt-extension-amount" name="ltExtensionAmount" 
                                                value="0" min="-10" max="20" step="1">
                                         <span>fortnights</span>
@@ -1096,7 +1110,7 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
                     <div class="scenario-info-card">
                         <p class="scenario-description">Save your current configuration as a scenario to reload it later or create variations.</p>
                         <div class="scenario-actions">
-                            <button id="update-current-scenario" class="btn btn-secondary" style="display: none;">Update Current</button>
+                            <button id="update-current-scenario" class="btn btn-secondary" style="display: none;">Save Current</button>
                             <button id="save-current-scenario" class="btn btn-primary">Save As New Scenario</button>
                         </div>
                     </div>
