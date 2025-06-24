@@ -84,12 +84,22 @@ let locationData = {
     AU: {
         pathways: [],
         trainerFTE: {},
+        // New FTE override structures
+        fortnightOverrides: {
+            global: {}, // Global defaults: { FN17: { CATA: 15 } }
+            scenarios: {} // Scenario-specific: { scenarioId: { FN17: { CATA: 15 } } }
+        },
         priorityConfig: [],
         activeCohorts: []
     },
     NZ: {
         pathways: [],
         trainerFTE: {},
+        // New FTE override structures
+        fortnightOverrides: {
+            global: {}, // Global defaults: { FN17: { CATA: 15 } }
+            scenarios: {} // Scenario-specific: { scenarioId: { FN17: { CATA: 15 } } }
+        },
         priorityConfig: [],
         activeCohorts: []
     }
@@ -269,6 +279,403 @@ for (let year = START_YEAR; year <= END_YEAR; year++) {
         trainerFTE[year][category] = 240; // Default 240 FTE per category per year (10 per fortnight)
     });
 }
+
+// FTE Calculation Engine with Override Hierarchy
+function calculateFTEForFortnight(location, year, fortnight, category, scenarioId = null) {
+    // Use global locationData variable directly
+    if (!window.locationData || !window.locationData[location]) {
+        // Fallback to original calculation if locationData not available
+        const fallbackFTE = (location === currentLocation && trainerFTE[year]?.[category]) || 
+                           (window.locationData?.[location]?.trainerFTE?.[year]?.[category]) || 
+                           240; // Default
+        return fallbackFTE / FORTNIGHTS_PER_YEAR;
+    }
+    
+    const locData = window.locationData[location];
+    const fortnightKey = `FN${fortnight.toString().padStart(2, '0')}`;
+    
+    // 1. Check scenario-specific overrides (highest priority)
+    if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[fortnightKey]?.[category] !== undefined) {
+        return locData.fortnightOverrides.scenarios[scenarioId][fortnightKey][category];
+    }
+    
+    // 2. Check global fortnight overrides
+    if (locData.fortnightOverrides?.global?.[fortnightKey]?.[category] !== undefined) {
+        return locData.fortnightOverrides.global[fortnightKey][category];
+    }
+    
+    // 3. Use yearly default (divided by fortnights)
+    const yearlyFTE = locData.trainerFTE?.[year]?.[category] || 0;
+    return yearlyFTE / FORTNIGHTS_PER_YEAR;
+}
+
+// Check if a fortnight has overrides (for visualization)
+function hasFortnightOverride(location, fortnight, category, scenarioId = null) {
+    // Use global locationData variable with safety checks
+    if (!window.locationData || !window.locationData[location]) {
+        return null; // No overrides if locationData not available
+    }
+    
+    const locData = window.locationData[location];
+    const fortnightKey = `FN${fortnight.toString().padStart(2, '0')}`;
+    
+    // Check scenario-specific overrides
+    if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[fortnightKey]?.[category] !== undefined) {
+        return { type: 'scenario', scenarioId };
+    }
+    
+    // Check global overrides
+    if (locData.fortnightOverrides?.global?.[fortnightKey]?.[category] !== undefined) {
+        return { type: 'global' };
+    }
+    
+    return null;
+}
+
+// FTE Override Management System
+let fteOverrideManager = {
+    currentContext: null,
+    
+    // Initialize right-click handlers for FTE table cells
+    initializeContextMenu() {
+        // Add event delegation for dynamically generated table cells
+        document.addEventListener('contextmenu', (e) => {
+            const cell = e.target.closest('.data-cell');
+            if (!cell) return;
+            
+            // Check if this is an FTE table cell
+            const fteTable = cell.closest('#fte-summary-table-container .data-table');
+            if (!fteTable) return;
+            
+            e.preventDefault();
+            this.showContextMenu(e, cell);
+        });
+        
+        // Hide context menu on outside click
+        document.addEventListener('click', () => {
+            this.hideContextMenu();
+        });
+    },
+    
+    showContextMenu(event, cell) {
+        const contextMenu = document.getElementById('fte-context-menu');
+        if (!contextMenu) return;
+        
+        // Extract context from cell
+        const row = cell.closest('tr');
+        const isDetailRow = row.classList.contains('category-detail');
+        
+        if (!isDetailRow) {
+            // For total supply row, don't show context menu
+            return;
+        }
+        
+        // Get category from row
+        const categoryCell = row.querySelector('.sticky-first-column');
+        const categoryText = categoryCell.textContent.trim();
+        const category = categoryText.replace(' Supply', '');
+        
+        // Get fortnight from header
+        const cellIndex = Array.from(row.children).indexOf(cell);
+        const headerRow = cell.closest('table').querySelector('thead tr:last-child');
+        const fortnightHeader = headerRow.children[cellIndex];
+        const fortnight = parseInt(fortnightHeader.textContent.replace('FN', ''));
+        
+        // Store context
+        this.currentContext = {
+            category,
+            fortnight,
+            location: currentLocation,
+            cell,
+            event
+        };
+        
+        // Check if override exists
+        const hasOverride = hasFortnightOverride(currentLocation, fortnight, category, viewState.currentScenarioId);
+        const clearItem = contextMenu.querySelector('[data-action="clear-override"]');
+        clearItem.style.display = hasOverride ? 'block' : 'none';
+        
+        // Position and show menu
+        contextMenu.style.left = `${event.clientX}px`;
+        contextMenu.style.top = `${event.clientY}px`;
+        contextMenu.style.display = 'block';
+    },
+    
+    hideContextMenu() {
+        const contextMenu = document.getElementById('fte-context-menu');
+        if (contextMenu) {
+            contextMenu.style.display = 'none';
+        }
+    },
+    
+    handleContextAction(action) {
+        if (!this.currentContext) return;
+        
+        this.hideContextMenu();
+        
+        switch (action) {
+            case 'edit-single':
+                this.openOverrideModal('single');
+                break;
+            case 'edit-range':
+                this.openOverrideModal('range');
+                break;
+            case 'edit-forward':
+                this.openOverrideModal('forward');
+                break;
+            case 'clear-override':
+                this.clearOverride();
+                break;
+        }
+    },
+    
+    openOverrideModal(mode) {
+        const modal = document.getElementById('fte-override-modal');
+        const title = document.getElementById('override-modal-title');
+        const rangeInfo = document.getElementById('override-range-info');
+        
+        // Set title and range info based on mode
+        const { category, fortnight, location } = this.currentContext;
+        
+        switch (mode) {
+            case 'single':
+                title.textContent = `Edit ${category} FTE - FN${fortnight.toString().padStart(2, '0')}`;
+                rangeInfo.textContent = `Single fortnight: FN${fortnight.toString().padStart(2, '0')}`;
+                break;
+            case 'range':
+                title.textContent = `Edit ${category} FTE - Range`;
+                rangeInfo.innerHTML = `
+                    <label>From: <input type="number" id="range-start" value="${fortnight}" min="1" max="26" style="width: 60px;"></label>
+                    <label>To: <input type="number" id="range-end" value="${fortnight + 3}" min="1" max="26" style="width: 60px;"></label>
+                `;
+                break;
+            case 'forward':
+                title.textContent = `Edit ${category} FTE - From FN${fortnight.toString().padStart(2, '0')} Forward`;
+                rangeInfo.textContent = `From FN${fortnight.toString().padStart(2, '0')} onwards (rest of year)`;
+                break;
+        }
+        
+        // Store mode
+        this.currentContext.mode = mode;
+        
+        // Populate category inputs
+        this.populateCategories();
+        
+        // Show modal
+        modal.classList.add('active');
+    },
+    
+    populateCategories() {
+        const container = document.getElementById('override-categories-container');
+        const { category, fortnight, location } = this.currentContext;
+        
+        container.innerHTML = '';
+        
+        // Create input for the selected category
+        const inputGroup = document.createElement('div');
+        inputGroup.className = 'override-input-group';
+        
+        // Get the current viewing year instead of hardcoding 2025
+        const range = getTimeRangeForView();
+        const currentYear = range.startYear;
+        const currentValue = calculateFTEForFortnight(location, currentYear, fortnight, category, viewState.currentScenarioId);
+        
+        inputGroup.innerHTML = `
+            <label>${category} FTE per fortnight:</label>
+            <input type="number" id="override-${category}" value="${currentValue.toFixed(1)}" min="0" step="0.1">
+            <button type="button" class="override-clear-btn" onclick="fteOverrideManager.clearCategoryInput('${category}')">Clear</button>
+        `;
+        
+        container.appendChild(inputGroup);
+        
+        // Add event listener for preview updates
+        const input = inputGroup.querySelector('input');
+        input.addEventListener('input', () => this.updatePreview());
+        
+        // Initial preview
+        this.updatePreview();
+    },
+    
+    updatePreview() {
+        const preview = document.getElementById('override-preview-content');
+        const { category, fortnight, location, mode } = this.currentContext;
+        
+        const input = document.getElementById(`override-${category}`);
+        const newValue = parseFloat(input.value) || 0;
+        
+        // Get the current viewing year instead of hardcoding 2025
+        const range = getTimeRangeForView();
+        const currentYear = range.startYear;
+        const currentValue = calculateFTEForFortnight(location, currentYear, fortnight, category, viewState.currentScenarioId);
+        
+        let rangeText = '';
+        let dateRangeText = '';
+        let affectedFortnights = [];
+        
+        switch (mode) {
+            case 'single':
+                rangeText = `FN${fortnight.toString().padStart(2, '0')}`;
+                dateRangeText = this.getFortnightDateRange(fortnight);
+                affectedFortnights = [fortnight];
+                break;
+            case 'range':
+                const startFN = parseInt(document.getElementById('range-start')?.value || fortnight);
+                const endFN = parseInt(document.getElementById('range-end')?.value || fortnight);
+                rangeText = `FN${startFN.toString().padStart(2, '0')} - FN${endFN.toString().padStart(2, '0')}`;
+                dateRangeText = `${this.getFortnightDateRange(startFN, true)} - ${this.getFortnightDateRange(endFN, false)}`;
+                for (let fn = startFN; fn <= endFN; fn++) {
+                    affectedFortnights.push(fn);
+                }
+                break;
+            case 'forward':
+                rangeText = `FN${fortnight.toString().padStart(2, '0')} onwards`;
+                dateRangeText = `${this.getFortnightDateRange(fortnight, true)} - end of year`;
+                for (let fn = fortnight; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+                    affectedFortnights.push(fn);
+                }
+                break;
+        }
+        
+        const difference = (newValue - currentValue).toFixed(1);
+        const diffText = difference >= 0 ? `+${difference}` : difference;
+        
+        preview.innerHTML = `
+            <div class="override-preview-compact">
+                <div class="preview-row">
+                    <strong>${rangeText}</strong> <span class="date-range">(${dateRangeText})</span>
+                </div>
+                <div class="preview-row">
+                    <span>${category}:</span> ${currentValue.toFixed(1)} → ${newValue.toFixed(1)} FTE 
+                    <span class="change-indicator" style="color: ${difference >= 0 ? '#27ae60' : '#e74c3c'}">${diffText}</span>
+                </div>
+                <div class="preview-row minor">
+                    ${affectedFortnights.length} fortnight${affectedFortnights.length > 1 ? 's' : ''} affected
+                </div>
+            </div>
+        `;
+    },
+    
+    getFortnightDateRange(fortnight, startOnly = null) {
+        // Calculate approximate dates for fortnights (2025)
+        const year = 2025;
+        const startDate = new Date(year, 0, 1); // Jan 1, 2025
+        
+        // Each fortnight is 14 days, starting from Jan 1
+        const fortnightStartDays = (fortnight - 1) * 14;
+        const fortnightEndDays = fortnight * 14 - 1;
+        
+        const fnStart = new Date(startDate);
+        fnStart.setDate(startDate.getDate() + fortnightStartDays);
+        
+        const fnEnd = new Date(startDate);
+        fnEnd.setDate(startDate.getDate() + fortnightEndDays);
+        
+        const formatDate = (date) => {
+            return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        };
+        
+        if (startOnly === true) return formatDate(fnStart);
+        if (startOnly === false) return formatDate(fnEnd);
+        return `${formatDate(fnStart)} - ${formatDate(fnEnd)}`;
+    },
+    
+    clearCategoryInput(category) {
+        const input = document.getElementById(`override-${category}`);
+        
+        // Get the current viewing year instead of hardcoding 2025
+        const range = getTimeRangeForView();
+        const currentYear = range.startYear;
+        const currentValue = calculateFTEForFortnight(this.currentContext.location, currentYear, this.currentContext.fortnight, category);
+        input.value = currentValue.toFixed(1);
+        this.updatePreview();
+    },
+    
+    applyOverride() {
+        const { category, fortnight, location, mode } = this.currentContext;
+        const input = document.getElementById(`override-${category}`);
+        const newValue = parseFloat(input.value);
+        
+        if (isNaN(newValue) || newValue < 0) {
+            showNotification('Please enter a valid FTE value', 'error');
+            return false;
+        }
+        
+        // Determine which fortnights to update
+        let fortnightsToUpdate = [];
+        
+        switch (mode) {
+            case 'single':
+                fortnightsToUpdate = [fortnight];
+                break;
+            case 'range':
+                const startFN = parseInt(document.getElementById('range-start').value);
+                const endFN = parseInt(document.getElementById('range-end').value);
+                for (let fn = startFN; fn <= endFN; fn++) {
+                    fortnightsToUpdate.push(fn);
+                }
+                break;
+            case 'forward':
+                for (let fn = fortnight; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+                    fortnightsToUpdate.push(fn);
+                }
+                break;
+        }
+        
+        // Apply overrides
+        const isScenarioSpecific = viewState.currentScenarioId ? true : false;
+        const targetOverrides = isScenarioSpecific ? 
+            window.locationData[location].fortnightOverrides.scenarios :
+            window.locationData[location].fortnightOverrides.global;
+        
+        if (isScenarioSpecific && !targetOverrides[viewState.currentScenarioId]) {
+            targetOverrides[viewState.currentScenarioId] = {};
+        }
+        
+        fortnightsToUpdate.forEach(fn => {
+            const fnKey = `FN${fn.toString().padStart(2, '0')}`;
+            const target = isScenarioSpecific ? targetOverrides[viewState.currentScenarioId] : targetOverrides;
+            
+            if (!target[fnKey]) {
+                target[fnKey] = {};
+            }
+            target[fnKey][category] = newValue;
+        });
+        
+        // Close modal and refresh
+        this.closeModal();
+        renderFTESummaryTable();
+        
+        const overrideType = isScenarioSpecific ? 'scenario-specific' : 'global';
+        showNotification(`${category} FTE override applied (${overrideType})`, 'success');
+        
+        return true;
+    },
+    
+    clearOverride() {
+        const { category, fortnight, location } = this.currentContext;
+        const fnKey = `FN${fortnight.toString().padStart(2, '0')}`;
+        
+        // Check scenario-specific first
+        if (viewState.currentScenarioId && 
+            window.locationData[location].fortnightOverrides.scenarios[viewState.currentScenarioId]?.[fnKey]?.[category] !== undefined) {
+            delete window.locationData[location].fortnightOverrides.scenarios[viewState.currentScenarioId][fnKey][category];
+            showNotification(`Scenario-specific ${category} override cleared for ${fnKey}`, 'success');
+        }
+        // Then check global
+        else if (window.locationData[location].fortnightOverrides.global[fnKey]?.[category] !== undefined) {
+            delete window.locationData[location].fortnightOverrides.global[fnKey][category];
+            showNotification(`Global ${category} override cleared for ${fnKey}`, 'success');
+        }
+        
+        renderFTESummaryTable();
+    },
+    
+    closeModal() {
+        const modal = document.getElementById('fte-override-modal');
+        modal.classList.remove('active');
+        this.currentContext = null;
+    }
+};
 
 // Initialize with demo data
 let activeCohorts = [
@@ -698,6 +1105,20 @@ function migrateDataToLocations() {
     trainerFTE = locationData.AU.trainerFTE;
     priorityConfig = locationData.AU.priorityConfig;
     activeCohorts = locationData.AU.activeCohorts;
+    
+    // Add sample override data for demonstration
+    // Global overrides - FN17 CATA increased to 15, FN20 multiple changes
+    locationData.AU.fortnightOverrides.global['FN17'] = { 'CATA': 15 };
+    locationData.AU.fortnightOverrides.global['FN20'] = { 'RHS': 12, 'CATB': 8 };
+    
+    // Scenario-specific overrides (for demo purposes)
+    locationData.AU.fortnightOverrides.scenarios['demo-scenario'] = {
+        'FN19': { 'RHS': 14 },
+        'FN22': { 'CATA': 13, 'CATB': 9 }
+    };
+    
+    // Expose locationData on window for global access
+    window.locationData = locationData;
 }
 
 // Dashboard v2 Functions
@@ -3072,9 +3493,31 @@ function renderFTESummaryTable() {
     // console.log('  Sample FTE values for', currentYear + ':', locationFTE[currentYear]);
     
     while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-        const totalFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[currentYear]?.[cat] || 0), 0);
-        const fortnightlyTotal = (totalFTE / FORTNIGHTS_PER_YEAR).toFixed(0);
-        html += generateDataCell(currentYear, currentFn, fortnightlyTotal, 'total-supply-cell');
+        // Calculate total using new engine
+        const fortnightlyTotal = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(
+                currentLocation, 
+                currentYear, 
+                currentFn, 
+                cat, 
+                viewState.currentScenarioId
+            );
+        }, 0).toFixed(0);
+        
+        // Check if any category has overrides for this fortnight
+        const hasAnyOverride = TRAINER_CATEGORIES.some(cat => 
+            hasFortnightOverride(currentLocation, currentFn, cat, viewState.currentScenarioId)
+        );
+        
+        let cellContent = fortnightlyTotal;
+        let cellStyle = '';
+        
+        if (hasAnyOverride) {
+            cellContent = `${fortnightlyTotal}<span class="total-override-indicator" style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: #f39c12; border-radius: 50%;" title="Contains FTE overrides"></span>`;
+            cellStyle = 'position: relative;';
+        }
+        
+        html += generateDataCell(currentYear, currentFn, cellContent, 'total-supply-cell', cellStyle);
         
         currentFn++;
         if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -3094,10 +3537,37 @@ function renderFTESummaryTable() {
             currentFn = range.startFortnight;
             
             while (currentYear < range.endYear || (currentYear === range.endYear && currentFn <= range.endFortnight)) {
-                const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
-                    locationData[currentLocation].trainerFTE : trainerFTE;
-                const fortnightlyFTE = ((locationFTE[currentYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR).toFixed(0);
-                html += generateDataCell(currentYear, currentFn, fortnightlyFTE, 'category-detail-cell');
+                // Use new calculation engine
+                const fortnightlyFTE = calculateFTEForFortnight(
+                    currentLocation, 
+                    currentYear, 
+                    currentFn, 
+                    category, 
+                    viewState.currentScenarioId
+                ).toFixed(0);
+                
+                // Check for overrides to show dot
+                const override = hasFortnightOverride(
+                    currentLocation, 
+                    currentFn, 
+                    category, 
+                    viewState.currentScenarioId
+                );
+                
+                let cellContent = fortnightlyFTE;
+                let cellStyle = '';
+                
+                if (override) {
+                    const dotColor = override.type === 'scenario' ? '#e74c3c' : '#3498db';
+                    const dotTitle = override.type === 'scenario' ? 
+                        `Scenario-specific override: ${fortnightlyFTE}` : 
+                        `Global override: ${fortnightlyFTE}`;
+                    
+                    cellContent = `${fortnightlyFTE}<span class="override-indicator" style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: ${dotColor}; border-radius: 50%;" title="${dotTitle}"></span>`;
+                    cellStyle = 'position: relative;';
+                }
+                
+                html += generateDataCell(currentYear, currentFn, cellContent, 'category-detail-cell', cellStyle);
                 
                 currentFn++;
                 if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -4967,10 +5437,20 @@ function openFTEModal() {
     
     let html = '<div style="max-height: 500px; overflow-y: auto;">';
     
+    // Check for existing overrides and show info
+    const conflicts = checkForFTEConflicts(currentLocation, viewState.currentScenarioId);
+    const hasOverrides = conflicts.length > 0;
+    
     // Info about FTE settings
     html += '<div style="margin-bottom: 15px; padding: 10px; background-color: var(--bg-secondary); border-radius: 5px; border-left: 4px solid #2196f3;">';
     html += '<p style="margin: 0; font-size: 0.9em; color: var(--text-primary);"><strong>Note:</strong> These FTE values are for the current location (' + currentLocation + '). ';
     html += 'Changes here will apply to the current scenario. To save as system defaults (persistent across refreshes), use "Save as Default" below.</p>';
+    
+    if (hasOverrides) {
+        const overrideCount = conflicts.length;
+        html += '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: var(--text-secondary);"><em>ℹ️ Note: ' + overrideCount + ' fortnight override' + (overrideCount > 1 ? 's' : '') + ' exist. Yearly changes will only affect non-overridden fortnights.</em></p>';
+    }
+    
     html += '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: var(--text-secondary);"><em>Tip: You can copy/paste values between cells. Select cells with click+drag or Shift+click.</em></p>';
     html += '</div>';
     
@@ -5008,6 +5488,213 @@ function openFTEModal() {
             // console.log('First input:', inputs[0], 'disabled:', inputs[0].disabled, 'readonly:', inputs[0].readOnly);
         }
     }, 100);
+}
+
+function checkForFTEConflicts(location, scenarioId) {
+    const conflicts = [];
+    const locationData = window.locationData[location];
+    if (!locationData?.fortnightOverrides) return conflicts;
+    
+    // Check scenario-specific overrides
+    if (scenarioId && locationData.fortnightOverrides.scenarios[scenarioId]) {
+        const scenarioOverrides = locationData.fortnightOverrides.scenarios[scenarioId];
+        Object.entries(scenarioOverrides).forEach(([fn, categories]) => {
+            Object.keys(categories).forEach(category => {
+                conflicts.push({
+                    fortnight: fn,
+                    category,
+                    type: 'scenario-specific',
+                    value: categories[category]
+                });
+            });
+        });
+    }
+    
+    // Check global overrides
+    if (locationData.fortnightOverrides.global) {
+        Object.entries(locationData.fortnightOverrides.global).forEach(([fn, categories]) => {
+            Object.keys(categories).forEach(category => {
+                // Only add if not already covered by scenario-specific
+                const alreadyHasScenarioOverride = conflicts.some(c => 
+                    c.fortnight === fn && c.category === category && c.type === 'scenario-specific'
+                );
+                if (!alreadyHasScenarioOverride) {
+                    conflicts.push({
+                        fortnight: fn,
+                        category,
+                        type: 'global',
+                        value: categories[category]
+                    });
+                }
+            });
+        });
+    }
+    
+    return conflicts;
+}
+
+function showFTEConflictWarning(conflicts) {
+    const conflictsByCategory = {};
+    conflicts.forEach(conflict => {
+        if (!conflictsByCategory[conflict.category]) {
+            conflictsByCategory[conflict.category] = [];
+        }
+        conflictsByCategory[conflict.category].push(conflict);
+    });
+    
+    const categoryList = Object.keys(conflictsByCategory).map(category => {
+        const categoryConflicts = conflictsByCategory[category];
+        const fortnights = categoryConflicts.map(c => c.fortnight).sort();
+        return `<li><strong>${category}:</strong> ${fortnights.join(', ')}</li>`;
+    }).join('');
+    
+    const warningHtml = `
+        <div class="fte-conflict-warning">
+            <h3>⚠️ Fortnight Overrides Detected</h3>
+            <p>Some trainer categories have fortnight-specific overrides that will hide yearly FTE changes:</p>
+            <ul>${categoryList}</ul>
+            <p><strong>What would you like to do?</strong></p>
+            <div class="conflict-actions">
+                <button class="btn btn-primary" onclick="clearConflictsAndEdit()">
+                    Clear Overrides & Edit Yearly
+                </button>
+                <button class="btn btn-secondary" onclick="editYearlyAnyway()">
+                    Edit Yearly Anyway
+                </button>
+                <button class="btn btn-secondary" onclick="cancelFTEEdit()">
+                    Cancel
+                </button>
+            </div>
+            <div class="conflict-note">
+                <small><strong>Note:</strong> Fortnight overrides always take priority over yearly values. If you edit yearly values while overrides exist, you won't see the changes in affected fortnights.</small>
+            </div>
+        </div>
+    `;
+    
+    showCustomDialog('FTE Edit Conflict', warningHtml);
+}
+
+function clearConflictsAndEdit() {
+    const conflicts = checkForFTEConflicts(currentLocation, viewState.currentScenarioId);
+    
+    // Clear the conflicting overrides
+    conflicts.forEach(conflict => {
+        const locationData = window.locationData[currentLocation];
+        if (conflict.type === 'scenario-specific' && viewState.currentScenarioId) {
+            delete locationData.fortnightOverrides.scenarios[viewState.currentScenarioId][conflict.fortnight][conflict.category];
+            // Clean up empty objects
+            if (Object.keys(locationData.fortnightOverrides.scenarios[viewState.currentScenarioId][conflict.fortnight]).length === 0) {
+                delete locationData.fortnightOverrides.scenarios[viewState.currentScenarioId][conflict.fortnight];
+            }
+        } else if (conflict.type === 'global') {
+            delete locationData.fortnightOverrides.global[conflict.fortnight][conflict.category];
+            // Clean up empty objects
+            if (Object.keys(locationData.fortnightOverrides.global[conflict.fortnight]).length === 0) {
+                delete locationData.fortnightOverrides.global[conflict.fortnight];
+            }
+        }
+    });
+    
+    // Refresh the table to remove override indicators
+    renderFTESummaryTable();
+    
+    // Close dialog and open FTE modal
+    closeCustomDialog();
+    
+    // Now open the FTE modal without checks
+    const container = document.getElementById('fte-edit-container');
+    let html = '<div style="max-height: 500px; overflow-y: auto;">';
+    html += '<div style="margin-bottom: 15px; padding: 10px; background-color: var(--bg-secondary); border-radius: 5px; border-left: 4px solid #2196f3;">';
+    html += '<p style="margin: 0; font-size: 0.9em; color: var(--text-primary);"><strong>Note:</strong> These FTE values are for the current location (' + currentLocation + '). ';
+    html += 'Changes here will apply to the current scenario. To save as system defaults (persistent across refreshes), use "Save as Default" below.</p>';
+    html += '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: var(--text-secondary);"><em>Tip: You can copy/paste values between cells. Select cells with click+drag or Shift+click.</em></p>';
+    html += '</div>';
+    html += '<div style="margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 15px;">';
+    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(-1)">◀ Previous</button>';
+    html += '<span id="fte-year-display" style="font-weight: bold; font-size: 1.1em;"></span>';
+    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(1)">Next ▶</button>';
+    html += '</div>';
+    html += generateFTEInputFields();
+    html += '</div>';
+    container.innerHTML = html;
+    
+    const currentYear = new Date().getFullYear();
+    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
+    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
+    const yearDisplay = document.getElementById('fte-year-display');
+    if (yearDisplay) {
+        yearDisplay.textContent = `${startYear} - ${endYear}`;
+    }
+    setupFTESelection();
+    document.getElementById('fte-modal').classList.add('active');
+    
+    showNotification(`Cleared ${conflicts.length} fortnight override${conflicts.length > 1 ? 's' : ''}`, 'success');
+}
+
+function editYearlyAnyway() {
+    closeCustomDialog();
+    
+    // Open FTE modal without checks
+    const container = document.getElementById('fte-edit-container');
+    let html = '<div style="max-height: 500px; overflow-y: auto;">';
+    html += '<div style="margin-bottom: 15px; padding: 10px; background-color: var(--bg-secondary); border-radius: 5px; border-left: 4px solid #2196f3;">';
+    html += '<p style="margin: 0; font-size: 0.9em; color: var(--text-primary);"><strong>Note:</strong> These FTE values are for the current location (' + currentLocation + '). ';
+    html += 'Changes here will apply to the current scenario. To save as system defaults (persistent across refreshes), use "Save as Default" below.</p>';
+    html += '<p style="margin: 5px 0 0 0; font-size: 0.85em; color: var(--text-secondary);"><em>Tip: You can copy/paste values between cells. Select cells with click+drag or Shift+click.</em></p>';
+    html += '</div>';
+    html += '<div style="margin-bottom: 15px; display: flex; justify-content: center; align-items: center; gap: 15px;">';
+    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(-1)">◀ Previous</button>';
+    html += '<span id="fte-year-display" style="font-weight: bold; font-size: 1.1em;"></span>';
+    html += '<button type="button" class="btn btn-secondary" onclick="navigateFTEYears(1)">Next ▶</button>';
+    html += '</div>';
+    html += generateFTEInputFields();
+    html += '</div>';
+    container.innerHTML = html;
+    
+    const currentYear = new Date().getFullYear();
+    const startYear = Math.max(START_YEAR, currentYear - 1 + fteYearOffset);
+    const endYear = Math.min(END_YEAR, currentYear + 1 + fteYearOffset);
+    const yearDisplay = document.getElementById('fte-year-display');
+    if (yearDisplay) {
+        yearDisplay.textContent = `${startYear} - ${endYear}`;
+    }
+    setupFTESelection();
+    document.getElementById('fte-modal').classList.add('active');
+}
+
+function cancelFTEEdit() {
+    closeCustomDialog();
+}
+
+function showCustomDialog(title, content) {
+    const existingDialog = document.getElementById('custom-dialog');
+    if (existingDialog) {
+        existingDialog.remove();
+    }
+    
+    const dialog = document.createElement('div');
+    dialog.id = 'custom-dialog';
+    dialog.className = 'modal active';
+    dialog.innerHTML = `
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2>${title}</h2>
+                <button class="modal-close" onclick="closeCustomDialog()">&times;</button>
+            </div>
+            <div class="modal-body">
+                ${content}
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(dialog);
+}
+
+function closeCustomDialog() {
+    const dialog = document.getElementById('custom-dialog');
+    if (dialog) {
+        dialog.remove();
+    }
 }
 
 function generateFTEInputFields() {
@@ -5380,14 +6067,21 @@ function openAddPathwayModal() {
     const existingGroups = pathwayForm.querySelectorAll('.form-group, .pathway-form-row, .rank-form-row');
     existingGroups.forEach(group => group.remove());
     
-    // Add pathway name, type, and comments in three-column layout
+    // Top row: Pathway ID, Pathway Name, Pathway Type, Comments (4 columns)
+    // Second row: Start Rank, End Rank, Usable Months (3 columns)
     const mainFieldsHtml = `
-        <div class="pathway-form-row three-column">
+        <div class="pathway-form-row four-column">
+            <div class="form-group">
+                <label for="pathway-id">Pathway ID:</label>
+                <input type="text" id="pathway-id" name="pathwayId" required 
+                    placeholder="e.g., A203" pattern="[A-Z][0-9]+" 
+                    title="Must start with a letter followed by numbers (e.g., A203, H209)">
+            </div>
             <div class="form-group">
                 <label for="pathway-name">Pathway Name:</label>
                 <input type="text" id="pathway-name" name="pathwayName" required>
             </div>
-            <div class="form-group pathway-type-group">
+            <div class="form-group">
                 <label for="pathway-type">Pathway Type:</label>
                 <select id="pathway-type" name="pathwayType" required>
                     <option value="CP">Captain (CP)</option>
@@ -5395,40 +6089,34 @@ function openAddPathwayModal() {
                     <option value="CAD">Cadet (CAD)</option>
                 </select>
             </div>
-            <div class="form-group comments-group">
+            <div class="form-group">
                 <label for="pathway-comments">Comments:</label>
                 <input type="text" id="pathway-comments" name="pathwayComments" 
                     placeholder="Short notes...">
             </div>
         </div>
+        <div class="rank-form-row">
+            <div class="form-group">
+                <label for="start-rank">Start Rank:</label>
+                <input type="text" id="start-rank" name="startRank" 
+                    placeholder="e.g., NBFO">
+            </div>
+            <div class="form-group">
+                <label for="end-rank">End Rank:</label>
+                <input type="text" id="end-rank" name="endRank" 
+                    placeholder="e.g., NBCP">
+            </div>
+            <div class="form-group">
+                <label for="usable-months">Usable After (months):</label>
+                <input type="number" id="usable-months" name="usableMonths" min="0" value="0"
+                    placeholder="Months after start">
+            </div>
+        </div>
     `;
     pathwayForm.insertAdjacentHTML('afterbegin', mainFieldsHtml);
     
-    // Add rank fields and usable months in three-column layout
-    const rankGroup = pathwayForm.querySelector('.rank-form-row');
-    if (!rankGroup) {
-        const commentsGroupElement = pathwayForm.querySelector('.comments-group');
-        const rankHtml = `
-            <div class="rank-form-row">
-                <div class="form-group">
-                    <label for="start-rank">Start Rank</label>
-                    <input type="text" id="start-rank" name="startRank" 
-                        placeholder="e.g., NBFO">
-                </div>
-                <div class="form-group">
-                    <label for="end-rank">End Rank</label>
-                    <input type="text" id="end-rank" name="endRank" 
-                        placeholder="e.g., NBCP">
-                </div>
-                <div class="form-group">
-                    <label for="usable-months">Usable After (months)</label>
-                    <input type="number" id="usable-months" name="usableMonths" min="0" value="0"
-                        placeholder="Months after start">
-                </div>
-            </div>
-        `;
-        commentsGroupElement.insertAdjacentHTML('afterend', rankHtml);
-    }
+    // Add rank fields row - this is added automatically in the main HTML structure
+    // No need to insert it dynamically since it's now part of the main form structure
     
     // Clear all fields
     const commentsField = document.getElementById('pathway-comments');
@@ -5438,6 +6126,26 @@ function openAddPathwayModal() {
     document.getElementById('start-rank').value = '';
     document.getElementById('end-rank').value = '';
     document.getElementById('usable-months').value = '0';
+    
+    // Suggest a default pathway ID for new pathways
+    const pathwayIdField = document.getElementById('pathway-id');
+    if (pathwayIdField) {
+        // Generate a suggested ID based on existing pathways
+        const existingIds = pathways.map(p => p.id);
+        let suggestedId = '';
+        
+        // Try to find the next available ID in the A series
+        for (let i = 201; i <= 999; i++) {
+            const testId = 'A' + i;
+            if (!existingIds.includes(testId)) {
+                suggestedId = testId;
+                break;
+            }
+        }
+        
+        pathwayIdField.value = suggestedId;
+        pathwayIdField.placeholder = 'e.g., A203, H209';
+    }
     
     // Clear any editing ID from previous edits
     delete pathwayForm.dataset.editingPathwayId;
@@ -5601,6 +6309,7 @@ function handlePriorityUpdate(e) {
 function handlePathwaySave(e) {
     e.preventDefault();
     const formData = new FormData(e.target);
+    const pathwayId = formData.get('pathwayId')?.toUpperCase().trim();
     const pathwayName = formData.get('pathwayName');
     const pathwayType = formData.get('pathwayType') || 'FO';
     const pathwayComments = formData.get('pathwayComments') || '';
@@ -5608,6 +6317,21 @@ function handlePathwaySave(e) {
     const endRank = formData.get('endRank') || '';
     const usableMonths = parseInt(formData.get('usableMonths') || '0');
     const editingPathwayId = e.target.dataset.editingPathwayId;
+
+    // Validate pathway ID format
+    if (!pathwayId || !/^[A-Z][0-9]+$/.test(pathwayId)) {
+        alert('Please enter a valid Pathway ID (e.g., A203, H209). Must start with a letter followed by numbers.');
+        return;
+    }
+
+    // Check for duplicate IDs (only for new pathways or if ID is being changed)
+    if (!editingPathwayId || editingPathwayId !== pathwayId) {
+        const existingPathway = pathways.find(p => p.id === pathwayId);
+        if (existingPathway) {
+            alert(`Pathway ID "${pathwayId}" already exists. Please choose a different ID.`);
+            return;
+        }
+    }
 
     const phases = [];
     const phaseRows = document.querySelectorAll('#pathway-phases-container tbody tr');
@@ -5642,8 +6366,11 @@ function handlePathwaySave(e) {
             // Edit existing pathway
             const pathwayIndex = pathways.findIndex(p => p.id === editingPathwayId);
             if (pathwayIndex !== -1) {
+                // If the ID is being changed, we need to update all references
+                const oldId = pathways[pathwayIndex].id;
                 pathways[pathwayIndex] = {
                     ...pathways[pathwayIndex],
+                    id: pathwayId, // Use the user-provided ID
                     name: pathwayName,
                     type: pathwayType,
                     comments: pathwayComments,
@@ -5652,14 +6379,22 @@ function handlePathwaySave(e) {
                     usableMonths: usableMonths,
                     phases: phases
                 };
+                
+                // Update any existing cohorts that reference the old pathway ID
+                if (oldId !== pathwayId) {
+                    activeCohorts.forEach(cohort => {
+                        if (cohort.pathwayId === oldId) {
+                            cohort.pathwayId = pathwayId;
+                        }
+                    });
+                }
             }
             // Clear the editing ID
             delete e.target.dataset.editingPathwayId;
         } else {
-            // Add new pathway - generate a new ID
-            const newId = "A" + (Math.max(...pathways.map(p => parseInt(p.id.slice(1)))) + 1);
+            // Add new pathway - use the user-provided ID
             const newPathway = {
-                id: newId,
+                id: pathwayId, // Use the user-provided ID instead of auto-generating
                 name: pathwayName,
                 type: pathwayType,
                 comments: pathwayComments,
@@ -5771,14 +6506,21 @@ function editPathway(pathwayId) {
     const existingGroups = pathwayForm.querySelectorAll('.form-group, .pathway-form-row, .rank-form-row');
     existingGroups.forEach(group => group.remove());
     
-    // Add pathway name, type, and comments in three-column layout
+    // Top row: Pathway ID, Pathway Name, Pathway Type, Comments (4 columns)
+    // Second row: Start Rank, End Rank, Usable Months (3 columns)
     const mainFieldsHtml = `
-        <div class="pathway-form-row three-column">
+        <div class="pathway-form-row four-column">
+            <div class="form-group">
+                <label for="pathway-id">Pathway ID:</label>
+                <input type="text" id="pathway-id" name="pathwayId" required value="${pathway.id}"
+                    placeholder="e.g., A203" pattern="[A-Z][0-9]+" 
+                    title="Must start with a letter followed by numbers (e.g., A203, H209)">
+            </div>
             <div class="form-group">
                 <label for="pathway-name">Pathway Name:</label>
                 <input type="text" id="pathway-name" name="pathwayName" required value="${pathway.name}">
             </div>
-            <div class="form-group pathway-type-group">
+            <div class="form-group">
                 <label for="pathway-type">Pathway Type:</label>
                 <select id="pathway-type" name="pathwayType" required>
                     <option value="CP" ${pathway.type === 'CP' ? 'selected' : ''}>Captain (CP)</option>
@@ -5786,36 +6528,31 @@ function editPathway(pathwayId) {
                     <option value="CAD" ${pathway.type === 'CAD' ? 'selected' : ''}>Cadet (CAD)</option>
                 </select>
             </div>
-            <div class="form-group comments-group">
+            <div class="form-group">
                 <label for="pathway-comments">Comments:</label>
                 <input type="text" id="pathway-comments" name="pathwayComments" 
                     placeholder="Short notes..." value="${pathway.comments || ''}">
             </div>
         </div>
-    `;
-    pathwayForm.insertAdjacentHTML('afterbegin', mainFieldsHtml);
-    
-    // Add rank fields and usable months in three-column layout
-    const rankHtml = `
         <div class="rank-form-row">
             <div class="form-group">
-                <label for="start-rank">Start Rank</label>
+                <label for="start-rank">Start Rank:</label>
                 <input type="text" id="start-rank" name="startRank" 
                     placeholder="e.g., NBFO" value="${pathway.startRank || ''}">
             </div>
             <div class="form-group">
-                <label for="end-rank">End Rank</label>
+                <label for="end-rank">End Rank:</label>
                 <input type="text" id="end-rank" name="endRank" 
                     placeholder="e.g., NBCP" value="${pathway.endRank || ''}">
             </div>
             <div class="form-group">
-                <label for="usable-months">Usable After (months)</label>
+                <label for="usable-months">Usable After (months):</label>
                 <input type="number" id="usable-months" name="usableMonths" min="0" 
                     value="${pathway.usableMonths || 0}" placeholder="Months after start">
             </div>
         </div>
     `;
-    pathwayForm.querySelector('.pathway-form-row').insertAdjacentHTML('afterend', rankHtml);
+    pathwayForm.insertAdjacentHTML('afterbegin', mainFieldsHtml);
     
     // Clear existing phases and initialize table
     const phasesContainer = document.getElementById('pathway-phases-container');
@@ -6268,17 +7005,31 @@ function handleCohortUpdate(e) {
 
 // Remove Cohort
 function removeCohort(cohortId) {
-    const cohort = activeCohorts.find(c => c.id === cohortId);
-    if (!cohort) return;
+    // First try to find in the current location's cohorts
+    let cohort = locationData[currentLocation].activeCohorts.find(c => c.id === cohortId);
+    
+    // If not found in current location, search in global activeCohorts
+    if (!cohort) {
+        cohort = activeCohorts.find(c => c.id === cohortId);
+    }
+    
+    if (!cohort) {
+        console.warn('Cohort not found for removal:', cohortId);
+        showNotification('Cohort not found', 'error');
+        return;
+    }
     
     const pathway = pathways.find(p => p.id === cohort.pathwayId);
-    const cohortLabel = pathway ? `${cohort.numTrainees} x ${pathway.name}` : 'this cohort';
+    const cohortLabel = pathway ? `${cohort.numTrainees} x ${pathway.name}` : `${cohort.numTrainees} trainees`;
     
     showConfirmDialog(
         'Remove Cohort',
-        `Are you sure you want to remove ${cohortLabel}?`,
+        `Are you sure you want to remove ${cohortLabel} from the Gantt chart?`,
         () => {
+            // Remove from both location-specific and global arrays
+            locationData[currentLocation].activeCohorts = locationData[currentLocation].activeCohorts.filter(c => c.id !== cohortId);
             activeCohorts = activeCohorts.filter(c => c.id !== cohortId);
+            
             updateAllTables();
             renderGanttChart();
             setupSynchronizedScrolling();
@@ -9292,6 +10043,102 @@ function loadScenarioData(scenario) {
     showNotification(`Loaded scenario: ${scenario.name}`, 'success');
 }
 
+// Edit scenario name inline
+function editScenarioName(scenarioId) {
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+    
+    const scenarioCard = document.querySelector(`[data-scenario-id="${scenarioId}"]`);
+    const nameElement = scenarioCard.querySelector('.scenario-name');
+    const editBtn = scenarioCard.querySelector('.scenario-edit-btn');
+    
+    // Create input field
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = scenario.name;
+    input.className = 'scenario-name-edit';
+    input.style.cssText = `
+        width: 100%;
+        background: transparent;
+        border: 1px solid #0d6efd;
+        border-radius: 3px;
+        padding: 2px 4px;
+        font-size: inherit;
+        font-weight: inherit;
+        color: inherit;
+        outline: none;
+    `;
+    
+    // Save original name for cancellation
+    const originalName = scenario.name;
+    
+    // Replace name element with input and hide edit button
+    nameElement.style.display = 'none';
+    editBtn.style.display = 'none';
+    nameElement.parentNode.insertBefore(input, nameElement.nextSibling);
+    input.focus();
+    input.select();
+    
+    // Save function
+    function saveEdit() {
+        const newName = input.value.trim();
+        if (newName && newName !== originalName) {
+            // Check for duplicate names
+            const existingScenario = scenarios.find(s => s.name === newName && s.id !== scenarioId);
+            if (existingScenario) {
+                showNotification('A scenario with that name already exists', 'error');
+                input.focus();
+                input.select();
+                return;
+            }
+            
+            // Update scenario name
+            scenario.name = newName;
+            saveScenarios();
+            
+            // Update UI
+            nameElement.textContent = newName;
+            updateCurrentScenarioDisplay();
+            showNotification('Scenario name updated', 'success');
+        }
+        
+        // Restore display
+        cleanup();
+    }
+    
+    // Cancel function
+    function cancelEdit() {
+        cleanup();
+    }
+    
+    // Cleanup function
+    function cleanup() {
+        nameElement.style.display = '';
+        editBtn.style.display = '';
+        if (input.parentNode) {
+            input.parentNode.removeChild(input);
+        }
+    }
+    
+    // Event listeners
+    input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            saveEdit();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelEdit();
+        }
+    });
+    
+    input.addEventListener('blur', saveEdit);
+    
+    // Prevent card click when editing
+    input.addEventListener('click', (e) => {
+        e.stopPropagation();
+    });
+}
+
 function deleteScenario(scenarioId) {
     if (!confirm('Are you sure you want to delete this scenario?')) return;
     
@@ -9438,7 +10285,15 @@ function renderScenarioList() {
                        style="display: none; position: absolute; top: 10px; right: 10px;">
                 <div class="scenario-card-header">
                     <div>
-                        <div class="scenario-name">${scenario.name}</div>
+                        <div class="scenario-name-container">
+                            <div class="scenario-name">${scenario.name}</div>
+                            <button class="scenario-edit-btn" onclick="editScenarioName(${scenario.id}); event.stopPropagation();" title="Edit scenario name">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4z"></path>
+                                </svg>
+                            </button>
+                        </div>
                         <div class="scenario-date">${dateStr}</div>
                     </div>
                 </div>
@@ -13606,6 +14461,53 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 
+// FTE Override Context Menu Event Handlers
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize context menu system
+    fteOverrideManager.initializeContextMenu();
+    
+    // Context menu item handlers
+    const contextMenu = document.getElementById('fte-context-menu');
+    if (contextMenu) {
+        contextMenu.addEventListener('click', function(e) {
+            e.stopPropagation();
+            const action = e.target.closest('[data-action]')?.dataset.action;
+            if (action) {
+                fteOverrideManager.handleContextAction(action);
+            }
+        });
+    }
+    
+    // Override modal handlers
+    const overrideModal = document.getElementById('fte-override-modal');
+    if (overrideModal) {
+        // Form submission
+        const form = overrideModal.querySelector('#override-edit-form');
+        if (form) {
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                fteOverrideManager.applyOverride();
+            });
+        }
+        
+        // Modal close handlers
+        overrideModal.addEventListener('click', function(e) {
+            if (e.target.classList.contains('modal-close') || 
+                e.target.classList.contains('modal-cancel') || 
+                e.target === overrideModal) {
+                fteOverrideManager.closeModal();
+            }
+        });
+        
+        // Range input handlers for preview updates
+        overrideModal.addEventListener('input', function(e) {
+            if (e.target.id === 'range-start' || e.target.id === 'range-end') {
+                fteOverrideManager.updatePreview();
+            }
+        });
+    }
+});
+
 // Interactive tour functionality
 function startInteractiveTour() {
     showNotification('Interactive tour coming soon!', 'info');
@@ -16938,3 +17840,4 @@ function confirmImport() {
     showNotification(message, 'success');
 }
 
+// Version test change
