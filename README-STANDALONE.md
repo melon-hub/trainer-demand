@@ -7,7 +7,7 @@ This directory contains the v1.11 version of the Trainer Demand application with
 - `index.html` - Main HTML template  
 - `app.js` - All JavaScript functionality (661KB)
 - `styles.css` - All CSS styles (151KB)
-- `trainer-view-standalone.html` - Portable single-file version (900KB)
+- `trainer-demand-1.12.4.html` - Portable single-file version (951KB)
 
 ## Rebuilding the Standalone File
 
@@ -42,7 +42,7 @@ The verification script checks for:
 
 ## Usage
 
-The standalone file (`trainer-view-standalone.html`) is completely self-contained and can be:
+The standalone file (`trainer-demand-1.12.4.html`) is completely self-contained and can be:
 
 1. **Opened directly** in any modern browser
 2. **Shared with others** - no setup required
@@ -68,9 +68,9 @@ Rebuild the standalone file when you modify:
 
 ## File Sizes
 
-- Original components: ~887KB (html + js + css)
-- Standalone file: ~900KB (includes embedding overhead)
-- Very efficient - only ~13KB overhead for full portability
+- Original components: ~963KB (html + js + css)
+- Standalone file: ~951KB (includes embedding overhead)
+- Very efficient - minimal overhead for full portability
 
 ## Notes
 

@@ -1537,11 +1537,16 @@ section {
     margin-bottom: 20px;
 }
 
+/* Compact styling for Current Scenario section specifically */
+#scenarios-view section:first-child {
+    padding: 16px 25px;
+}
+
 .section-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 20px;
+    margin-bottom: 25px;
 }
 
 .section-header .button-group {
@@ -2362,11 +2367,23 @@ th[colspan] {
 .gantt-container {
     overflow-x: auto;
     overflow-y: auto;
-    max-height: 500px;
+    height: 500px !important;
+    max-height: 500px !important;
     margin-top: 0;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     background-color: white;
+    transition: height 0.3s ease, max-height 0.3s ease;
+}
+
+.gantt-container.expanded {
+    height: 1000px !important;
+    max-height: 1000px !important; /* Double the height when expanded */
+}
+
+/* Ensure the table inside can use the full height */
+.gantt-container .gantt-table {
+    min-height: auto;
 }
 
 /* Group header styles */
@@ -2843,8 +2860,10 @@ body.dark-mode .gantt-phase-cell {
     max-width: 800px;
     max-height: 85vh;
     overflow-y: auto;
+    overflow-x: hidden;
     position: relative;
     box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    box-sizing: border-box;
 }
 
 /* Cohort modal width is set dynamically via JavaScript based on pathway duration */
@@ -3683,6 +3702,10 @@ body.dark-mode table tr td[style*="background-color"] {
     color: #2c3e50;
     font-size: 16px;
     flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
 }
 
 .scenario-edit-btn {
@@ -3740,17 +3763,17 @@ body.dark-mode .scenario-edit-btn:hover {
     transform: scale(1.3);
 }
 
-/* Uniform subtle color for all override types */
+/* Different colors for override types */
 .override-indicator[title*="Scenario-specific"] {
-    background: #95a5a6 !important; /* Subtle gray for all overrides */
+    background: #e74c3c !important; /* Red for scenario-specific overrides */
 }
 
 .override-indicator[title*="Global override"] {
-    background: #95a5a6 !important; /* Subtle gray for all overrides */
+    background: #3498db !important; /* Blue for global overrides */
 }
 
 .total-override-indicator {
-    background: #95a5a6 !important; /* Subtle gray for all overrides */
+    background: #f39c12 !important; /* Orange for total rows with overrides */
 }
 
 /* Dark mode adjustments */
@@ -4711,6 +4734,106 @@ body.dark-mode .view-controls-section.sticky {
     background-color: rgba(30, 30, 30, 0.98);
 }
 
+/* Scenario Status in Header */
+.view-controls-section {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.scenario-status-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.scenario-status-display {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 6px 12px;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    backdrop-filter: blur(4px);
+}
+
+.scenario-status-text {
+    font-size: 14px;
+    font-weight: 500;
+    color: #495057;
+    white-space: nowrap;
+}
+
+.scenario-status-text.dirty {
+    color: #dc3545;
+    font-style: italic;
+}
+
+.scenario-btn {
+    padding: 4px 8px;
+    border: 1px solid #007bff;
+    background: #007bff;
+    color: white;
+    cursor: pointer;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.scenario-btn:hover {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+.scenario-btn.save-btn {
+    background: #28a745;
+    border-color: #28a745;
+}
+
+.scenario-btn.save-btn:hover {
+    background: #1e7e34;
+    border-color: #1e7e34;
+}
+
+/* Dark mode scenario status */
+body.dark-mode .scenario-status-display {
+    background: rgba(58, 58, 58, 0.9);
+    border-color: #555;
+}
+
+body.dark-mode .scenario-status-text {
+    color: #e0e0e0;
+}
+
+body.dark-mode .scenario-status-text.dirty {
+    color: #ff6b6b;
+}
+
+body.dark-mode .scenario-btn {
+    background: #0056b3;
+    border-color: #0056b3;
+}
+
+body.dark-mode .scenario-btn:hover {
+    background: #004085;
+    border-color: #004085;
+}
+
+body.dark-mode .scenario-btn.save-btn {
+    background: #1e7e34;
+    border-color: #1e7e34;
+}
+
+body.dark-mode .scenario-btn.save-btn:hover {
+    background: #155724;
+    border-color: #155724;
+}
+
 /* Ensure the planner view has proper padding */
 #planner-view {
     position: relative;
@@ -5028,6 +5151,20 @@ body.dark-mode .scenario-card {
 
 body.dark-mode .scenario-card:hover {
     background-color: #3a3a3a;
+}
+
+body.dark-mode .scenario-info-card {
+    background-color: #333;
+    border-left-color: #58a6ff;
+}
+
+body.dark-mode .scenario-description {
+    color: #b0b0b0;
+}
+
+body.dark-mode .scenario-status {
+    background-color: #1a3a4a;
+    color: #58a6ff;
 }
 
 /* Dark Mode Training Planner */
@@ -5727,34 +5864,40 @@ body.dark-mode #grid-container {
 }
 
 .scenario-status {
-    padding: 8px 16px;
+    padding: 6px 12px;
     background-color: #f0f7ff;
-    border-radius: 6px;
-    font-size: 16px;
+    border-radius: 4px;
+    font-size: 14px;
     font-weight: 600;
     color: #3498db;
 }
 
 .scenario-actions-container {
-    margin-top: 20px;
+    margin-top: 12px;
 }
 
 .scenario-info-card {
     background-color: #f8f9fa;
-    padding: 20px;
-    border-radius: 8px;
+    padding: 12px 16px;
+    border-radius: 6px;
     border-left: 4px solid #3498db;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
 }
 
 .scenario-description {
-    margin: 0 0 15px 0;
+    margin: 0;
     color: #666;
-    font-size: 15px;
+    font-size: 14px;
+    flex: 1;
 }
 
 .scenario-actions {
     display: flex;
-    gap: 10px;
+    gap: 8px;
+    flex-shrink: 0;
 }
 
 .scenario-controls {
@@ -5838,9 +5981,6 @@ body.dark-mode #grid-container {
 }
 
 .scenario-name {
-    font-size: 18px;
-    font-weight: 600;
-    color: #2c3e50;
     margin-bottom: 5px;
 }
 
@@ -5887,21 +6027,22 @@ body.dark-mode #grid-container {
 
 .scenario-actions {
     display: flex;
-    gap: 8px;
+    gap: 4px;
     justify-content: flex-end;
     flex-wrap: nowrap;
     min-width: 0;
 }
 
 .load-btn, .duplicate-btn, .export-btn, .delete-btn {
-    padding: 5px 10px;
+    padding: 3px 6px;
     border: none;
-    border-radius: 4px;
-    font-size: 12px;
+    border-radius: 3px;
+    font-size: 11px;
     cursor: pointer;
     transition: background-color 0.3s ease;
     white-space: nowrap;
-    flex-shrink: 0;
+    flex-shrink: 1;
+    min-width: 0;
 }
 
 .load-btn {
@@ -5916,6 +6057,7 @@ body.dark-mode #grid-container {
 .duplicate-btn {
     background-color: #27ae60;
     color: white;
+    border: none !important;
 }
 
 .duplicate-btn:hover {
@@ -5925,6 +6067,7 @@ body.dark-mode #grid-container {
 .export-btn {
     background-color: #f39c12;
     color: white;
+    border: none !important;
 }
 
 .export-btn:hover {
@@ -5976,7 +6119,6 @@ body.dark-mode #grid-container {
 }
 
 .scenario-list.list-view .scenario-name {
-    font-size: 16px;
     min-width: 200px;
 }
 
@@ -6318,38 +6460,350 @@ body.dark-mode .preview-value {
     animation: slideOut 0.3s ease-in;
 }
 
-/* Cohort Edit Modal - Condensed Styling */
-#cohort-modal .modal-content {
-    max-width: 400px;
+/* Cohort Edit Modal - Compact Two Column Layout */
+#cohort-modal .cohort-modal-content {
+    max-width: min(1100px, 95vw);
+    width: auto;
     padding: 0;
+    margin: 0 auto;
 }
 
 #cohort-modal .modal-header {
-    padding: 15px 20px;
+    padding: 12px 20px;
 }
 
-#cohort-modal .modal-body {
-    padding: 20px;
+#cohort-modal .cohort-modal-body {
+    padding: 16px;
+    overflow-x: hidden;
+}
+
+#cohort-modal .cohort-edit-layout {
+    display: grid;
+    grid-template-columns: 320px 1fr;
+    gap: 20px;
+    align-items: start;
+}
+
+#cohort-modal .cohort-left-column {
+    min-width: 0;
+}
+
+#cohort-modal .cohort-right-column {
+    min-width: 0;
+}
+
+#cohort-modal .cohort-right-column h4 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    font-size: 15px;
+    color: var(--text-primary);
+    font-weight: 600;
 }
 
 #cohort-modal .form-group {
-    margin-bottom: 15px;
+    margin-bottom: 12px;
 }
 
 #cohort-modal .form-group label {
-    font-size: 13px;
-    margin-bottom: 5px;
+    font-size: 12px;
+    margin-bottom: 4px;
+    display: block;
+    color: var(--text-primary);
+    font-weight: 500;
 }
 
 #cohort-modal input,
 #cohort-modal select {
-    font-size: 14px;
-    padding: 8px 12px;
+    font-size: 13px;
+    padding: 6px 10px;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 #cohort-modal .modal-footer {
-    padding: 15px 20px;
-    margin-top: 0;
+    padding: 12px 16px;
+    margin-top: 16px;
+    grid-column: 1 / -1;
+}
+
+/* LT Extension Section */
+#cohort-modal .lt-extension-section {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 10px;
+    margin-top: 12px;
+}
+
+#cohort-modal .lt-extension-section h5 {
+    margin: 0 0 8px 0;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+#cohort-modal .lt-extension-controls {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 6px;
+}
+
+#cohort-modal .lt-extension-controls label {
+    font-size: 11px;
+    color: var(--text-primary);
+    margin: 0;
+    font-weight: 500;
+}
+
+#cohort-modal .lt-extension-controls span {
+    font-size: 11px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+#cohort-modal .lt-extension-controls input[type="number"] {
+    width: 60px;
+    min-width: 60px;
+    font-size: 11px;
+    padding: 4px 6px;
+}
+
+#cohort-modal .lt-extension-controls select {
+    min-width: 120px;
+    font-size: 11px;
+    padding: 4px 6px;
+}
+
+#cohort-modal .lt-extension-preview {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 4px;
+}
+
+/* Split Cohort Section */
+#cohort-modal .split-cohort-section {
+    border-top: 1px solid var(--border-color);
+    margin-top: 16px;
+    padding: 16px;
+    background: var(--bg-secondary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+#cohort-modal .split-cohort-section h4 {
+    margin: 0 0 8px 0;
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#cohort-modal .split-cohort-section h4::before {
+    content: "✂️";
+    font-size: 12px;
+}
+
+#cohort-modal .split-cohort-section p {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 12px 0;
+    line-height: 1.4;
+}
+
+#cohort-modal .split-cohort-controls {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+#cohort-modal .split-cohort-input-group {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-primary);
+}
+
+#cohort-modal .split-cohort-input-group input {
+    width: 50px;
+    min-width: 50px;
+    text-align: center;
+    font-weight: 500;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 4px 6px;
+}
+
+#cohort-modal .split-cohort-preview {
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-align: center;
+    margin-bottom: 12px;
+}
+
+#cohort-modal .split-cohort-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+
+#cohort-modal .split-cohort-actions button {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 500;
+    border-radius: 4px;
+    transition: all 0.2s ease;
+}
+
+/* LT Configuration Table */
+#cohort-modal .cohort-lt-configuration {
+    overflow-x: auto;
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--bg-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    margin-bottom: 16px;
+}
+
+#cohort-modal .lt-config-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    outline: 1px solid #dee2e6;
+    border-radius: 4px;
+}
+
+#cohort-modal .lt-config-table th {
+    background-color: var(--bg-secondary);
+    border: 1px solid #dee2e6;
+    padding: 6px 3px;
+    text-align: center;
+    font-weight: 600;
+    font-size: 10px;
+    min-width: 35px;
+    color: var(--text-primary);
+}
+
+#cohort-modal .lt-config-table td {
+    border: 1px solid #dee2e6;
+    padding: 4px 2px;
+    text-align: center;
+    position: relative;
+    min-width: 35px;
+    height: 26px;
+    background-color: var(--bg-primary);
+}
+
+#cohort-modal .lt-config-table .period-header {
+    background-color: var(--bg-tertiary);
+    font-weight: 600;
+    padding: 4px 6px;
+    text-align: left;
+    white-space: nowrap;
+    color: var(--text-primary);
+    font-size: 10px;
+}
+
+#cohort-modal .lt-config-table .phase-cell {
+    background-color: var(--bg-accent);
+    font-weight: 500;
+    font-size: 9px;
+    color: var(--text-primary);
+}
+
+#cohort-modal .lt-config-table .location-label {
+    font-weight: 600;
+    padding: 4px 6px;
+    background-color: var(--bg-secondary);
+    color: var(--text-primary);
+    font-size: 10px;
+}
+
+#cohort-modal .lt-config-table .radio-cell {
+    padding: 2px;
+}
+
+#cohort-modal .lt-config-table input[type="radio"] {
+    margin: 0;
+    transform: scale(0.8);
+}
+
+/* Extension indicators (red dots) */
+#cohort-modal .lt-config-table .extension-cell {
+    background-color: rgba(220, 53, 69, 0.1) !important;
+    position: relative;
+}
+
+#cohort-modal .lt-config-table .extension-cell::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 6px;
+    height: 6px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.3);
+}
+
+/* Dark mode specific adjustments */
+.dark-mode #cohort-modal .lt-config-table .extension-cell {
+    background-color: rgba(220, 53, 69, 0.2) !important;
+}
+
+.dark-mode #cohort-modal .lt-config-table th,
+.dark-mode #cohort-modal .lt-config-table td {
+    border-color: #444 !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #cohort-modal .cohort-edit-layout {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+    
+    #cohort-modal .cohort-modal-content {
+        max-width: 95vw;
+        margin: 10px;
+    }
+    
+    #cohort-modal .cohort-left-column {
+        order: 1;
+    }
+    
+    #cohort-modal .cohort-right-column {
+        order: 2;
+    }
+}
+
+@media (max-width: 480px) {
+    #cohort-modal .split-cohort-controls,
+    #cohort-modal .lt-extension-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px;
+    }
+    
+    #cohort-modal .split-cohort-controls button {
+        margin-left: 0;
+        width: 100%;
+    }
+    
+    #cohort-modal .lt-extension-controls input,
+    #cohort-modal .lt-extension-controls select {
+        width: 100%;
+    }
 }
 
 /* FTE Modal - Condensed Styling */
@@ -8771,4 +9225,34 @@ body:not(.dark-mode) #save-current-scenario.btn-primary:hover {
     background-color: #dee2e6;
     color: #212529;
     border-color: #adb5bd;
+}
+
+/* FTE Change Indicators */
+/* Subtle left borders to indicate when FTE values change between fortnights */
+.data-table .category-detail-cell[style*="border-left: 3px solid #3498db"],
+.data-table .total-supply-cell[style*="border-left: 3px solid #3498db"] {
+    position: relative;
+}
+
+/* Dark mode adjustments for change indicators */
+body.dark-mode .data-table .category-detail-cell[style*="border-left: 3px solid #3498db"],
+body.dark-mode .data-table .total-supply-cell[style*="border-left: 3px solid #3498db"] {
+    border-left-color: #58a6ff !important;
+}
+
+/* FTE Hint Styling */
+.fte-hint {
+    transition: all 0.2s ease;
+}
+
+/* Dark mode adjustments for FTE hint */
+body.dark-mode .fte-hint {
+    background: rgba(88, 166, 255, 0.1) !important;
+    color: #e0e0e0 !important;
+}
+
+/* Visual indicator for FTE change values */
+.fte-changed {
+    cursor: help;
+    border-bottom: 1px dotted currentColor;
 }

@@ -1,111 +1,121 @@
-# Pilot Trainer Supply/Demand Planner
+# Pilot Trainer Supply/Demand Planner v1.12.4
 
-A web-based application for managing pilot training cohorts and forecasting trainer supply and demand across multiple years.
+A comprehensive web-based application for managing pilot training cohorts and forecasting trainer supply/demand across multiple locations and years. Optimized for airline training operations with sophisticated cross-location training support.
 
-## Features
+## ✨ **Latest Updates (v1.12.4)**
 
-### Core Functionality
-- **Multi-Location Support**: Manage training operations across AU and NZ locations
-- **Cross-Location Training**: Assign specific fortnights to use trainers from other locations
-- **Cohort Management**: Add and track multiple training cohorts with different pathways
-- **Trainer FTE Tracking**: Manage trainer availability by category (CATB, CATA, STP, RHS, LHS)
-- **Demand Calculation**: Automatic calculation of trainer demand based on cohort schedules
-- **Supply/Deficit Analysis**: Visual representation of trainer surplus and deficit over time
-- **Priority-based Allocation**: Cascading trainer allocation based on training priorities
+### **🔄 MAJOR: FTE System Simplification**
+The application has been significantly simplified to improve user experience:
+- **Single Source of Truth**: All FTE data now lives in scenarios only
+- **Eliminated Confusion**: Removed complex localStorage FTE persistence
+- **Streamlined Workflow**: New scenarios automatically copy current FTE values
+- **Predictable Behavior**: What you see is exactly what gets saved
 
-### Key Components
-1. **Executive Dashboard**: Real-time metrics, charts, and alerts for training operations
-2. **Training Pathways**: Pre-configured training programs (CP, FO, CAD) with defined phases
-3. **Gantt Chart**: Visual timeline with drag-and-drop support and cross-location indicators
-4. **FTE Management**: Year-by-year trainer availability configuration
-5. **Priority Settings**: Configurable training priorities with cascading allocation rules
-6. **Scenario Management**: Save, load, and compare different planning scenarios
-7. **Training Planner**: Grid entry, bulk input, and optimization tools
+## 🎯 **Key Features**
 
-## Technology Stack
-- Pure JavaScript (ES6+)
-- HTML5
-- CSS3
-- No external dependencies or frameworks
+### **Multi-Location Training Management**
+- **AU/NZ Operations**: Full support for Australia and New Zealand locations
+- **Cross-Location Training**: Assign trainers from one location to train in another
+- **Visual Indicators**: Flags, stripes, and dots show cross-location assignments
+- **Split View**: Toggle between local-only and cross-location demand views
 
-## Project Structure
+### **Executive Dashboard V2**
+- **Real-Time Metrics**: Current trainee counts with trend indicators
+- **12-Month Forecast**: Demand prediction with visual charts
+- **Smart Alerts**: Capacity warnings and optimization suggestions
+- **Training Distribution**: Pie charts by pathway type (CP/FO/CAD)
+- **Dark Mode**: Seamless theme switching throughout
+
+### **Advanced Training Planner**
+- **Drag & Drop Gantt Chart**: Visual timeline with cohort management
+- **Excel-Like Grid Entry**: Bulk cohort input with paste support
+- **Target Optimizer**: Set pilot targets and auto-optimize schedules
+- **Bulk Input Parser**: Natural language cohort entries
+- **Cross-Location Display**: See cohorts using your location's trainers
+
+### **Simplified Data Management**
+- **Scenario-Based**: All configurations saved in scenarios
+- **Smart Import/Export**: JSON and CSV support with conflict resolution
+- **Auto-Load**: Remembers your last scenario
+- **No Complex Defaults**: Straightforward data flow
+
+## 🚀 **Quick Start**
+
+1. **Open** `index.html` in any modern browser
+2. **Load Sample Data** or create your first scenario
+3. **Configure** pathways and FTE in Settings
+4. **Add Cohorts** using the Training Planner
+5. **Monitor** supply/demand in the Dashboard
+
+## 📁 **Project Structure**
+
 ```
-trainer-view/
-├── index.html                      # Main application HTML
-├── app.js                         # Core application logic (~7000+ lines)
-├── styles.css                     # Application styling with dark mode
-├── trainer-view-standalone.html   # Single-file version with embedded CSS/JS
-├── README.md                      # Project documentation
-├── CLAUDE.md                      # Development instructions and context
-├── screenshots/                   # Application screenshots
-├── previous-viewers/              # Previous implementations
-└── archive/                       # Completed implementation plans
+trainer-demand-v1.11/
+├── index.html                    # Main application (79KB)
+├── app.js                        # Core logic (717KB)  
+├── styles.css                    # Styling with dark mode (167KB)
+├── trainer-demand-1.12.4.html    # Standalone version (951KB)
+├── build-standalone.sh           # Build script for portable version
+├── CHANGELOG.md                  # Detailed version history
+├── PROJECT_EVOLUTION.md          # Development timeline
+└── archive/                      # Historical files and utilities
 ```
 
-## Key Concepts
+## 🔧 **Technical Details**
 
-### Trainer Categories
-- **CATB, CATA, STP**: Can perform all line training types (LT-CAD, LT-CP, LT-FO)
-- **RHS**: Can perform LT-CP and LT-FO only
-- **LHS**: Can perform LT-FO only
+- **Pure JavaScript**: No frameworks, runs directly in browser
+- **Chart.js**: For dashboard visualizations
+- **Local Storage**: Scenario persistence (browser-based)
+- **Mobile Responsive**: Works on tablets and phones
+- **Cross-Browser**: Chrome, Firefox, Safari, Edge support
 
-### Priority System
-1. **P1 (LT-CAD)**: Highest priority, served by CATB, CATA, STP
-2. **P2 (LT-CP)**: Served by RHS, with overflow from P1 trainers
-3. **P3 (LT-FO)**: Served by LHS, with overflow from all other trainers
+## 💡 **Training Concepts**
 
-### Demand Calculation
-- Line training phases use 1:1 trainer-to-trainee ratio
-- Ground school and simulator phases don't contribute to trainer demand
-- Fortnightly periods (24 per year) for scheduling
+### **Pathways**
+- **CP (Captain)**: Short pathway, 3-8 fortnights
+- **FO (First Officer)**: Medium pathway, ~11 fortnights  
+- **CAD (Cadet)**: Long pathway, 8-12 fortnights
 
-## Usage
+### **Trainer Categories**
+- **CATB/CATA/STP**: Can train all types (CAD, CP, FO)
+- **RHS**: Can train CP and FO only
+- **LHS**: Can train FO only
 
-### Adding a Cohort
-1. Enter number of trainees
-2. Select training pathway
-3. Choose start year and fortnight
-4. Click "Add Cohort"
+### **Priority System**
+1. **P1 (CAD Training)**: Highest priority - uses CATB/CATA/STP
+2. **P2 (CP Training)**: Uses RHS primarily, overflow from P1 trainers
+3. **P3 (FO Training)**: Uses LHS primarily, overflow from all trainers
 
-### Managing FTE
-1. Click "Edit Detailed FTE" button
-2. Enter fortnightly FTE values for each trainer category
-3. Use quick-fill buttons for rapid configuration
+## 🎨 **Usage Tips**
 
-### Pathway Management
-1. Navigate to Settings tab
-2. Add/edit pathways with custom phases
-3. Include optional comments for special considerations
+- **F1**: Open help system
+- **Dark Mode**: Click moon icon in header
+- **Bulk Entry**: Use Excel-style copy/paste in Training Planner
+- **Cross-Location**: Use the split view toggle to see demand breakdown
+- **Scenarios**: Save different configurations for comparison
 
-## Local Development
-Simply open `index.html` in a modern web browser. No build process or server required.
+## 📊 **Standalone Version**
 
-## Browser Support
-- Chrome (recommended)
-- Firefox
-- Safari
-- Edge
+The `trainer-demand-1.12.4.html` file is completely self-contained:
+- No installation required
+- Works offline
+- Shareable with colleagues
+- All features preserved
+- 951KB single file
 
-## Version History
-- **v1.5** (May 2025): Enhanced cross-location visibility
-  - Split view toggle for demand tables
-  - Cross-location cohorts display in Gantt
-  - Cleaner numeric display (removed decimals)
-  - Dynamic UI adjustments
-- **v1.4** (May 2025): Cross-location training support
-  - Multi-location operations (AU/NZ)
-  - Fortnight-level trainer assignments
-  - Visual indicators and movement summaries
-- **v1.3** (May 2025): Major UI enhancements
-  - Executive dashboard with real-time metrics
-  - Dark mode support
-  - Scenario management system
-- **v1.2** (January 2025): Multi-location foundation
-- **v1.1** (January 2025): UI polish and bug fixes
-- **v1.0**: Initial release with core functionality
+## 🔄 **Recent Evolution**
 
-## License
-This project is proprietary software. All rights reserved.
+This application has evolved through 7 major phases:
+1. **Foundation** (v0.8-0.9): Basic planning concept
+2. **Production Ready** (v1.0): Drag & drop, grid entry
+3. **Multi-Location** (v1.3-1.5): AU/NZ support, cross-location training
+4. **User Experience** (v1.6-1.7): Help system, auto-loading
+5. **Stability** (v1.8): Performance and bug fixes
+6. **UI Polish** (v1.9): Column highlighting, enhanced modals
+7. **Simplification** (v1.10-1.12): Import/export, pathway enhancements, **FTE system simplification**
 
-## Contributing
-For bug reports or feature requests, please contact the development team.
+The latest phase focused on eliminating user confusion and creating a more predictable, streamlined experience.
+
+---
+
+**Development**: Michael Hofstein | **Version**: 1.12.4 | **Updated**: January 2025

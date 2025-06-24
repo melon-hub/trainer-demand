@@ -6,7 +6,7 @@ set -euo pipefail
 
 echo "🚀 Building trainer-view-standalone.html..."
 
-# Get version from latest git tag + commits since tag
+# Get version using local build counter based on latest git tag
 get_version() {
     if git rev-parse --git-dir > /dev/null 2>&1; then
         # Get latest tag
@@ -14,18 +14,22 @@ get_version() {
         # Remove 'v' prefix if present
         BASE_VERSION=${LATEST_TAG#v}
         
-        # Count commits since latest tag
-        COMMITS_SINCE=$(git rev-list --count HEAD ^${LATEST_TAG} 2>/dev/null || echo "0")
+        # Local build counter file for development versions
+        BUILD_COUNTER_FILE=".local_build_counter"
         
-        if [ "$COMMITS_SINCE" -gt 0 ]; then
-            # Parse version into major.minor.patch
-            IFS='.' read -r major minor patch <<< "$BASE_VERSION"
-            # Add commits to patch version
-            NEW_PATCH=$((patch + COMMITS_SINCE))
-            echo "${major}.${minor}.${NEW_PATCH}"
+        # Always use local build counter for development iterations
+        if [ -f "$BUILD_COUNTER_FILE" ]; then
+            BUILD_COUNT=$(cat "$BUILD_COUNTER_FILE")
+            BUILD_COUNT=$((BUILD_COUNT + 1))
         else
-            echo "${BASE_VERSION}"
+            BUILD_COUNT=1
         fi
+        echo "$BUILD_COUNT" > "$BUILD_COUNTER_FILE"
+        
+        # Parse base version and add build count
+        IFS='.' read -r major minor patch <<< "$BASE_VERSION"
+        NEW_PATCH=$((patch + BUILD_COUNT))
+        echo "${major}.${minor}.${NEW_PATCH}"
     else
         # Fallback if not in git repo
         echo "1.11.1"

@@ -129,7 +129,6 @@ Training demands are served in priority order with cascading allocation:
   - Fill All (same value across years)
   - Fill Down (copy to subsequent years)
   - Copy from Previous Year
-- Detailed FTE dialog with fortnightly entry
 
 ### Scenarios Management
 - Dedicated Scenarios tab with enhanced UI

@@ -1,5 +1,69 @@
 # Changelog
 
+## [1.12.4] - 2025-01-30
+
+### 🔄 **MAJOR: FTE System Simplification**
+- **Removed Complex FTE Management** - Eliminated confusing localStorage FTE persistence
+- **Single Source of Truth** - FTE now lives only in scenarios (no more defaults)
+- **Removed UI Elements**:
+  - "Save as Default" buttons from settings and FTE modals  
+  - Default FTE loading/saving functionality
+  - Fortnightly FTE override system
+- **Simplified Workflow**:
+  - New scenarios automatically copy FTE from current state
+  - FTE changes mark scenario as dirty (user saves when ready)
+  - Scenario loading uses scenario's FTE directly (no default overrides)
+
+### 🐛 Bug Fixes
+- **Predictable FTE Behavior** - What you see is what gets saved
+- **Eliminated User Confusion** - No more "Why didn't my FTE save?" issues
+- **Streamlined Data Flow** - Clear, single-source FTE management
+
+### 🔧 Code Quality
+- **Reduced Complexity** - Removed ~200 lines of FTE override logic
+- **Updated Standalone Build** - New `trainer-demand-1.12.4.html` (951KB)
+- **Documentation Cleanup** - Removed obsolete FTE override documentation
+
+---
+
+## [1.12.0] - 2025-01-29
+
+### ✨ New Features
+- **FTE Override System** - Fortnight-level FTE customization with priority hierarchy
+- **Pathway ID Enhancement** - User-editable pathway IDs with validation
+- **Visual Override Indicators** - Dot indicators showing override status in FTE tables
+
+### 🔧 Technical Improvements
+- **4-Tier Priority System** - Scenario overrides → Global overrides → Yearly values → Defaults
+- **Data Integrity** - Automatic cohort reference updates when pathway IDs change
+- **Enhanced Validation** - Pattern validation for pathway IDs (e.g., A203, H209)
+
+---
+
+## [1.11.0] - 2025-01-29
+
+### ✨ Enhanced Pathway Settings
+- **New Pathway Fields** - Added comments and enhanced metadata
+- **Improved UI** - Better pathway management interface
+- **Enhanced Validation** - Improved pathway configuration validation
+
+---
+
+## [1.10.0] - 2025-01-29
+
+### ✨ Import/Export Functionality
+- **Training Data Export** - Export scenarios and training data
+- **CSV/JSON Import** - Import training data from various formats
+- **Modal Accessibility** - Improved import/export modal design
+- **UI Visibility** - Enhanced interface visibility and usability
+
+### 🔧 Improvements
+- **Better Data Flow** - Streamlined import/export processes
+- **Error Handling** - Improved error messages and validation
+- **User Experience** - More intuitive import/export workflow
+
+---
+
 ## [1.9.1] - 2025-01-29
 
 ### 🐛 Bug Fixes

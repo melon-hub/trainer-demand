@@ -49,3 +49,9 @@ build/
 # Office temp files
 ~$*
 *.docx#
+
+# Local build counter for development
+.local_build_counter
+
+# Standalone HTML builds  
+trainer-demand-*.html

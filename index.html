@@ -10,10 +10,14 @@
         const isDarkMode = localStorage.getItem('darkMode') === 'true';
         if (isDarkMode) {
             document.documentElement.classList.add('dark-mode-loading');
-            // Also store the active tab for proper styling
-            const activeTab = localStorage.getItem('activeTab') || 'dashboard';
-            document.documentElement.setAttribute('data-active-tab', activeTab);
+            // Set background color immediately to prevent flash
+            document.documentElement.style.backgroundColor = '#1a1a1a';
         }
+        
+        // Store the active tab for immediate view switching
+        const activeTab = localStorage.getItem('activeTab') || 'dashboard';
+        document.documentElement.setAttribute('data-active-tab', activeTab);
+        
         // Store current location for immediate application
         const savedLocation = localStorage.getItem('currentLocation');
         if (savedLocation) {
@@ -24,6 +28,84 @@
         /* Critical inline styles to prevent FOUC */
         .table-container { min-height: 100px; }
         .sticky-first-column { left: 0 !important; }
+        
+        /* Prevent dark mode flash - apply dark background to html immediately */
+        html.dark-mode-loading {
+            background-color: #1a1a1a;
+        }
+        
+        /* Apply dark backgrounds immediately to prevent content flash */
+        html.dark-mode-loading body {
+            background-color: #1a1a1a !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark-mode-loading section {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        html.dark-mode-loading .chart-container,
+        html.dark-mode-loading .viz-container,
+        html.dark-mode-loading .alerts-section,
+        html.dark-mode-loading .table-container,
+        html.dark-mode-loading .gantt-container,
+        html.dark-mode-loading .modal-content,
+        html.dark-mode-loading .data-table,
+        html.dark-mode-loading .gantt-table {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+        }
+
+        /* Form controls and interactive elements */
+        html.dark-mode-loading select,
+        html.dark-mode-loading input,
+        html.dark-mode-loading textarea,
+        html.dark-mode-loading button,
+        html.dark-mode-loading .btn {
+            background-color: #444 !important;
+            color: #e0e0e0 !important;
+            border-color: #666 !important;
+        }
+
+        /* Table elements */
+        html.dark-mode-loading th,
+        html.dark-mode-loading td {
+            background-color: #2a2a2a !important;
+            color: #e0e0e0 !important;
+            border-color: #444 !important;
+        }
+
+        /* Gantt chart specific elements */
+        html.dark-mode-loading .gantt-empty-cell,
+        html.dark-mode-loading .gantt-cohort-cell,
+        html.dark-mode-loading .gantt-phase-cell {
+            background-color: #1a1a1a !important;
+            border-color: #444 !important;
+        }
+        
+        /* Prevent view flash - show correct view immediately */
+        .view {
+            display: none;
+        }
+        html[data-active-tab="dashboard"] #dashboard-view,
+        html[data-active-tab="planner"] #planner-view,
+        html[data-active-tab="settings"] #settings-view,
+        html[data-active-tab="scenarios"] #scenarios-view {
+            display: block;
+        }
+        
+        /* Set correct nav tab active state */
+        .nav-tab {
+            background-color: transparent;
+        }
+        html[data-active-tab="dashboard"] .nav-tab[data-view="dashboard"],
+        html[data-active-tab="planner"] .nav-tab[data-view="planner"],
+        html[data-active-tab="settings"] .nav-tab[data-view="settings"],
+        html[data-active-tab="scenarios"] .nav-tab[data-view="scenarios"] {
+            background-color: #0d6efd;
+            color: white;
+        }
         
         /* Apply active state based on saved location */
         html[data-location="AU"] .location-toggle[data-location="AU"],
@@ -90,7 +172,7 @@
             <h1>Pilot Trainer Supply/Demand Planner</h1>
             <div class="header-controls">
                 <nav class="main-nav">
-                    <button class="nav-tab active" data-view="dashboard">Dashboard</button>
+                    <button class="nav-tab" data-view="dashboard">Dashboard</button>
                     <button class="nav-tab" data-view="planner">Planner</button>
                     <button class="nav-tab" data-view="settings">Settings</button>
                     <button class="nav-tab" data-view="scenarios">Scenarios</button>
@@ -113,7 +195,7 @@
         </header>
 
         <!-- Dashboard View -->
-        <div id="dashboard-view" class="view active">
+        <div id="dashboard-view" class="view">
             <!-- Enhanced Dashboard -->
             <div class="dashboard-container" id="dashboard-enhanced">
                 <!-- Dashboard Navigation Controls -->
@@ -352,24 +434,12 @@
                     <div class="separator"></div>
                     <button id="today-btn" class="today-btn">📍 Today</button>
                 </div>
-            </section>
-
-            <!-- FTE Summary Section -->
-            <section class="fte-summary-section">
-                <div class="section-header">
-                    <h2>
-                        <button id="toggle-fte-btn" class="toggle-btn" aria-expanded="false">
-                            <span class="toggle-icon">+</span>
-                        </button>
-                        FTE Summary
-                    </h2>
-                    <div class="button-group">
-                        <button id="edit-fte-btn" class="btn btn-secondary">Edit FTE</button>
-                        <button id="save-default-fte-btn" class="btn btn-secondary">💾 Save as Default</button>
+                <div class="scenario-status-controls">
+                    <div id="scenario-status-display" class="scenario-status-display">
+                        <span id="scenario-status-text" class="scenario-status-text"><strong>Scenario:</strong> New Scenario</span>
+                        <button id="scenario-save-btn" class="scenario-btn" title="Save scenario" style="display: none;">Save</button>
+                        <button id="scenario-update-btn" class="scenario-btn" title="Update current scenario" style="display: none;">📝 Update</button>
                     </div>
-                </div>
-                <div id="fte-summary-table-container" class="table-container">
-                    <!-- FTE Summary table will be generated here -->
                 </div>
             </section>
 
@@ -380,10 +450,12 @@
                     <div class="gantt-controls">
                         <select id="group-by-filter" class="filter-select">
                             <option value="none">No Grouping</option>
-                            <option value="type">Group by Type</option>
+                            <option value="type" selected>Group by Type</option>
+                            <option value="rank">Group by Rank</option>
                         </select>
                         <button id="copy-table-data" class="btn btn-secondary" style="margin-left: 10px;">📋 Copy Tables</button>
                         <button id="merge-cohorts-btn" class="btn btn-secondary" style="margin-left: 10px;">🔀 Merge Cohorts</button>
+                        <button id="toggle-gantt-height" class="btn btn-secondary" style="margin-left: 10px;">📏 Expand Height</button>
                     </div>
                 </div>
                 <div id="gantt-chart-container" class="gantt-container">
@@ -460,6 +532,28 @@
                 </div>
             </section>
 
+            <!-- FTE Summary Section -->
+            <section class="fte-summary-section">
+                <div class="section-header">
+                    <h2>
+                        <button id="toggle-fte-btn" class="toggle-btn" aria-expanded="false">
+                            <span class="toggle-icon">+</span>
+                        </button>
+                        FTE Summary
+                    </h2>
+                    <div class="button-group">
+                        <button id="edit-fte-btn" class="btn btn-secondary">Edit FTE</button>
+                        <!-- Save as Default button removed - scenarios now hold FTE source truth -->
+                    </div>
+                </div>
+                <div class="fte-hint" style="margin: -10px 0 10px 0; padding: 6px 12px; background: rgba(13, 110, 253, 0.05); border-radius: 4px; font-size: 0.85em; color: var(--text-secondary);">
+                    💡 <strong>Right-click any cell to edit</strong>
+                </div>
+                <div id="fte-summary-table-container" class="table-container">
+                    <!-- FTE Summary table will be generated here -->
+                </div>
+            </section>
+
         </div>
 
         <!-- Settings View -->
@@ -520,7 +614,7 @@
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
-                            <button type="button" class="btn btn-secondary" onclick="saveFTEAsDefault()">Save as Default</button>
+                            <!-- Save as Default button removed - scenarios now hold FTE source truth -->
                             <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                         </div>
                     </form>
@@ -595,66 +689,112 @@
 
         <!-- Modal for Cohort Editing -->
         <div id="cohort-modal" class="modal">
-            <div class="modal-content">
+            <div class="modal-content cohort-modal-content">
                 <div class="modal-header">
                     <h2>Edit Cohort</h2>
                     <button class="modal-close">&times;</button>
                 </div>
-                <div class="modal-body">
+                <div class="modal-body cohort-modal-body">
                     <form id="cohort-edit-form">
-                        <div class="form-group">
-                            <label for="edit-num-trainees">Number of Trainees:</label>
-                            <input type="number" id="edit-num-trainees" name="numTrainees" min="1" required>
+                        <div class="cohort-edit-layout">
+                            <!-- Left Column: Basic Info -->
+                            <div class="cohort-left-column">
+                                <div class="form-group">
+                                    <label for="edit-num-trainees">Number of Trainees:</label>
+                                    <input type="number" id="edit-num-trainees" name="numTrainees" min="1" required>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-pathway">Pathway:</label>
+                                    <select id="edit-pathway" name="pathway" required>
+                                        <option value="">Select a pathway</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-start-year">Start Year:</label>
+                                    <select id="edit-start-year" name="startYear" required>
+                                        <option value="">Select year</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-start-fortnight">Start Fortnight:</label>
+                                    <select id="edit-start-fortnight" name="startFortnight" required>
+                                        <option value="">Select fortnight</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="edit-location">Location:</label>
+                                    <select id="edit-location" name="location" required>
+                                        <option value="AU">AU</option>
+                                        <option value="NZ">NZ</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>
+                                        <input type="checkbox" id="enable-cross-location" name="enableCrossLocation">
+                                        Enable cross-location trainer usage
+                                    </label>
+                                </div>
+
+
+
+                                <!-- Split Cohort Section -->
+                                <div class="form-group split-cohort-section">
+                                    <h4>Split Cohort</h4>
+                                    <p>Split this cohort into multiple smaller cohorts with the same settings</p>
+                                    
+                                    <div class="split-cohort-controls">
+                                        <div class="split-cohort-input-group">
+                                            <span>Split into:</span>
+                                            <input type="number" id="split-into" min="2" max="10" value="2">
+                                            <span>cohorts</span>
+                                        </div>
+                                        
+                                        <div class="split-cohort-input-group">
+                                            <span>of</span>
+                                            <input type="number" id="split-size" min="1" readonly>
+                                            <span>trainees each</span>
+                                        </div>
+                                        
+                                        <div class="split-cohort-actions">
+                                            <button type="button" id="split-cohort-btn" class="btn btn-secondary">Split</button>
+                                        </div>
+                                    </div>
+                                    
+                                    <div id="split-preview" class="split-cohort-preview"></div>
+                                </div>
+                            </div>
+
+                            <!-- Right Column: Line Training Configuration -->
+                            <div class="cohort-right-column">
+                                <h4>Line Training Configuration</h4>
+                                
+                                <div id="cohort-lt-config" class="cohort-lt-configuration">
+                                    <!-- Line training configuration table will be generated here -->
+                                </div>
+                                
+                                <!-- LT Extension Controls (below the table) -->
+                                <div class="lt-extension-section">
+                                    <h5>Extension Settings</h5>
+                                    <div class="lt-extension-controls">
+                                        <label for="lt-extension-amount">Extend by:</label>
+                                        <input type="number" id="lt-extension-amount" name="ltExtensionAmount" 
+                                               value="0" min="-10" max="20" step="1">
+                                        <span>fortnights</span>
+                                        <label for="lt-extension-type">Type:</label>
+                                        <select id="lt-extension-type" name="ltExtensionType">
+                                            <option value="">Select LT type</option>
+                                        </select>
+                                    </div>
+                                    <div id="lt-extension-preview" class="lt-extension-preview"></div>
+                                </div>
+                            </div>
                         </div>
-                        <div class="form-group">
-                            <label for="edit-pathway">Pathway:</label>
-                            <select id="edit-pathway" name="pathway" required>
-                                <option value="">Select a pathway</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-start-year">Start Year:</label>
-                            <select id="edit-start-year" name="startYear" required>
-                                <option value="">Select year</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-start-fortnight">Start Fortnight:</label>
-                            <select id="edit-start-fortnight" name="startFortnight" required>
-                                <option value="">Select fortnight</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="edit-location">Location:</label>
-                            <select id="edit-location" name="location" required>
-                                <option value="AU">AU</option>
-                                <option value="NZ">NZ</option>
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label>
-                                <input type="checkbox" id="enable-cross-location" name="enableCrossLocation">
-                                Enable cross-location trainer usage
-                            </label>
-                        </div>
+
+                        <!-- Cross-location config (spans full width when visible) -->
                         <div id="cross-location-config" class="cross-location-section" style="display: none;">
                             <!-- Cross-location configuration will be dynamically generated here -->
                         </div>
-                        <div class="form-group" style="border-top: 1px solid #ddd; margin-top: 20px; padding-top: 20px;">
-                            <h4>Split Cohort</h4>
-                            <p style="font-size: 0.9em; color: #666; margin-bottom: 10px;">
-                                Split this cohort into multiple smaller cohorts with the same settings
-                            </p>
-                            <div style="display: flex; align-items: center; gap: 10px;">
-                                <label for="split-into" style="margin: 0;">Split into:</label>
-                                <input type="number" id="split-into" min="2" max="10" value="2" style="width: 60px;">
-                                <span>cohorts of</span>
-                                <input type="number" id="split-size" min="1" readonly style="width: 60px;">
-                                <span>trainees each</span>
-                                <button type="button" id="split-cohort-btn" class="btn btn-secondary">Split</button>
-                            </div>
-                            <div id="split-preview" style="margin-top: 10px; font-size: 0.9em; color: #666;"></div>
-                        </div>
+
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
                             <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
@@ -1349,4 +1489,4 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="app.js"></script>
 </body>
-</html>
+</html><-m pip install --upgrade test -->

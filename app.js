@@ -645,6 +645,19 @@ let fteOverrideManager = {
         this.closeModal();
         renderFTESummaryTable();
         
+        // Mark scenario as dirty since FTE was changed
+        markDirty();
+        
+        // Debug log to verify overrides are being stored
+        console.log('FTE Override applied:', {
+            location,
+            fortnights: fortnightsToUpdate,
+            category,
+            value: newValue,
+            isScenarioSpecific,
+            currentOverrides: window.locationData[location].fortnightOverrides
+        });
+        
         const overrideType = isScenarioSpecific ? 'scenario-specific' : 'global';
         showNotification(`${category} FTE override applied (${overrideType})`, 'success');
         
@@ -668,6 +681,9 @@ let fteOverrideManager = {
         }
         
         renderFTESummaryTable();
+        
+        // Mark scenario as dirty since FTE override was cleared
+        markDirty();
     },
     
     closeModal() {
@@ -693,7 +709,7 @@ let nextCohortId = 2;
 
 // View state for filters and grouping
 let viewState = {
-    groupBy: 'none',
+    groupBy: 'type',  // Default to 'Group by Type'
     collapsedGroups: [],
     currentScenarioId: null,
     isDirty: false, // Track if current state has unsaved changes
@@ -784,7 +800,7 @@ function ensureScenarios() {
 
 // DOM Elements - will be initialized after DOM loads
 let dashboardView, plannerView, settingsView, scenariosView;
-let navTabs, addCohortForm, pathwaySelect, editFTEBtn, saveDefaultFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
+let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
 let fteModal, pathwayModal, cohortModal, priorityModal, modalCloseButtons, modalCancelButtons;
 
 // Initialize DOM elements after DOMContentLoaded
@@ -797,7 +813,7 @@ function initializeDOMElements() {
     addCohortForm = document.getElementById('add-cohort-form');
     pathwaySelect = document.getElementById('pathway');
     editFTEBtn = document.getElementById('edit-fte-btn');
-    saveDefaultFTEBtn = document.getElementById('save-default-fte-btn');
+    // saveDefaultFTEBtn removed - default functionality removed
     addPathwayBtn = document.getElementById('add-pathway-btn');
     toggleFTEBtn = document.getElementById('toggle-fte-btn');
     editPriorityBtn = document.getElementById('edit-priority-btn');
@@ -1275,13 +1291,7 @@ function calculateMetricsForPeriod(year, fortnight) {
 }
 
 // FTE Default Management
-function saveDefaultFTE() {
-    const defaultFTE = {
-        AU: JSON.parse(JSON.stringify(locationData.AU.trainerFTE)),
-        NZ: JSON.parse(JSON.stringify(locationData.NZ.trainerFTE))
-    };
-    localStorage.setItem('defaultFTE', JSON.stringify(defaultFTE));
-}
+// Default FTE functionality removed - scenarios now hold source truth
 
 function saveDefaultPathways() {
     const defaultPathways = {
@@ -1313,24 +1323,7 @@ function loadDefaultPathways() {
     return false;
 }
 
-function loadDefaultFTE() {
-    const defaultFTE = localStorage.getItem('defaultFTE');
-    if (defaultFTE) {
-        try {
-            const parsed = JSON.parse(defaultFTE);
-            if (parsed.AU) {
-                locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
-            }
-            if (parsed.NZ) {
-                locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
-            }
-            return true;
-        } catch (e) {
-            console.error('Error loading default FTE:', e);
-        }
-    }
-    return false;
-}
+// Default FTE loading removed - scenarios now hold source truth
 
 // Migrate old scenarios to include AU/NZ stats
 function migrateScenarioStats() {
@@ -1606,14 +1599,7 @@ function init() {
     perfMonitor.end('init.migrate');
     
     perfMonitor.start('init.loadDefaults');
-    // Load default FTE if available
-    if (loadDefaultFTE()) {
-        // console.log('Loaded default FTE from localStorage');
-        // console.log('AU FTE after loading defaults:', locationData.AU.trainerFTE);
-        // console.log('NZ FTE after loading defaults:', locationData.NZ.trainerFTE);
-    } else {
-        // console.log('No default FTE found in localStorage');
-    }
+    // Default FTE loading removed - scenarios now hold FTE source truth
     
     // Load default pathways if available
     if (loadDefaultPathways()) {
@@ -1670,10 +1656,11 @@ function init() {
     const lastScenarioId = localStorage.getItem('lastScenarioId');
     let scenarioLoaded = false;
     const loadedScenarios = getScenarios();
+    console.log('Auto-load check:', { lastScenarioId, scenariosCount: loadedScenarios.length });
     if (lastScenarioId && loadedScenarios.length > 0) {
         const scenario = loadedScenarios.find(s => s.id === parseInt(lastScenarioId));
         if (scenario) {
-            // console.log(`Auto-loading last scenario: ${scenario.name}`);
+            console.log(`Auto-loading last scenario: ${scenario.name} (ID: ${scenario.id})`);
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
@@ -1895,13 +1882,7 @@ function setupEventListeners() {
         editFTEBtn.addEventListener('click', openFTEModal);
     }
 
-    // Save Default FTE button
-    if (saveDefaultFTEBtn) {
-        saveDefaultFTEBtn.addEventListener('click', () => {
-            saveDefaultFTE();
-            showNotification('FTE values saved as default', 'success');
-        });
-    }
+    // Save Default FTE button removed - scenarios now hold source truth
 
     // Add Pathway button
     if (addPathwayBtn) {
@@ -1990,15 +1971,15 @@ function setupEventListeners() {
     const enableCrossLocation = document.getElementById('enable-cross-location');
     if (enableCrossLocation) {
         enableCrossLocation.addEventListener('change', (e) => {
+            // Always hide the separate cross-location section since we integrate it into the main LT table
             const crossLocationConfig = document.getElementById('cross-location-config');
-            crossLocationConfig.style.display = e.target.checked ? 'block' : 'none';
+            crossLocationConfig.style.display = 'none';
             
-            if (e.target.checked) {
-                const cohortId = parseInt(document.getElementById('cohort-edit-form').dataset.editingCohortId);
-                const cohort = activeCohorts.find(c => c.id === cohortId);
-                if (cohort) {
-                    generateCrossLocationUI(cohort);
-                }
+            // Regenerate LT configuration table to show/hide other location row
+            const cohortId = parseInt(document.getElementById('cohort-edit-form').dataset.editingCohortId);
+            const cohort = activeCohorts.find(c => c.id === cohortId);
+            if (cohort) {
+                generateLTConfigurationTable(cohort);
             }
         });
     }
@@ -2033,15 +2014,13 @@ function setupEventListeners() {
                     }
                 }
                 
-                // Update cross-location UI if enabled
-                if (enableCrossLocation.checked) {
-                    const cohortId = parseInt(document.getElementById('cohort-edit-form').dataset.editingCohortId);
-                    const cohort = activeCohorts.find(c => c.id === cohortId);
-                    if (cohort) {
-                        // Create a temporary cohort object with the new pathway
-                        const tempCohort = { ...cohort, pathwayId: pathwayId };
-                        generateCrossLocationUI(tempCohort);
-                    }
+                // Update LT configuration table with the new pathway
+                const cohortId = parseInt(document.getElementById('cohort-edit-form').dataset.editingCohortId);
+                const cohort = activeCohorts.find(c => c.id === cohortId);
+                if (cohort) {
+                    // Create a temporary cohort object with the new pathway
+                    const tempCohort = { ...cohort, pathwayId: pathwayId };
+                    generateLTConfigurationTable(tempCohort);
                 }
             }
         });
@@ -2051,6 +2030,20 @@ function setupEventListeners() {
     const groupByFilter = document.getElementById('group-by-filter');
     if (groupByFilter) {
         groupByFilter.addEventListener('change', handleGroupByChange);
+    }
+    
+    // Gantt height toggle
+    const toggleGanttHeightBtn = document.getElementById('toggle-gantt-height');
+    if (toggleGanttHeightBtn) {
+        toggleGanttHeightBtn.addEventListener('click', function() {
+            const ganttContainer = document.getElementById('gantt-chart-container');
+            if (ganttContainer) {
+                ganttContainer.classList.toggle('expanded');
+                // Update button text
+                const isExpanded = ganttContainer.classList.contains('expanded');
+                this.innerHTML = isExpanded ? '📏 Collapse Height' : '📏 Expand Height';
+            }
+        });
     }
     
     // Scenarios management
@@ -2064,6 +2057,20 @@ function setupEventListeners() {
     
     if (updateCurrentBtn) {
         updateCurrentBtn.addEventListener('click', updateCurrentScenario);
+    }
+    
+    // Header scenario status buttons
+    const headerSaveBtn = document.getElementById('scenario-save-btn');
+    const headerUpdateBtn = document.getElementById('scenario-update-btn');
+    
+    if (headerSaveBtn) {
+        headerSaveBtn.addEventListener('click', () => {
+            showScenarioSaveModal();
+        });
+    }
+    
+    if (headerUpdateBtn) {
+        headerUpdateBtn.addEventListener('click', updateCurrentScenario);
     }
     
     if (scenarioSearchInput) {
@@ -2915,6 +2922,9 @@ function switchView(viewName) {
     // Save the active tab to localStorage
     localStorage.setItem('activeTab', viewName);
     
+    // Update data-active-tab attribute for immediate CSS-based view switching
+    document.documentElement.setAttribute('data-active-tab', viewName);
+    
     navTabs.forEach(tab => {
         tab.classList.toggle('active', tab.dataset.view === viewName);
     });
@@ -3504,20 +3514,49 @@ function renderFTESummaryTable() {
             );
         }, 0).toFixed(0);
         
-        // Check if any category has overrides for this fortnight
-        const hasAnyOverride = TRAINER_CATEGORIES.some(cat => 
-            hasFortnightOverride(currentLocation, currentFn, cat, viewState.currentScenarioId)
-        );
-        
-        let cellContent = fortnightlyTotal;
-        let cellStyle = '';
-        
-        if (hasAnyOverride) {
-            cellContent = `${fortnightlyTotal}<span class="total-override-indicator" style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: #f39c12; border-radius: 50%;" title="Contains FTE overrides"></span>`;
-            cellStyle = 'position: relative;';
+        // Check if total supply changed from previous fortnight
+        let totalCellStyle = '';
+        let prevFn = currentFn - 1;
+        let prevYear = currentYear;
+        if (prevFn < 1) {
+            prevFn = FORTNIGHTS_PER_YEAR;
+            prevYear = currentYear - 1;
         }
         
-        html += generateDataCell(currentYear, currentFn, cellContent, 'total-supply-cell', cellStyle);
+        // Only check for changes if we're not at the very first cell
+        if (prevYear >= range.startYear) {
+            const prevTotal = TRAINER_CATEGORIES.reduce((sum, cat) => {
+                return sum + calculateFTEForFortnight(
+                    currentLocation, 
+                    prevYear, 
+                    prevFn, 
+                    cat, 
+                    viewState.currentScenarioId
+                );
+            }, 0).toFixed(0);
+            
+                                            if (fortnightlyTotal !== prevTotal) {
+                // Add subtle left border to indicate change
+                totalCellStyle = 'border-left: 3px solid #3498db;';
+            }
+        }
+        
+        // Add tooltip for changed total values
+        let totalCellContent = fortnightlyTotal;
+        if (totalCellStyle.includes('border-left')) {
+            const prevTotal = TRAINER_CATEGORIES.reduce((sum, cat) => {
+                return sum + calculateFTEForFortnight(
+                    currentLocation, 
+                    prevYear, 
+                    prevFn, 
+                    cat, 
+                    viewState.currentScenarioId
+                );
+            }, 0).toFixed(0);
+            totalCellContent = `<span class="fte-changed" data-tooltip="Total changed from ${prevTotal} to ${fortnightlyTotal}">${fortnightlyTotal}</span>`;
+        }
+        
+        html += generateDataCell(currentYear, currentFn, totalCellContent, 'total-supply-cell', totalCellStyle);
         
         currentFn++;
         if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -3546,25 +3585,36 @@ function renderFTESummaryTable() {
                     viewState.currentScenarioId
                 ).toFixed(0);
                 
-                // Check for overrides to show dot
-                const override = hasFortnightOverride(
-                    currentLocation, 
-                    currentFn, 
-                    category, 
-                    viewState.currentScenarioId
-                );
-                
-                let cellContent = fortnightlyFTE;
+                // Check if this value is different from the previous fortnight
                 let cellStyle = '';
+                let prevFTE = null;
+                let prevFn = currentFn - 1;
+                let prevYear = currentYear;
+                if (prevFn < 1) {
+                    prevFn = FORTNIGHTS_PER_YEAR;
+                    prevYear = currentYear - 1;
+                }
                 
-                if (override) {
-                    const dotColor = override.type === 'scenario' ? '#e74c3c' : '#3498db';
-                    const dotTitle = override.type === 'scenario' ? 
-                        `Scenario-specific override: ${fortnightlyFTE}` : 
-                        `Global override: ${fortnightlyFTE}`;
+                // Only check for changes if we're not at the very first cell
+                if (prevYear >= range.startYear) {
+                    prevFTE = calculateFTEForFortnight(
+                        currentLocation, 
+                        prevYear, 
+                        prevFn, 
+                        category, 
+                        viewState.currentScenarioId
+                    ).toFixed(0);
                     
-                    cellContent = `${fortnightlyFTE}<span class="override-indicator" style="position: absolute; top: 4px; right: 4px; width: 6px; height: 6px; background: ${dotColor}; border-radius: 50%;" title="${dotTitle}"></span>`;
-                    cellStyle = 'position: relative;';
+                    if (fortnightlyFTE !== prevFTE) {
+                        // Add subtle left border to indicate change
+                        cellStyle = 'border-left: 3px solid #3498db;';
+                    }
+                }
+                
+                // Add tooltip for changed values
+                let cellContent = fortnightlyFTE;
+                if (cellStyle.includes('border-left') && prevFTE !== null) {
+                    cellContent = `<span class="fte-changed" data-tooltip="Changed from ${prevFTE} to ${fortnightlyFTE}">${fortnightlyFTE}</span>`;
                 }
                 
                 html += generateDataCell(currentYear, currentFn, cellContent, 'category-detail-cell', cellStyle);
@@ -3582,6 +3632,136 @@ function renderFTESummaryTable() {
     
     html += '</tbody></table></div>';
     container.innerHTML = html;
+    
+    // Add tooltip event listeners for changed values - use setTimeout to ensure DOM is fully rendered
+    setTimeout(() => {
+        setupFTETooltips();
+    }, 0);
+}
+
+// Setup tooltip functionality for FTE changed values
+function setupFTETooltips() {
+    try {
+        // Remove any existing tooltip
+        const existingTooltip = document.getElementById('fte-tooltip');
+        if (existingTooltip) {
+            existingTooltip.remove();
+        }
+        
+        // Check if elements exist before proceeding
+        const fteChangedElements = document.querySelectorAll('.fte-changed');
+        if (fteChangedElements.length === 0) {
+            if (DEBUG_MODE) console.log('No .fte-changed elements found for tooltips');
+            return;
+        }
+        
+        // Create tooltip element
+        const tooltip = document.createElement('div');
+        tooltip.id = 'fte-tooltip';
+        const isDarkMode = document.body.classList.contains('dark-mode');
+        tooltip.style.cssText = `
+            position: fixed !important;
+            background: ${isDarkMode ? '#1a1a1a' : '#fff'} !important;
+            color: ${isDarkMode ? '#ffffff' : '#333'} !important;
+            padding: 8px 12px !important;
+            border-radius: 4px !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            white-space: nowrap !important;
+            z-index: 9999 !important;
+            pointer-events: none !important;
+            opacity: 0 !important;
+            transition: opacity 0.15s ease !important;
+            box-shadow: 0 4px 12px rgba(0,0,0,${isDarkMode ? '0.4' : '0.25'}) !important;
+            border: 1px solid ${isDarkMode ? '#555' : '#ddd'} !important;
+            font-family: inherit !important;
+        `;
+        document.body.appendChild(tooltip);
+        
+        // Use event delegation for robustness - single listener handles all .fte-changed elements
+        // Remove any existing delegated listeners first
+        document.removeEventListener('mouseenter', handleFTETooltipEnter, true);
+        document.removeEventListener('mouseleave', handleFTETooltipLeave, true);
+        
+        // Add delegated event listeners
+        document.addEventListener('mouseenter', handleFTETooltipEnter, true);
+        document.addEventListener('mouseleave', handleFTETooltipLeave, true);
+        
+        // Store tooltip reference for event handlers
+        window.fteTooltip = tooltip;
+        
+        if (DEBUG_MODE) {
+            console.log(`Setup tooltips for ${fteChangedElements.length} .fte-changed elements`);
+        }
+        
+    } catch (error) {
+        if (DEBUG_MODE) console.error('Error setting up FTE tooltips:', error);
+        // Show fallback notification if tooltips fail completely
+        showNotification('Tooltip functionality temporarily unavailable', 'warning');
+    }
+}
+
+// Event handlers for delegated FTE tooltip events
+function handleFTETooltipEnter(e) {
+    // Check if target is an element and has classList
+    if (!e.target || !e.target.classList || !e.target.classList.contains('fte-changed')) {
+        return;
+    }
+    
+    if (DEBUG_MODE) console.log('🎯 FTE Tooltip ENTER on .fte-changed element:', e.target);
+    
+    if (!window.fteTooltip) {
+        if (DEBUG_MODE) console.log('No fteTooltip found on window');
+        return;
+    }
+    
+    const tooltipText = e.target.getAttribute('data-tooltip');
+    if (DEBUG_MODE) console.log('Tooltip text:', tooltipText);
+    
+    if (tooltipText) {
+        const tooltip = window.fteTooltip;
+        tooltip.textContent = tooltipText;
+        tooltip.style.opacity = '1';
+        
+        if (DEBUG_MODE) console.log('Setting tooltip visible with text:', tooltipText);
+        
+        // Position tooltip with error handling
+        try {
+            const rect = e.target.getBoundingClientRect();
+            
+            // Position tooltip above the element
+            let left = rect.left + rect.width / 2;
+            let top = rect.top - 35; // 35px above the element
+            
+            // Keep tooltip within viewport 
+            if (left < 80) left = 80;
+            if (left > window.innerWidth - 80) left = window.innerWidth - 80;
+            if (top < 10) top = rect.bottom + 8; // Show below if no space above
+            
+            tooltip.style.left = left + 'px';
+            tooltip.style.top = top + 'px';
+            tooltip.style.transform = 'translateX(-50%)';
+            
+            if (DEBUG_MODE) console.log('🎯 Positioned tooltip at:', { left, top, rect });
+        } catch (positionError) {
+            if (DEBUG_MODE) console.error('Error positioning tooltip:', positionError);
+            // Fallback positioning - center of screen for debugging
+            tooltip.style.left = '200px';
+            tooltip.style.top = '200px';
+            tooltip.style.transform = 'none';
+        }
+    }
+}
+
+function handleFTETooltipLeave(e) {
+    // Check if target is an element and has classList
+    if (!e.target || !e.target.classList || !e.target.classList.contains('fte-changed') || !window.fteTooltip) {
+        return;
+    }
+    
+    if (DEBUG_MODE) console.log('🎯 FTE Tooltip LEAVE from .fte-changed element:', e.target);
+    
+    window.fteTooltip.style.opacity = '0';
 }
 
 // Render Demand Table
@@ -4622,6 +4802,36 @@ function renderGanttChart() {
                 return a.startFortnight - b.startFortnight;
             });
         });
+    } else if (viewState.groupBy === 'rank') {
+        // Group cohorts by rank (CP separate, FO+CAD together)
+        activeCohorts.forEach(cohort => {
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            if (!pathway) return;
+            
+            let groupName;
+            if (pathway.type === 'CP') {
+                groupName = 'CP';
+            } else if (pathway.type === 'FO' || pathway.type === 'CAD') {
+                groupName = 'FO+CAD';
+            } else {
+                groupName = 'Other';
+            }
+            
+            if (!cohortGroups[groupName]) {
+                cohortGroups[groupName] = [];
+            }
+            cohortGroups[groupName].push(cohort);
+        });
+        
+        // Sort cohorts within each group
+        Object.keys(cohortGroups).forEach(groupName => {
+            cohortGroups[groupName].sort((a, b) => {
+                if (a.startYear !== b.startYear) {
+                    return a.startYear - b.startYear;
+                }
+                return a.startFortnight - b.startFortnight;
+            });
+        });
     } else {
         // No grouping - just sort all cohorts
         cohortGroups['All'] = [...activeCohorts].sort((a, b) => {
@@ -4723,16 +4933,21 @@ function renderGanttChart() {
     html += '<tbody>';
     
     // Render cohorts by group
-    const groupOrder = ['CP', 'FO', 'CAD', 'All', 'Other'];
+    const groupOrder = ['CP', 'FO', 'CAD', 'FO+CAD', 'All', 'Other'];
     const sortedGroups = Object.keys(cohortGroups).sort((a, b) => {
-        return groupOrder.indexOf(a) - groupOrder.indexOf(b);
+        const indexA = groupOrder.indexOf(a);
+        const indexB = groupOrder.indexOf(b);
+        // If not in the order array, put at the end
+        if (indexA === -1) return 1;
+        if (indexB === -1) return -1;
+        return indexA - indexB;
     });
     
     sortedGroups.forEach(groupName => {
         const cohorts = cohortGroups[groupName];
         
         // Add group header if grouping is enabled
-        if (viewState.groupBy === 'type' && groupName !== 'All') {
+        if ((viewState.groupBy === 'type' || viewState.groupBy === 'rank') && groupName !== 'All') {
             const isCollapsed = viewState.collapsedGroups.includes(groupName);
             html += `<tr class="group-header">`;
             html += `<td class="sticky-first-column group-header-cell" colspan="1">`;
@@ -4797,7 +5012,22 @@ function renderGanttChart() {
         let globalFortnightCounter = 0;
         
         pathway.phases.forEach((phase, pIndex) => {
-            for (let i = 0; i < phase.duration; i++) {
+            // Check if this phase has LT extension
+            let effectiveDuration = phase.duration;
+            let isLastLTPhase = false;
+            
+            // Check if this is the last LT phase and has an extension
+            if (phase.trainerDemandType && cohort.ltExtension && cohort.ltExtension.type === phase.name) {
+                isLastLTPhase = pIndex === pathway.phases.length - 1 || 
+                    !pathway.phases.slice(pIndex + 1).some(p => p.trainerDemandType);
+                
+                if (isLastLTPhase) {
+                    effectiveDuration += cohort.ltExtension.amount || 0;
+                    if (effectiveDuration < 1) effectiveDuration = 1; // Minimum 1 fortnight
+                }
+            }
+            
+            for (let i = 0; i < effectiveDuration; i++) {
                 globalFortnightCounter++;
                 const key = `${tempYear}-${tempFortnight}`;
                 
@@ -4821,15 +5051,20 @@ function renderGanttChart() {
                     });
                 }
                 
+                // Check if this is an extension fortnight
+                const isExtension = isLastLTPhase && i >= phase.duration;
+                
                 cellData[key] = {
                     phase: phase,
                     phaseIndex: pIndex,
                     isStart: i === 0,
-                    isEnd: i === phase.duration - 1,
+                    isEnd: i === effectiveDuration - 1,
                     progress: i + 1,
-                    totalDuration: phase.duration,
+                    totalDuration: effectiveDuration,
+                    originalDuration: phase.duration,
                     usesCrossLocation: usesCrossLocation,
-                    crossLocationTo: crossLocationTo
+                    crossLocationTo: crossLocationTo,
+                    isExtension: isExtension
                 };
                 
                 tempFortnight++;
@@ -4883,8 +5118,16 @@ function renderGanttChart() {
                 if (cell.usesCrossLocation) {
                     tooltip += `\n⚡ Using ${cell.crossLocationTo} trainers`;
                     
-                    // Add white dot indicator only (smaller size)
+                    // Add white dot indicator (smaller size)
                     cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
+                }
+                
+                // Add extension indicator
+                if (cell.isExtension) {
+                    tooltip += `\n🔴 Extension fortnight`;
+                    
+                    // Add red dot indicator for extensions (top-left corner)
+                    cellContent += `<span style="position: absolute; top: 2px; left: 2px; width: 6px; height: 6px; background: #dc3545; border-radius: 50%; z-index: 100; box-shadow: 0 0 0 1px rgba(220, 53, 69, 0.3);"></span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
@@ -5950,19 +6193,7 @@ function setupFTESelection() {
     }
 }
 
-function saveFTEAsDefault() {
-    // First, save the current form values
-    const form = document.getElementById('fte-edit-form');
-    if (form) {
-        // Trigger form save first
-        const event = new Event('submit', { cancelable: true });
-        form.dispatchEvent(event);
-    }
-    
-    // Then save as default
-    saveDefaultFTE();
-    showNotification(`Default FTE values saved for ${currentLocation}. These will persist across browser refreshes.`, 'success');
-}
+// Save FTE as default functionality removed - scenarios now hold source truth
 
 // Handle paste event in FTE cells
 function handleFTEPaste(event, year, category) {
@@ -6260,10 +6491,7 @@ function handleFTEUpdate(e) {
         updateTrainerHeatmap();
     }
     
-    // Save FTE as default whenever it's edited
-    saveDefaultFTE();
-    // console.log('Saved FTE as default after edit');
-    
+    // Mark scenario as dirty for save
     markDirty();
 }
 
@@ -6686,40 +6914,29 @@ function editCohort(cohortId) {
         Object.keys(cohort.crossLocationTraining).length > 0;
     
     enableCrossLocationCheckbox.checked = hasCrossLocation;
-    crossLocationConfig.style.display = hasCrossLocation ? 'block' : 'none';
+    // Always hide the separate cross-location section since we integrate it into the main LT table
+    crossLocationConfig.style.display = 'none';
     
-    // Generate cross-location configuration UI
-    if (hasCrossLocation || enableCrossLocationCheckbox.checked) {
-        generateCrossLocationUI(cohort);
-    }
+    // Add event listener for cross-location checkbox to update LT config table
+    enableCrossLocationCheckbox.addEventListener('change', function() {
+        // Always hide the separate cross-location section since we integrate it into the main LT table
+        crossLocationConfig.style.display = 'none';
+        
+        // Regenerate LT configuration table to show/hide other location row
+        generateLTConfigurationTable(cohort);
+    });
     
     // Store the cohort ID for saving
     document.getElementById('cohort-edit-form').dataset.editingCohortId = cohortId;
     
-    // Simple width calculation to prevent table scrolling
-    const pathway = pathways.find(p => p.id === cohort.pathwayId);
-    if (pathway) {
-        const modal = document.querySelector('#cohort-modal .modal-content');
-        if (modal) {
-            // Count total LT fortnights
-            let totalLTFortnights = 0;
-            pathway.phases.forEach(phase => {
-                if (phase.trainerDemandType) {
-                    totalLTFortnights += phase.duration;
-                }
-            });
-            
-            if (totalLTFortnights > 0) {
-                // Location column (80px) + fortnight columns (45px each) + padding
-                const tableWidth = 80 + (totalLTFortnights * 45);
-                // Add 10% for padding, borders, and breathing room
-                const modalWidth = Math.ceil(tableWidth * 1.1) + 100; // +100 for modal padding
-                modal.style.maxWidth = modalWidth + 'px';
-            } else {
-                modal.style.maxWidth = '';
-            }
-        }
-    }
+    // Initialize LT extension functionality
+    initLTExtension(cohort);
+    
+    // Generate LT configuration table
+    generateLTConfigurationTable(cohort);
+    
+    // Dynamic modal width based on pathway length
+    updateModalWidth(cohort);
     
     // Open modal
     cohortModal.classList.add('active');
@@ -6791,7 +7008,6 @@ function generateCrossLocationUI(cohort) {
     
     // Create unified table
     html += `<div class="cross-location-phase">`;
-    html += `<h4>Line Training Configuration</h4>`;
     html += `<div class="cross-location-timeline">`;
     html += `<table class="cross-location-table">`;
     
@@ -6901,6 +7117,301 @@ function generateCrossLocationUI(cohort) {
     container.innerHTML = html;
 }
 
+// Initialize LT Extension functionality
+function initLTExtension(cohort) {
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    if (!pathway) return;
+    
+    // Populate LT type dropdown with only LT phases from the pathway
+    const ltTypeSelect = document.getElementById('lt-extension-type');
+    ltTypeSelect.innerHTML = '<option value="">Select LT type</option>';
+    
+    const ltPhases = pathway.phases.filter(phase => phase.trainerDemandType);
+    ltPhases.forEach(phase => {
+        const option = document.createElement('option');
+        option.value = phase.name;
+        option.textContent = phase.name;
+        ltTypeSelect.appendChild(option);
+    });
+    
+    // Set current values if cohort has extensions
+    const extensionAmount = document.getElementById('lt-extension-amount');
+    const extensionType = document.getElementById('lt-extension-type');
+    
+    if (cohort.ltExtension) {
+        extensionAmount.value = cohort.ltExtension.amount || 0;
+        extensionType.value = cohort.ltExtension.type || '';
+    } else {
+        extensionAmount.value = 0;
+        extensionType.value = '';
+    }
+    
+    // Add event listeners for preview updates
+    extensionAmount.addEventListener('input', updateLTExtensionPreview);
+    extensionType.addEventListener('change', updateLTExtensionPreview);
+    
+    // Initial preview update
+    updateLTExtensionPreview();
+}
+
+// Update LT Extension preview
+function updateLTExtensionPreview() {
+    const extensionAmount = parseInt(document.getElementById('lt-extension-amount').value) || 0;
+    const extensionType = document.getElementById('lt-extension-type').value;
+    const preview = document.getElementById('lt-extension-preview');
+    
+    if (extensionAmount === 0) {
+        preview.textContent = 'No extension applied';
+        preview.style.color = '#666';
+    } else if (extensionAmount > 0 && extensionType) {
+        preview.textContent = `Will extend ${extensionType} by ${extensionAmount} fortnight${extensionAmount > 1 ? 's' : ''} (added to end)`;
+        preview.style.color = '#28a745';
+    } else if (extensionAmount < 0 && extensionType) {
+        preview.textContent = `Will shorten ${extensionType} by ${Math.abs(extensionAmount)} fortnight${Math.abs(extensionAmount) > 1 ? 's' : ''} (removed from end)`;
+        preview.style.color = '#dc3545';
+    } else if (extensionAmount !== 0 && !extensionType) {
+        preview.textContent = 'Please select an LT type to extend';
+        preview.style.color = '#ffc107';
+    }
+    
+    // Regenerate the LT configuration table with the extension
+    const cohortId = document.getElementById('cohort-edit-form').dataset.editingCohortId;
+    const cohort = activeCohorts.find(c => c.id === cohortId);
+    if (cohort) {
+        generateLTConfigurationTable(cohort, extensionAmount, extensionType);
+    }
+}
+
+// Generate LT Configuration Table
+function generateLTConfigurationTable(cohort, extensionAmount = 0, extensionType = '') {
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    if (!pathway) return;
+    
+    const container = document.getElementById('cohort-lt-config');
+    
+    // Get current extension values if not provided
+    if (extensionAmount === 0 && extensionType === '') {
+        extensionAmount = parseInt(document.getElementById('lt-extension-amount')?.value) || 0;
+        extensionType = document.getElementById('lt-extension-type')?.value || '';
+    }
+    
+    // Collect all LT phases with their details
+    let ltPhases = [];
+    let allLTFortnights = [];
+    let currentFortnight = cohort.startFortnight;
+    let currentYear = cohort.startYear;
+    
+    pathway.phases.forEach((phase, phaseIndex) => {
+        if (phase.trainerDemandType) {
+            let phaseDuration = phase.duration;
+            
+            // Apply extension if this is the target phase and it's the last LT phase
+            const isLastLTPhase = phaseIndex === pathway.phases.length - 1 || 
+                !pathway.phases.slice(phaseIndex + 1).some(p => p.trainerDemandType);
+            
+            if (phase.name === extensionType && isLastLTPhase && extensionAmount !== 0) {
+                phaseDuration += extensionAmount;
+                if (phaseDuration < 1) phaseDuration = 1; // Minimum 1 fortnight
+            }
+            
+            const phaseFortnights = [];
+            
+            // Collect all fortnights for this phase
+            for (let i = 0; i < phaseDuration; i++) {
+                const globalFortnight = (currentYear - 2024) * FORTNIGHTS_PER_YEAR + currentFortnight;
+                const isExtension = phase.name === extensionType && isLastLTPhase && 
+                    extensionAmount > 0 && i >= phase.duration;
+                
+                phaseFortnights.push({
+                    fortnight: currentFortnight,
+                    year: currentYear,
+                    globalFortnight: globalFortnight,
+                    phase: phase.name,
+                    isExtension: isExtension
+                });
+                allLTFortnights.push({
+                    fortnight: currentFortnight,
+                    year: currentYear,
+                    globalFortnight: globalFortnight,
+                    phase: phase.name,
+                    isExtension: isExtension
+                });
+                
+                currentFortnight++;
+                if (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                    currentFortnight = 1;
+                    currentYear++;
+                }
+            }
+            
+            ltPhases.push({
+                name: phase.name,
+                fortnights: phaseFortnights,
+                originalDuration: phase.duration,
+                extendedDuration: phaseDuration
+            });
+        } else {
+            // Skip non-LT phases
+            currentFortnight += phase.duration;
+            while (currentFortnight > FORTNIGHTS_PER_YEAR) {
+                currentFortnight -= FORTNIGHTS_PER_YEAR;
+                currentYear++;
+            }
+        }
+    });
+    
+    if (ltPhases.length === 0) {
+        container.innerHTML = '<p>No line training phases in this pathway</p>';
+        return;
+    }
+    
+    // Create table
+    let html = `<table class="lt-config-table">`;
+    
+    // Build headers
+    html += `<thead>`;
+    
+    // Month row
+    html += `<tr>`;
+    html += `<th rowspan="3" class="period-header">Period</th>`;
+    
+    // Count fortnights per month
+    let monthSpans = {};
+    let monthOrder = [];
+    allLTFortnights.forEach(fn => {
+        const monthIndex = Math.floor((fn.fortnight - 1) / 2);
+        const monthKey = `${MONTHS[monthIndex]}-${fn.year}`;
+        if (!monthSpans[monthKey]) {
+            monthSpans[monthKey] = 0;
+            monthOrder.push(monthKey);
+        }
+        monthSpans[monthKey]++;
+    });
+    
+    // Generate month headers
+    monthOrder.forEach(monthKey => {
+        html += `<th colspan="${monthSpans[monthKey]}" class="period-header">${monthKey}</th>`;
+    });
+    html += `</tr>`;
+    
+    // Fortnight row
+    html += `<tr>`;
+    allLTFortnights.forEach(fn => {
+        const cellClass = fn.isExtension ? 'extension-cell' : '';
+        html += `<th class="fortnight-header ${cellClass}">FN${String(fn.fortnight).padStart(2, '0')}</th>`;
+    });
+    html += `</tr>`;
+    
+    // Phase row
+    html += `<tr>`;
+    let i = 0;
+    while (i < allLTFortnights.length) {
+        const currentPhase = allLTFortnights[i].phase;
+        let span = 1;
+        
+        // Count consecutive fortnights with same phase
+        while (i + span < allLTFortnights.length && allLTFortnights[i + span].phase === currentPhase) {
+            span++;
+        }
+        
+        html += `<th colspan="${span}" class="phase-cell">${currentPhase}</th>`;
+        i += span;
+    }
+    html += `</tr>`;
+    
+    html += `</thead>`;
+    
+    // Body with location options
+    html += `<tbody>`;
+    
+    // Home location row
+    html += `<tr>`;
+    html += `<td class="location-label">${cohort.location} (home)</td>`;
+    
+    allLTFortnights.forEach((fn, index) => {
+        const otherLocation = cohort.location === 'AU' ? 'NZ' : 'AU';
+        const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
+        const cellClass = fn.isExtension ? 'extension-cell' : '';
+        
+        html += `<td class="radio-cell ${cellClass}">`;
+        html += `<input type="radio" name="lt-loc-${index}" value="${cohort.location}" 
+                ${!usesCrossLocation ? 'checked' : ''} data-phase="${fn.phase}" data-fortnight="${fn.globalFortnight}">`;
+        html += `</td>`;
+    });
+    html += `</tr>`;
+    
+    // Other location row (if cross-location is enabled)
+    const enableCrossLocation = document.getElementById('enable-cross-location').checked;
+    if (enableCrossLocation) {
+        const otherLocation = cohort.location === 'AU' ? 'NZ' : 'AU';
+        html += `<tr>`;
+        html += `<td class="location-label">${otherLocation}</td>`;
+        
+        allLTFortnights.forEach((fn, index) => {
+            const usesCrossLocation = cohort.crossLocationTraining?.[otherLocation]?.phases?.[fn.phase]?.includes(fn.globalFortnight);
+            const cellClass = fn.isExtension ? 'extension-cell' : '';
+            
+            html += `<td class="radio-cell ${cellClass}">`;
+            html += `<input type="radio" name="lt-loc-${index}" value="${otherLocation}" 
+                    ${usesCrossLocation ? 'checked' : ''} data-phase="${fn.phase}" data-fortnight="${fn.globalFortnight}">`;
+            html += `</td>`;
+        });
+        html += `</tr>`;
+    }
+    
+    html += `</tbody>`;
+    html += `</table>`;
+    
+    container.innerHTML = html;
+}
+
+// Update modal width based on pathway length
+function updateModalWidth(cohort) {
+    const pathway = pathways.find(p => p.id === cohort.pathwayId);
+    if (!pathway) return;
+    
+    const modal = document.querySelector('#cohort-modal .cohort-modal-content');
+    if (!modal) return;
+    
+    // Count total LT fortnights (including extensions)
+    let totalLTFortnights = 0;
+    const extensionAmount = parseInt(document.getElementById('lt-extension-amount')?.value) || 0;
+    const extensionType = document.getElementById('lt-extension-type')?.value || '';
+    
+    pathway.phases.forEach((phase, phaseIndex) => {
+        if (phase.trainerDemandType) {
+            let phaseDuration = phase.duration;
+            
+            // Apply extension if this is the target phase and it's the last LT phase
+            const isLastLTPhase = phaseIndex === pathway.phases.length - 1 || 
+                !pathway.phases.slice(phaseIndex + 1).some(p => p.trainerDemandType);
+            
+            if (phase.name === extensionType && isLastLTPhase && extensionAmount !== 0) {
+                phaseDuration += extensionAmount;
+                if (phaseDuration < 1) phaseDuration = 1;
+            }
+            
+            totalLTFortnights += phaseDuration;
+        }
+    });
+    
+    if (totalLTFortnights > 0) {
+        // Base width (left column) + fortnight columns (35px each) + padding
+        const leftColumnWidth = 320;
+        const tableWidth = 70 + (totalLTFortnights * 35);
+        const totalWidth = leftColumnWidth + tableWidth + 60; // +60 for gaps and padding
+        
+        // Set reasonable limits
+        const minWidth = 750;
+        const maxWidth = Math.min(totalWidth, window.innerWidth * 0.9);
+        const finalWidth = Math.max(minWidth, maxWidth);
+        
+        modal.style.maxWidth = finalWidth + 'px';
+    } else {
+        modal.style.maxWidth = '750px'; // Default width
+    }
+}
+
 // Update cross-location summary
 function updateCrossLocationSummary(cohort) {
     const crossLoc = cohort.crossLocationTraining;
@@ -6966,6 +7477,18 @@ function handleCohortUpdate(e) {
             // console.log('Cross-location NOT enabled');
         }
         
+        // Handle LT extension data
+        const ltExtensionAmount = parseInt(formData.get('ltExtensionAmount')) || 0;
+        const ltExtensionType = formData.get('ltExtensionType') || '';
+        
+        let ltExtension = null;
+        if (ltExtensionAmount !== 0 && ltExtensionType) {
+            ltExtension = {
+                amount: ltExtensionAmount,
+                type: ltExtensionType
+            };
+        }
+        
         activeCohorts[cohortIndex] = {
             ...activeCohorts[cohortIndex],
             numTrainees: parseInt(formData.get('numTrainees')),
@@ -6973,7 +7496,8 @@ function handleCohortUpdate(e) {
             startYear: parseInt(formData.get('startYear')),
             startFortnight: parseInt(formData.get('startFortnight')),
             location: formData.get('location') || currentLocation,
-            crossLocationTraining: crossLocationTraining
+            crossLocationTraining: crossLocationTraining,
+            ltExtension: ltExtension
         };
         
         // console.log('Updated cohort:', activeCohorts[cohortIndex]);
@@ -7397,17 +7921,28 @@ function initSplitCohort() {
         // Update global activeCohorts if needed
         activeCohorts = locationData[currentLocation].activeCohorts;
         
-        // Close modal
-        document.getElementById('cohort-edit-modal').classList.remove('active');
+        // Close modal properly
+        const cohortModal = document.getElementById('cohort-modal');
+        if (cohortModal) {
+            cohortModal.classList.remove('active');
+        }
         
-        // Update UI
-        updateAllTables();
-        renderGanttChart();
-        setupSynchronizedScrolling();
-        markDirty();
+        // Clear editing state
+        const form = document.getElementById('cohort-edit-form');
+        if (form && form.dataset.editingCohortId) {
+            delete form.dataset.editingCohortId;
+        }
         
-        const pathway = pathways.find(p => p.id === cohort.pathwayId);
-        showNotification(`Split ${totalTrainees} x ${pathway.name} into ${splitCount} cohorts`, 'success');
+        // Update UI with proper timing to ensure modal is closed first
+        setTimeout(() => {
+            updateAllTables();
+            renderGanttChart();
+            setupSynchronizedScrolling();
+            markDirty();
+            
+            const pathway = pathways.find(p => p.id === cohort.pathwayId);
+            showNotification(`Split ${totalTrainees} x ${pathway.name} into ${splitCount} cohorts`, 'success');
+        }, 100);
     });
     
     // Initialize preview
@@ -9266,6 +9801,13 @@ function getCurrentState() {
     locationData[currentLocation].priorityConfig = priorityConfig;
     locationData[currentLocation].activeCohorts = activeCohorts;
     
+    // Debug log to verify overrides are being saved
+    console.log('getCurrentState - saving FTE overrides:', {
+        currentLocation,
+        auOverrides: locationData.AU.fortnightOverrides,
+        nzOverrides: locationData.NZ.fortnightOverrides
+    });
+    
     return {
         cohorts: activeCohorts,
         trainerFTE: trainerFTE,
@@ -9497,7 +10039,7 @@ function closeScenarioModal() {
     window.pendingNewScenario = false;
 }
 
-function showNotification(message, type = 'info', duration = 5000) {
+function showNotification(message, type = 'info', duration = 3000) {
     const toastContainer = document.getElementById('toast-container');
     
     // Create toast element
@@ -9640,6 +10182,8 @@ function showConfirmDialog(title, message, yesCallback, noCallback) {
 }
 
 function updateCurrentScenario() {
+    console.log('updateCurrentScenario called');
+    
     if (!viewState.currentScenarioId) {
         showNotification('No scenario is currently loaded to update.', 'warning');
         return;
@@ -9707,24 +10251,20 @@ function loadScenarioDataOnly(scenario) {
         // New format with location data
         locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
         
-        // Check if we should preserve existing FTE values
-        const savedDefaultFTE = localStorage.getItem('defaultFTE');
-        if (savedDefaultFTE) {
-            // Preserve saved FTE instead of using scenario's FTE
-            // console.log('Preserving saved default FTE values for new format scenario');
-            // Override scenario FTE with saved defaults
-            try {
-                const parsed = JSON.parse(savedDefaultFTE);
-                if (parsed.AU) {
-                    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
-                }
-                if (parsed.NZ) {
-                    locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
-                }
-            } catch (e) {
-                console.error('Error applying saved FTE to scenario:', e);
+        // Ensure fortnightOverrides structure exists (for backward compatibility)
+        ['AU', 'NZ'].forEach(loc => {
+            if (!locationData[loc].fortnightOverrides) {
+                locationData[loc].fortnightOverrides = {
+                    global: {},
+                    scenarios: {}
+                };
             }
-        }
+        });
+        
+        // CRITICAL: Also update window.locationData for FTE override system
+        window.locationData = locationData;
+        
+        // FTE now comes directly from scenario data (no default override)
         
         // Check if we should preserve existing pathway values
         const savedDefaultPathways = localStorage.getItem('defaultPathways');
@@ -9756,6 +10296,13 @@ function loadScenarioDataOnly(scenario) {
         trainerFTE = locationData[currentLocation].trainerFTE;
         priorityConfig = locationData[currentLocation].priorityConfig;
         activeCohorts = locationData[currentLocation].activeCohorts;
+        
+        // Debug log to verify overrides are being loaded (loadScenarioDataOnly)
+        console.log('Scenario auto-loaded - FTE overrides:', {
+            scenarioId: scenario.id,
+            location: currentLocation,
+            overrides: locationData[currentLocation].fortnightOverrides
+        });
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
@@ -9783,20 +10330,10 @@ function loadScenarioDataOnly(scenario) {
             pathways = [...scenario.state.pathways];
         }
         
-        // Check if we should preserve existing FTE values
-        const savedDefaultFTE = localStorage.getItem('defaultFTE');
-        if (savedDefaultFTE) {
-            // Keep our saved FTE values, don't use scenario's FTE
-            // console.log('Preserving saved default FTE values instead of using scenario FTE');
-            // LocationData FTE should already be set from loadDefaultFTE()
-            // Update global trainerFTE from the preserved locationData
-            trainerFTE = locationData[currentLocation].trainerFTE;
-        } else {
-            // No saved defaults, use scenario's FTE
-            trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
-            locationData.AU.trainerFTE = trainerFTE;
-            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
-        }
+        // Use scenario's FTE data directly
+        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+        locationData.AU.trainerFTE = trainerFTE;
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         
         // Migrate to location format
         locationData.AU.pathways = pathways;
@@ -9869,28 +10406,20 @@ function loadScenarioData(scenario) {
     // Load the scenario state
     if (scenario.state.locationData) {
         // New format with location data
-        // Check if we should preserve existing FTE values
-        const savedDefaultFTE = localStorage.getItem('defaultFTE');
-        if (savedDefaultFTE) {
-            // Preserve saved FTE instead of using scenario's FTE
-            // console.log('Preserving saved default FTE values for new format scenario');
-            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
-            // Override scenario FTE with saved defaults
-            try {
-                const parsed = JSON.parse(savedDefaultFTE);
-                if (parsed.AU) {
-                    locationData.AU.trainerFTE = JSON.parse(JSON.stringify(parsed.AU));
-                }
-                if (parsed.NZ) {
-                    locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(parsed.NZ));
-                }
-            } catch (e) {
-                console.error('Error applying saved FTE to scenario:', e);
+        // Use scenario's data directly 
+        locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
+        // Ensure fortnightOverrides structure exists (for backward compatibility)
+        ['AU', 'NZ'].forEach(loc => {
+            if (!locationData[loc].fortnightOverrides) {
+                locationData[loc].fortnightOverrides = {
+                    global: {},
+                    scenarios: {}
+                };
             }
-        } else {
-            // No saved defaults, use scenario's data as-is
-            locationData = JSON.parse(JSON.stringify(scenario.state.locationData));
-        }
+        });
+        
+        // CRITICAL: Also update window.locationData for FTE override system
+        window.locationData = locationData;
         
         // Only use scenario's location if we don't have a saved preference
         const savedLocation = localStorage.getItem('currentLocation');
@@ -9904,6 +10433,13 @@ function loadScenarioData(scenario) {
         trainerFTE = locationData[currentLocation].trainerFTE;
         priorityConfig = locationData[currentLocation].priorityConfig;
         activeCohorts = locationData[currentLocation].activeCohorts;
+        
+        // Debug log to verify overrides are being loaded
+        console.log('Scenario loaded - FTE overrides:', {
+            scenarioId: scenario.id,
+            location: currentLocation,
+            overrides: locationData[currentLocation].fortnightOverrides
+        });
     } else {
         // Legacy format - load into AU location
         activeCohorts = [...scenario.state.cohorts];
@@ -9931,20 +10467,10 @@ function loadScenarioData(scenario) {
             pathways = [...scenario.state.pathways];
         }
         
-        // Check if we should preserve existing FTE values
-        const savedDefaultFTE = localStorage.getItem('defaultFTE');
-        if (savedDefaultFTE) {
-            // Keep our saved FTE values, don't use scenario's FTE
-            // console.log('Preserving saved default FTE values instead of using scenario FTE');
-            // LocationData FTE should already be set from loadDefaultFTE()
-            // Update global trainerFTE from the preserved locationData
-            trainerFTE = locationData[currentLocation].trainerFTE;
-        } else {
-            // No saved defaults, use scenario's FTE
-            trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
-            locationData.AU.trainerFTE = trainerFTE;
-            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
-        }
+        // Use scenario's FTE data directly
+        trainerFTE = JSON.parse(JSON.stringify(scenario.state.trainerFTE));
+        locationData.AU.trainerFTE = trainerFTE;
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         
         // Migrate to location format
         locationData.AU.pathways = pathways;
@@ -9979,10 +10505,8 @@ function loadScenarioData(scenario) {
         } else {
             locationData.NZ.pathways = [...pathways];
         }
-        if (!savedDefaultFTE) {
-            // Only copy FTE if we're not preserving defaults
-            locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
-        }
+        // Copy FTE to NZ location
+        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
         locationData.NZ.priorityConfig = [...priorityConfig];
         
         // Don't override the saved location preference during scenario load
@@ -10210,20 +10734,9 @@ function createNewScenario() {
     locationData.AU.activeCohorts = [];
     locationData.NZ.activeCohorts = [];
     
-    // Reset FTE to defaults if no saved defaults exist
-    const savedDefaultFTE = localStorage.getItem('defaultFTE');
-    if (!savedDefaultFTE) {
-        // Reset to system defaults
-        for (let year = START_YEAR; year <= END_YEAR; year++) {
-            if (!trainerFTE[year]) trainerFTE[year] = {};
-            TRAINER_CATEGORIES.forEach(category => {
-                trainerFTE[year][category] = 240; // Default FTE
-            });
-        }
-        // Copy to location data
-        locationData.AU.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
-        locationData.NZ.trainerFTE = JSON.parse(JSON.stringify(trainerFTE));
-    }
+    // Auto-copy FTE from current scenario (Option 1: Auto-Copy)
+    // FTE values are preserved from the current working state, so new scenarios
+    // start with sensible trainer headcount rather than blank defaults
     
     // Clear scenario tracking
     viewState.currentScenarioId = null;
@@ -10332,11 +10845,14 @@ function updateCurrentScenarioDisplay() {
     const nameSpan = document.getElementById('current-scenario-name');
     const updateBtn = document.getElementById('update-current-scenario');
     
+    // Update header scenario status
+    updateHeaderScenarioStatus();
+    
     if (viewState.currentScenarioId) {
         const scenario = getScenarios().find(s => s.id === viewState.currentScenarioId);
         if (scenario) {
             const displayName = scenario.name + (viewState.isDirty ? ' (modified)' : '');
-            nameSpan.textContent = displayName;
+            if (nameSpan) nameSpan.textContent = displayName;
             // Show update button only if we have a loaded scenario with changes
             if (updateBtn) {
                 updateBtn.style.display = viewState.isDirty ? 'inline-block' : 'none';
@@ -10344,10 +10860,47 @@ function updateCurrentScenarioDisplay() {
         }
     } else {
         const displayName = viewState.isDirty ? 'Unsaved Changes' : 'New Scenario';
-        nameSpan.textContent = displayName;
+        if (nameSpan) nameSpan.textContent = displayName;
         // Hide update button if no scenario is loaded
         if (updateBtn) {
             updateBtn.style.display = 'none';
+        }
+    }
+}
+
+function updateHeaderScenarioStatus() {
+    const statusText = document.getElementById('scenario-status-text');
+    const saveBtn = document.getElementById('scenario-save-btn');
+    const updateBtn = document.getElementById('scenario-update-btn');
+    
+    if (!statusText) return;
+    
+    if (viewState.currentScenarioId) {
+        const scenario = getScenarios().find(s => s.id === viewState.currentScenarioId);
+        if (scenario) {
+            const displayName = '<strong>Scenario:</strong> ' + scenario.name + (viewState.isDirty ? ' (modified)' : '');
+            statusText.innerHTML = displayName;
+            statusText.className = viewState.isDirty ? 'scenario-status-text dirty' : 'scenario-status-text';
+            
+            // Show update button only if we have a loaded scenario with changes
+            if (updateBtn) {
+                updateBtn.style.display = viewState.isDirty ? 'inline-block' : 'none';
+            }
+            if (saveBtn) {
+                saveBtn.style.display = 'none'; // Hide save button when we have a loaded scenario
+            }
+        }
+    } else {
+        const displayName = viewState.isDirty ? '<strong>Scenario:</strong> Unsaved Changes' : '<strong>Scenario:</strong> New Scenario';
+        statusText.innerHTML = displayName;
+        statusText.className = viewState.isDirty ? 'scenario-status-text dirty' : 'scenario-status-text';
+        
+        // Show save button only if we have unsaved changes
+        if (saveBtn) {
+            saveBtn.style.display = viewState.isDirty ? 'inline-block' : 'none';
+        }
+        if (updateBtn) {
+            updateBtn.style.display = 'none'; // Hide update button if no scenario is loaded
         }
     }
 }
@@ -10945,6 +11498,9 @@ function showImportConflictDialog(scenarioName) {
 function initDarkMode() {
     // Remove loading class from html
     document.documentElement.classList.remove('dark-mode-loading');
+    
+    // Remove inline style to let CSS take over
+    document.documentElement.style.backgroundColor = '';
     
     // Check for saved dark mode preference
     const darkModeEnabled = localStorage.getItem('darkMode') === 'true';
@@ -13005,7 +13561,7 @@ window.dismissAlert = dismissAlert;
 window.exportChart = exportChart;
 window.toggleCommencementCrossLocation = toggleCommencementCrossLocation;
 window.navigateDashboard = navigateDashboard;
-window.saveFTEAsDefault = saveFTEAsDefault;
+// saveFTEAsDefault removed - scenarios now hold source truth
 window.toggleDemandSplitView = toggleDemandSplitView;
 window.showHelpModal = showHelpModal;
 

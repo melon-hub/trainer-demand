@@ -58,6 +58,41 @@ This document tracks the evolution of the Pilot Trainer Supply/Demand Planner fr
   - Better error handling
   - Code quality improvements
 
+### Phase 6: UI Polish & Feature Refinement (v1.9.0 - v1.9.1)
+**January 29, 2025**
+- **v1.9.0**: Column highlighting system and enhanced UI
+  - Interactive column selection for better visibility
+  - Multi-select and range select capabilities
+  - Enhanced deficit resolution modal
+  - Keyboard navigation improvements
+  - New scenario button with unsaved changes protection
+- **v1.9.1**: Critical UI fixes and improvements
+  - Fixed JavaScript errors and missing functions
+  - Enhanced trainee summary visibility
+  - Improved cross-location button design
+  - Better visual hierarchy and readability
+
+### Phase 7: Advanced Features & Data Management (v1.10.0 - v1.12.4)
+**January 29 - Present, 2025**
+- **v1.10.0**: Import/export functionality
+  - Training data export/import capabilities
+  - Improved modal accessibility
+  - UI visibility enhancements
+- **v1.11.0**: Enhanced pathway settings
+  - New pathway fields and improved UI
+  - Better pathway management
+- **v1.12.0**: FTE override system and pathway ID enhancement
+  - Advanced FTE management capabilities
+  - Pathway ID customization
+  - Enhanced data integrity
+- **v1.12.4**: FTE system simplification (Current)
+  - **Major architectural change**: Simplified FTE management
+  - Removed complex localStorage FTE persistence
+  - Eliminated "Save as Default" functionality
+  - Single source of truth: scenarios only
+  - Improved user experience with predictable behavior
+  - Streamlined workflow for FTE management
+
 ## Key Technical Achievements
 
 ### Architecture Evolution
@@ -78,11 +113,17 @@ This document tracks the evolution of the Pilot Trainer Supply/Demand Planner fr
    - Real-time dashboards
    - Toast notifications
 
+4. **Data Management Evolution**
+   - **v1.0-1.11**: Complex FTE system with multiple storage layers
+   - **v1.12.4**: Simplified single-source-of-truth approach
+   - Eliminated user confusion around data persistence
+   - Streamlined scenario-based workflow
+
 ### Code Growth
 - **Initial**: ~3,000 lines
-- **Current**: ~11,000+ lines
-- **Features**: 50+ major features
-- **Bug Fixes**: 100+ issues resolved
+- **Current**: ~18,000+ lines (including standalone builds)
+- **Features**: 75+ major features
+- **Bug Fixes**: 150+ issues resolved
 
 ## Lessons Learned
 
@@ -91,12 +132,14 @@ This document tracks the evolution of the Pilot Trainer Supply/Demand Planner fr
 2. **User Feedback Integration** - Quick response to user needs
 3. **Performance First** - Always considering speed and efficiency
 4. **Visual Feedback** - Clear indicators for all actions
+5. **Simplification Focus** - Recent FTE simplification improved usability
 
 ### Challenges Overcome
 1. **Cross-Location Complexity** - Two-pass algorithm for demand calculation
 2. **State Management** - Without frameworks, careful state tracking
 3. **Browser Compatibility** - Ensuring consistent behavior
 4. **Performance at Scale** - Handling 100+ cohorts smoothly
+5. **Feature Complexity** - Learning when to simplify vs. add features
 
 ## Future Vision
 
@@ -120,7 +163,7 @@ This document tracks the evolution of the Pilot Trainer Supply/Demand Planner fr
 - **Deployment**: Static file hosting
 
 ## Impact
-This application has evolved from a simple planning tool to a comprehensive training management system capable of handling complex multi-location airline operations with sophisticated demand forecasting and resource optimization.
+This application has evolved from a simple planning tool to a comprehensive training management system capable of handling complex multi-location airline operations with sophisticated demand forecasting and resource optimization. The recent simplification efforts have made it more user-friendly while maintaining all core functionality.
 
 ---
-*Created: January 28, 2025*
+*Updated: January 2025 (v1.12.4)*
