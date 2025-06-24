@@ -47,6 +47,40 @@
             border-color: #666;
             color: #e0e0e0;
         }
+
+        /* Pathway Modal Layout Styles */
+        #pathway-modal .pathway-form-row {
+            display: grid;
+            gap: 15px;
+            margin-bottom: 15px;
+        }
+
+        /* Four-column layout for main pathway fields */
+        #pathway-modal .pathway-form-row.four-column {
+            grid-template-columns: 1fr 2fr 1.5fr 1.5fr;
+        }
+
+        /* Three-column layout for rank fields */
+        #pathway-modal .pathway-form-row:not(.four-column) {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        /* Pathway ID field styling */
+        #pathway-modal #pathway-id {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        #pathway-modal #pathway-id:invalid {
+            border-color: #dc3545;
+            box-shadow: 0 0 0 2px rgba(220,53,69,.1);
+        }
+
+        #pathway-modal #pathway-id:valid {
+            border-color: #28a745;
+            box-shadow: 0 0 0 2px rgba(40,167,69,.1);
+        }
     </style>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -503,9 +537,47 @@
                 </div>
                 <div class="modal-body">
                     <form id="pathway-edit-form">
-                        <div class="form-group">
-                            <label for="pathway-name">Pathway Name:</label>
-                            <input type="text" id="pathway-name" name="pathwayName" required>
+                        <div class="pathway-form-row four-column">
+                            <div class="form-group">
+                                <label for="pathway-id">Pathway ID:</label>
+                                <input type="text" id="pathway-id" name="pathwayId" required 
+                                    placeholder="e.g., A203" pattern="[A-Z][0-9]+" 
+                                    title="Must start with a letter followed by numbers (e.g., A203, H209)">
+                            </div>
+                            <div class="form-group">
+                                <label for="pathway-name">Pathway Name:</label>
+                                <input type="text" id="pathway-name" name="pathwayName" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="pathway-type">Pathway Type:</label>
+                                <select id="pathway-type" name="pathwayType" required>
+                                    <option value="CP">Captain (CP)</option>
+                                    <option value="FO">First Officer (FO)</option>
+                                    <option value="CAD">Cadet (CAD)</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label for="pathway-comments">Comments:</label>
+                                <input type="text" id="pathway-comments" name="pathwayComments" 
+                                    placeholder="Short notes...">
+                            </div>
+                        </div>
+                        <div class="pathway-form-row">
+                            <div class="form-group">
+                                <label for="start-rank">Start Rank</label>
+                                <input type="text" id="start-rank" name="startRank" 
+                                    placeholder="e.g., NBFO">
+                            </div>
+                            <div class="form-group">
+                                <label for="end-rank">End Rank</label>
+                                <input type="text" id="end-rank" name="endRank" 
+                                    placeholder="e.g., NBCP">
+                            </div>
+                            <div class="form-group">
+                                <label for="usable-months">Usable After (months)</label>
+                                <input type="number" id="usable-months" name="usableMonths" 
+                                    min="0" value="0" placeholder="0">
+                            </div>
                         </div>
                         <h4 style="margin-top: 20px; margin-bottom: 10px;">Training Phases</h4>
                         <div id="pathway-phases-container">
@@ -606,6 +678,61 @@
                         </div>
                         <div class="modal-footer">
                             <button type="submit" class="btn btn-primary">Save Changes</button>
+                            <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- FTE Override Context Menu -->
+        <div id="fte-context-menu" class="fte-context-menu">
+            <button class="fte-context-menu-item" data-action="edit-single">
+                <span class="fte-context-menu-icon">📝</span>
+                Edit this fortnight
+            </button>
+            <button class="fte-context-menu-item" data-action="edit-range">
+                <span class="fte-context-menu-icon">📅</span>
+                Edit range...
+            </button>
+            <button class="fte-context-menu-item" data-action="edit-forward">
+                <span class="fte-context-menu-icon">⏭️</span>
+                Edit from here forward
+            </button>
+            <div class="fte-context-menu-separator"></div>
+            <button class="fte-context-menu-item" data-action="clear-override">
+                <span class="fte-context-menu-icon">❌</span>
+                Clear override
+            </button>
+        </div>
+
+        <!-- FTE Override Modal -->
+        <div id="fte-override-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2 id="override-modal-title">Edit FTE Override</h2>
+                    <button class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="override-edit-form">
+                        <div id="override-range-info" class="override-range-display"></div>
+                        
+                        <div class="override-edit-section">
+                            <h4>Trainer Categories</h4>
+                            <div id="override-categories-container">
+                                <!-- Categories will be populated here -->
+                            </div>
+                        </div>
+
+                        <div class="override-summary">
+                            <h5>Preview</h5>
+                            <div id="override-preview-content">
+                                <!-- Preview will be populated here -->
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-primary">Apply Override</button>
                             <button type="button" class="btn btn-secondary modal-cancel">Cancel</button>
                         </div>
                     </form>
