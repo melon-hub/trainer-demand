@@ -2364,6 +2364,33 @@ th[colspan] {
 /* CSS Custom Properties */
 :root {
     --column-width: 50px;
+    --column-width-expanded: 70px;
+}
+
+/* 18-month view uses expanded container and column width */
+html[data-view="18months"] .container {
+    max-width: 1800px !important;
+}
+
+/* Prevent horizontal scrolling in 18-month view - let container expand instead */
+html[data-view="18months"] .table-container,
+html[data-view="18months"] .gantt-container,
+html[data-view="18months"] #fte-summary-table-container,
+html[data-view="18months"] #gantt-chart-container,
+html[data-view="18months"] #demand-table-container,
+html[data-view="18months"] #surplus-deficit-container {
+    overflow-x: visible !important;
+}
+
+html[data-view="18months"] .data-table .data-cell,
+html[data-view="18months"] .data-table .fortnight-header,
+html[data-view="18months"] .data-table td:not(.sticky-first-column):not(.gantt-first-column),
+html[data-view="18months"] .data-table th:not(.sticky-first-column):not(.month-header),
+html[data-view="18months"] .gantt-table td:not(.gantt-first-column),
+html[data-view="18months"] .gantt-table th:not(.gantt-first-column) {
+    min-width: var(--column-width) !important;
+    width: var(--column-width) !important;
+    max-width: var(--column-width) !important;
 }
 
 /* Gantt Chart Styles */
@@ -5673,24 +5700,28 @@ body.dark-mode .nav-arrow:disabled:hover {
     order: 3;
 }
 
-#nav-right {
+.view-btn[data-view="18months"] {
     order: 4;
 }
 
-.separator:first-of-type {
+#nav-right {
     order: 5;
 }
 
-.view-btn[data-view="all"] {
+.separator:first-of-type {
     order: 6;
 }
 
-.separator:last-of-type {
+.view-btn[data-view="all"] {
     order: 7;
 }
 
-#today-btn {
+.separator:last-of-type {
     order: 8;
+}
+
+#today-btn {
+    order: 9;
 }
 
 /* Hide navigation arrows by default */
@@ -6726,6 +6757,22 @@ body.dark-mode .preview-value {
     font-size: 11px;
     padding: 4px 8px;
     margin-left: 4px;
+}
+
+/* Induction Group Field */
+#cohort-modal input[name="inductionGroup"] {
+    font-size: 13px;
+    padding: 6px 10px;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 4px;
+    border: 1px solid var(--border-color);
+}
+
+#cohort-modal input[name="inductionGroup"]:focus {
+    outline: none;
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 #cohort-modal .split-preview-enhanced {

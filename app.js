@@ -862,6 +862,11 @@ function getTimeRangeForView() {
                 startMonth = offsetMonth - 2;
                 endMonth = offsetMonth + 9;
                 break;
+            case '18months':
+                // Show 2 months before and 16 months after the offset month
+                startMonth = offsetMonth - 2;
+                endMonth = offsetMonth + 15;
+                break;
         }
         
         // Adjust for year boundaries
@@ -1694,6 +1699,9 @@ function init() {
         }
     });
     
+    // Set initial data-view attribute for CSS styling
+    document.documentElement.setAttribute('data-view', viewState.currentView);
+    
     // Mark UI elements as initialized to prevent flicker
     document.querySelector('.view-controls')?.classList.add('initialized');
     perfMonitor.end('init.setupUI');
@@ -2428,6 +2436,9 @@ function setupEventListeners() {
             viewState.currentView = e.target.dataset.view;
             viewState.viewOffset = 0; // Reset offset when changing views
             
+            // Set data-view attribute on HTML element for CSS styling
+            document.documentElement.setAttribute('data-view', viewState.currentView);
+            
             // Update navigation buttons
             updateNavigationButtons();
             
@@ -2516,8 +2527,11 @@ function setupEventListeners() {
     if (navLeft) {
         navLeft.addEventListener('click', () => {
             if (viewState.currentView !== 'all') {
-                // Move view one month back
-                viewState.viewOffset -= 1;
+                // Move view by appropriate amount based on current view
+                const monthsToMove = viewState.currentView === '6months' ? 3 : 
+                                   viewState.currentView === '12months' ? 6 :
+                                   viewState.currentView === '18months' ? 9 : 1;
+                viewState.viewOffset -= monthsToMove;
                 updateNavigationButtons();
                 updateAllTables();
                 renderGanttChart();
@@ -2528,8 +2542,11 @@ function setupEventListeners() {
     if (navRight) {
         navRight.addEventListener('click', () => {
             if (viewState.currentView !== 'all') {
-                // Move view one month forward
-                viewState.viewOffset += 1;
+                // Move view by appropriate amount based on current view
+                const monthsToMove = viewState.currentView === '6months' ? 3 : 
+                                   viewState.currentView === '12months' ? 6 :
+                                   viewState.currentView === '18months' ? 9 : 1;
+                viewState.viewOffset += monthsToMove;
                 updateNavigationButtons();
                 updateAllTables();
                 renderGanttChart();
@@ -5174,6 +5191,14 @@ function renderGanttChart() {
                     cellContent += `<span style="position: absolute; bottom: 2px; right: 2px; width: 0; height: 0; border-right: 4px solid #f39c12; border-top: 4px solid transparent; border-bottom: 4px solid transparent; z-index: 100;"></span>`;
                 }
                 
+                // Add induction group indicator (only on first phase, first cell)
+                if (cell.phaseIndex === 0 && cell.isStart && cohort.inductionGroup && cohort.inductionGroup.trim()) {
+                    tooltip += `\n\n📋 Induction Group: ${cohort.inductionGroup}`;
+                    
+                    // Add blue information icon (bottom-left corner)
+                    cellContent += `<span style="position: absolute; bottom: 2px; left: 2px; width: 8px; height: 8px; background: #007bff; border-radius: 50%; z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 6px; color: white; font-weight: bold; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);">i</span>`;
+                }
+                
                 // Add draggable attribute to the first cell of the first phase
                 const isDraggable = cell.phaseIndex === 0 && cell.isStart;
                 const draggableAttrs = isDraggable ? `draggable="true" data-cohort-id="${cohort.id}" class="gantt-phase-cell data-cell draggable-cohort"` : `class="gantt-phase-cell data-cell"`;
@@ -5351,6 +5376,10 @@ function renderGanttChart() {
     html += '<div style="display: flex; align-items: center; gap: 5px;">';
     html += '<span style="width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; display: inline-block;"></span>';
     html += '<span>Cross-location training</span>';
+    html += '</div>';
+    html += '<div style="display: flex; align-items: center; gap: 5px;">';
+    html += '<span style="width: 8px; height: 8px; background: #007bff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 6px; color: white; font-weight: bold; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);">i</span>';
+    html += '<span>Induction group info</span>';
     html += '</div>';
     html += '</div>';
     html += '</div>';
@@ -6957,6 +6986,12 @@ function editCohort(cohortId) {
         editLocationSelect.value = cohort.location || currentLocation;
     }
     
+    // Set induction group
+    const editInductionGroupInput = document.getElementById('edit-induction-group');
+    if (editInductionGroupInput) {
+        editInductionGroupInput.value = cohort.inductionGroup || '';
+    }
+    
     // Handle cross-location training
     const enableCrossLocationCheckbox = document.getElementById('enable-cross-location');
     const crossLocationConfig = document.getElementById('cross-location-config');
@@ -7559,7 +7594,8 @@ function handleCohortUpdate(e) {
             startFortnight: parseInt(formData.get('startFortnight')),
             location: formData.get('location') || currentLocation,
             crossLocationTraining: crossLocationTraining,
-            ltExtension: ltExtension
+            ltExtension: ltExtension,
+            inductionGroup: formData.get('inductionGroup') || ''
         };
         
         // console.log('Updated cohort:', activeCohorts[cohortIndex]);
