@@ -5388,7 +5388,7 @@ function addGanttLegend() {
     if (!container) return;
     
     // Remove existing legend if present
-    const existingLegend = container.querySelector('.gantt-legend-fixed');
+    const existingLegend = document.querySelector('.gantt-legend-fixed');
     if (existingLegend) {
         existingLegend.remove();
     }
@@ -5418,8 +5418,8 @@ function addGanttLegend() {
         </div>
     `;
     
-    // Append to container
-    container.appendChild(legend);
+    // Insert legend after the gantt container (as a sibling)
+    container.parentNode.insertBefore(legend, container.nextSibling);
 }
 
 // Setup Gantt Drag and Drop

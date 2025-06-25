@@ -2266,13 +2266,6 @@ th[colspan] {
 #gantt-chart-container {
     max-height: 500px;
     overflow-x: auto;
-    position: relative;
-}
-
-/* Create space for the fixed legend by adjusting the scrollable area */
-#gantt-chart-container .table-wrapper {
-    padding-bottom: 70px; /* Space for legend */
-    box-sizing: border-box;
 }
 
 /* Force table layout and width constraints for gantt chart */
@@ -2289,23 +2282,15 @@ th[colspan] {
     box-sizing: border-box !important;
 }
 
-/* Fixed legend at bottom of gantt container */
+/* Fixed legend below gantt container */
 .gantt-legend-fixed {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    height: 60px;
+    margin-top: 10px;
     padding: 10px;
     background: var(--bg-secondary);
-    border-radius: 6px 6px 0 0;
+    border-radius: 6px;
     font-size: 13px;
     color: var(--text-secondary);
-    border-top: 1px solid var(--border-color);
-    z-index: 10;
-    display: flex;
-    align-items: center;
-    box-sizing: border-box;
+    border: 1px solid var(--border-color);
 }
 
 .dark-mode .gantt-legend-fixed {
@@ -2454,10 +2439,6 @@ html[data-view="18months"] .gantt-table th:not(.gantt-first-column) {
 .gantt-container.expanded {
     height: 1000px !important;
     max-height: 1000px !important; /* Double the height when expanded */
-}
-
-.gantt-container.expanded .table-wrapper {
-    padding-bottom: 70px; /* Space for legend in expanded view */
 }
 
 /* Ensure the table inside can use the full height */
