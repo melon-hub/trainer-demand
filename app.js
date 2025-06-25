@@ -5365,30 +5365,10 @@ function renderGanttChart() {
     html += '</tbody>';
     html += '</table></div>';
     
-    // Add legend for indicators
-    html += '<div class="gantt-legend" style="margin-top: 10px; padding: 10px; background: var(--bg-secondary); border-radius: 6px; font-size: 13px; color: var(--text-secondary);">';
-    html += '<div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">';
-    html += '<span style="font-weight: 600;">Legend:</span>';
-    html += '<div style="display: flex; align-items: center; gap: 5px;">';
-    html += '<span style="width: 6px; height: 6px; background: #dc3545; border-radius: 50%; display: inline-block;"></span>';
-    html += '<span>Extended training</span>';
-    html += '</div>';
-    html += '<div style="display: flex; align-items: center; gap: 5px;">';
-    html += '<span style="width: 0; height: 0; border-right: 4px solid #f39c12; border-top: 4px solid transparent; border-bottom: 4px solid transparent; display: inline-block;"></span>';
-    html += '<span>Shortened training</span>';
-    html += '</div>';
-    html += '<div style="display: flex; align-items: center; gap: 5px;">';
-    html += '<span style="width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; display: inline-block;"></span>';
-    html += '<span>Cross-location training</span>';
-    html += '</div>';
-    html += '<div style="display: flex; align-items: center; gap: 5px;">';
-    html += '<span style="width: 8px; height: 8px; background: #007bff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 6px; color: white; font-weight: bold; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);">i</span>';
-    html += '<span>Induction group info</span>';
-    html += '</div>';
-    html += '</div>';
-    html += '</div>';
-    
     container.innerHTML = html;
+    
+    // Add fixed legend at the bottom of the container
+    addGanttLegend();
     
     // Setup drag and drop event listeners
     setupGanttDragAndDrop();
@@ -5400,6 +5380,46 @@ function renderGanttChart() {
         setupContextMenu();
         // console.log('Sync re-established after Gantt chart render');
     }, timeout);
+}
+
+// Add fixed legend at the bottom of the gantt container
+function addGanttLegend() {
+    const container = document.getElementById('gantt-chart-container');
+    if (!container) return;
+    
+    // Remove existing legend if present
+    const existingLegend = container.querySelector('.gantt-legend-fixed');
+    if (existingLegend) {
+        existingLegend.remove();
+    }
+    
+    // Create legend HTML
+    const legend = document.createElement('div');
+    legend.className = 'gantt-legend-fixed';
+    legend.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 15px; flex-wrap: wrap;">
+            <span style="font-weight: 600;">Legend:</span>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 6px; height: 6px; background: #dc3545; border-radius: 50%; display: inline-block;"></span>
+                <span>Extended training</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 0; height: 0; border-right: 4px solid #f39c12; border-top: 4px solid transparent; border-bottom: 4px solid transparent; display: inline-block;"></span>
+                <span>Shortened training</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; display: inline-block;"></span>
+                <span>Cross-location training</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 5px;">
+                <span style="width: 8px; height: 8px; background: #007bff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 6px; color: white; font-weight: bold; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);">i</span>
+                <span>Induction group info</span>
+            </div>
+        </div>
+    `;
+    
+    // Append to container
+    container.appendChild(legend);
 }
 
 // Setup Gantt Drag and Drop
