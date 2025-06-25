@@ -5027,21 +5027,19 @@ function renderGanttChart() {
             const pathway = pathways.find(p => p.id === cohort.pathwayId);
             if (!pathway) return;
         
-        html += `<tr data-cohort-id="${cohort.id}" class="gantt-cohort-row">`;
+        html += `<tr data-cohort-id="${cohort.id}" class="gantt-cohort-row" oncontextmenu="showCohortContextMenu(event, ${cohort.id}); return false;">`;
         
-        // Cohort label with edit and remove buttons
+        // Cohort label with induction group on same line
         const cohortLabel = `${cohort.numTrainees} x ${pathway.name}`;
-        const inductionGroupSubtitle = cohort.inductionGroup && cohort.inductionGroup.trim() ? 
-            `<div class="cohort-induction-group">${cohort.inductionGroup}</div>` : '';
+        const inductionGroupText = cohort.inductionGroup && cohort.inductionGroup.trim() ? 
+            ` • ${cohort.inductionGroup}` : '';
+        const fullLabel = cohortLabel + inductionGroupText;
         
-        html += `<td class="sticky-first-column gantt-cohort-cell" title="${cohortLabel}">
+        html += `<td class="sticky-first-column gantt-cohort-cell" 
+                     title="${fullLabel}">
             <div class="gantt-cohort-content">
-                <span>${cohortLabel}</span>
-                ${inductionGroupSubtitle}
-                <div class="gantt-cohort-buttons">
-                    <button onclick="editCohort(${cohort.id})" class="gantt-edit-btn" title="Edit cohort">✎</button>
-                    <button onclick="removeCohort(${cohort.id})" class="gantt-remove-btn" title="Remove cohort">×</button>
-                </div>
+                <span class="cohort-full-label">${fullLabel}</span>
+                <span class="cohort-menu-indicator" onclick="showCohortContextMenu(event, ${cohort.id}); event.stopPropagation();">⋯</span>
             </div>
         </td>`;
         
@@ -5399,6 +5397,7 @@ function renderGanttChart() {
     const timeout = viewState.currentView === 'all' ? 150 : 100;
     setTimeout(() => {
         setupSynchronizedScrolling();
+        setupContextMenu();
         // console.log('Sync re-established after Gantt chart render');
     }, timeout);
 }
@@ -6920,6 +6919,61 @@ function editPathway(pathwayId) {
     
     // Open modal
     pathwayModal.classList.add('active');
+}
+
+// Context Menu Functions
+let contextMenu = null;
+let contextMenuCohortId = null;
+
+function showCohortContextMenu(event, cohortId) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    // Remove existing context menu if any
+    if (contextMenu) {
+        contextMenu.remove();
+    }
+    
+    contextMenuCohortId = cohortId;
+    
+    // Create context menu
+    contextMenu = document.createElement('div');
+    contextMenu.className = 'context-menu';
+    contextMenu.innerHTML = `
+        <div class="context-menu-item" onclick="editCohort(${cohortId}); hideContextMenu();">
+            <span class="context-menu-icon">✎</span>
+            Edit Cohort
+        </div>
+        <div class="context-menu-item context-menu-item-danger" onclick="removeCohort(${cohortId}); hideContextMenu();">
+            <span class="context-menu-icon">×</span>
+            Remove Cohort
+        </div>
+    `;
+    
+    // Position the menu
+    contextMenu.style.left = event.pageX + 'px';
+    contextMenu.style.top = event.pageY + 'px';
+    
+    document.body.appendChild(contextMenu);
+    
+    // Add click listener to hide menu when clicking outside
+    setTimeout(() => {
+        document.addEventListener('click', hideContextMenu);
+    }, 10);
+}
+
+function hideContextMenu() {
+    if (contextMenu) {
+        contextMenu.remove();
+        contextMenu = null;
+        contextMenuCohortId = null;
+    }
+    document.removeEventListener('click', hideContextMenu);
+}
+
+function setupContextMenu() {
+    // Remove any existing context menu when setting up
+    hideContextMenu();
 }
 
 // Edit Cohort
