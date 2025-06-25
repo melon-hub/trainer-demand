@@ -5031,9 +5031,13 @@ function renderGanttChart() {
         
         // Cohort label with edit and remove buttons
         const cohortLabel = `${cohort.numTrainees} x ${pathway.name}`;
+        const inductionGroupSubtitle = cohort.inductionGroup && cohort.inductionGroup.trim() ? 
+            `<div class="cohort-induction-group">${cohort.inductionGroup}</div>` : '';
+        
         html += `<td class="sticky-first-column gantt-cohort-cell" title="${cohortLabel}">
             <div class="gantt-cohort-content">
                 <span>${cohortLabel}</span>
+                ${inductionGroupSubtitle}
                 <div class="gantt-cohort-buttons">
                     <button onclick="editCohort(${cohort.id})" class="gantt-edit-btn" title="Edit cohort">✎</button>
                     <button onclick="removeCohort(${cohort.id})" class="gantt-remove-btn" title="Remove cohort">×</button>
@@ -5170,7 +5174,7 @@ function renderGanttChart() {
                 if (cell.usesCrossLocation) {
                     tooltip += `\n⚡ Using ${cell.crossLocationTo} trainers`;
                     
-                    // Add white dot indicator (smaller size)
+                    // Add white dot indicator (top-right corner, but smaller)
                     cellContent += `<span style="position: absolute; top: 2px; right: 2px; width: 4px; height: 4px; background: #ffffff; border: 1px solid rgba(0,0,0,0.3); border-radius: 50%; z-index: 100;"></span>`;
                 }
                 
@@ -5193,10 +5197,12 @@ function renderGanttChart() {
                 
                 // Add induction group indicator (only on first phase, first cell)
                 if (cell.phaseIndex === 0 && cell.isStart && cohort.inductionGroup && cohort.inductionGroup.trim()) {
-                    tooltip += `\n\n📋 Induction Group: ${cohort.inductionGroup}`;
+                    tooltip += `\n\nInduction Group: ${cohort.inductionGroup}`;
                     
-                    // Add blue information icon (bottom-left corner)
-                    cellContent += `<span style="position: absolute; bottom: 2px; left: 2px; width: 8px; height: 8px; background: #007bff; border-radius: 50%; z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 6px; color: white; font-weight: bold; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);">i</span>`;
+                    // Add blue information icon - position based on whether there's cross-location indicator
+                    const hasXLoc = cell.usesCrossLocation;
+                    const iconPosition = hasXLoc ? 'top: 2px; right: 12px;' : 'top: 2px; right: 2px;';
+                    cellContent += `<span style="position: absolute; ${iconPosition} width: 8px; height: 8px; background: #007bff; border-radius: 50%; z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 6px; color: white; font-weight: bold; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.5);">i</span>`;
                 }
                 
                 // Add draggable attribute to the first cell of the first phase
@@ -8027,12 +8033,14 @@ function initSplitCohort() {
             {
                 ...cohort,
                 id: Date.now(), // Generate unique ID for split out cohort
-                numTrainees: splitOutAmount
+                numTrainees: splitOutAmount,
+                inductionGroup: '' // Split out cohort gets no induction group
             },
             {
                 ...cohort,
                 id: Date.now() + 1, // Generate unique ID for remaining cohort
                 numTrainees: remainingTrainees
+                // Remaining cohort keeps the original induction group
             }
         ];
         

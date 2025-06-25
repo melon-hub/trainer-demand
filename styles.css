@@ -6775,6 +6775,23 @@ body.dark-mode .preview-value {
     box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
+/* Gantt Chart Induction Group Styling */
+.cohort-induction-group {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-style: italic;
+    margin-top: 2px;
+    line-height: 1.2;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.dark-mode .cohort-induction-group {
+    color: #aaa;
+}
+
 #cohort-modal .split-preview-enhanced {
     padding: 8px 12px;
     background: var(--bg-tertiary);
