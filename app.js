@@ -294,23 +294,47 @@ function calculateFTEForFortnight(location, year, fortnight, category, scenarioI
     const locData = window.locationData[location];
     const fortnightKey = `FN${fortnight.toString().padStart(2, '0')}`;
     
-    // 1. Check scenario-specific overrides (highest priority)
-    if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[fortnightKey]?.[category] !== undefined) {
-        return locData.fortnightOverrides.scenarios[scenarioId][fortnightKey][category];
+    // Store the result and source for debug logging
+    let result;
+    let source;
+    
+    // 1. Check scenario-specific overrides (highest priority) with year awareness
+    if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[year]?.[fortnightKey]?.[category] !== undefined) {
+        result = locData.fortnightOverrides.scenarios[scenarioId][year][fortnightKey][category];
+        source = `scenario-specific override (${scenarioId})`;
+    }
+    // 2. Check global fortnight overrides with year awareness
+    else if (locData.fortnightOverrides?.global?.[year]?.[fortnightKey]?.[category] !== undefined) {
+        result = locData.fortnightOverrides.global[year][fortnightKey][category];
+        source = 'global override';
+    }
+    // 3. Fallback to legacy non-year-aware overrides for backward compatibility
+    else if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[fortnightKey]?.[category] !== undefined) {
+        result = locData.fortnightOverrides.scenarios[scenarioId][fortnightKey][category];
+        source = `legacy scenario override (${scenarioId})`;
+    }
+    else if (locData.fortnightOverrides?.global?.[fortnightKey]?.[category] !== undefined) {
+        result = locData.fortnightOverrides.global[fortnightKey][category];
+        source = 'legacy global override';
+    }
+    // 4. Use yearly default (divided by fortnights)
+    else {
+        const yearlyFTE = locData.trainerFTE?.[year]?.[category] || 0;
+        result = yearlyFTE / FORTNIGHTS_PER_YEAR;
+        source = `yearly default (${yearlyFTE}/24)`;
     }
     
-    // 2. Check global fortnight overrides
-    if (locData.fortnightOverrides?.global?.[fortnightKey]?.[category] !== undefined) {
-        return locData.fortnightOverrides.global[fortnightKey][category];
+    // Debug logging for override detection (only log when result doesn't match default calculation)
+    const yearlyDefault = (locData.trainerFTE?.[year]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+    if (Math.abs(result - yearlyDefault) > 0.001) {
+        console.log(`FTE Override detected: ${location} ${year} ${fortnightKey} ${category} = ${result} (source: ${source})`);
     }
     
-    // 3. Use yearly default (divided by fortnights)
-    const yearlyFTE = locData.trainerFTE?.[year]?.[category] || 0;
-    return yearlyFTE / FORTNIGHTS_PER_YEAR;
+    return result;
 }
 
 // Check if a fortnight has overrides (for visualization)
-function hasFortnightOverride(location, fortnight, category, scenarioId = null) {
+function hasFortnightOverride(location, fortnight, category, scenarioId = null, year = null) {
     // Use global locationData variable with safety checks
     if (!window.locationData || !window.locationData[location]) {
         return null; // No overrides if locationData not available
@@ -319,12 +343,24 @@ function hasFortnightOverride(location, fortnight, category, scenarioId = null) 
     const locData = window.locationData[location];
     const fortnightKey = `FN${fortnight.toString().padStart(2, '0')}`;
     
-    // Check scenario-specific overrides
+    // Check year-aware overrides if year is provided
+    if (year) {
+        // Check scenario-specific overrides with year
+        if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[year]?.[fortnightKey]?.[category] !== undefined) {
+            return { type: 'scenario', scenarioId };
+        }
+        
+        // Check global overrides with year
+        if (locData.fortnightOverrides?.global?.[year]?.[fortnightKey]?.[category] !== undefined) {
+            return { type: 'global' };
+        }
+    }
+    
+    // Fallback to legacy non-year-aware overrides for backward compatibility
     if (scenarioId && locData.fortnightOverrides?.scenarios?.[scenarioId]?.[fortnightKey]?.[category] !== undefined) {
         return { type: 'scenario', scenarioId };
     }
     
-    // Check global overrides
     if (locData.fortnightOverrides?.global?.[fortnightKey]?.[category] !== undefined) {
         return { type: 'global' };
     }
@@ -375,25 +411,37 @@ let fteOverrideManager = {
         const categoryText = categoryCell.textContent.trim();
         const category = categoryText.replace(' Supply', '');
         
-        // Get fortnight from header
+        // Get fortnight and year from header data attribute
         const cellIndex = Array.from(row.children).indexOf(cell);
         const headerRow = cell.closest('table').querySelector('thead tr:last-child');
-        const fortnightHeader = headerRow.children[cellIndex];
-        const fortnight = parseInt(fortnightHeader.textContent.replace('FN', ''));
+        // Account for sticky first column offset (cellIndex includes category column, but header row doesn't have empty first cell)
+        const fortnightHeaderIndex = cellIndex - 1;
+        const fortnightHeader = headerRow.children[fortnightHeaderIndex];
+        const columnData = fortnightHeader.getAttribute('data-column');
+        const [year, fortnight] = columnData.split('-').map(Number);
         
-        // Store context
+        // Store context with the correct year
         this.currentContext = {
             category,
             fortnight,
+            year, // Add the correct year
             location: currentLocation,
             cell,
             event
         };
         
         // Check if override exists
-        const hasOverride = hasFortnightOverride(currentLocation, fortnight, category, viewState.currentScenarioId);
+        const hasOverride = hasFortnightOverride(currentLocation, fortnight, category, viewState.currentScenarioId, year);
         const clearItem = contextMenu.querySelector('[data-action="clear-override"]');
-        clearItem.style.display = hasOverride ? 'block' : 'none';
+        const separator = contextMenu.querySelector('.fte-context-menu-separator');
+        
+        if (hasOverride) {
+            clearItem.style.display = 'flex';
+            separator.style.display = 'block';
+        } else {
+            clearItem.style.display = 'none';
+            separator.style.display = 'none';
+        }
         
         // Position and show menu
         contextMenu.style.left = `${event.clientX}px`;
@@ -435,7 +483,7 @@ let fteOverrideManager = {
         const rangeInfo = document.getElementById('override-range-info');
         
         // Set title and range info based on mode
-        const { category, fortnight, location } = this.currentContext;
+        const { category, fortnight, year, location } = this.currentContext;
         
         switch (mode) {
             case 'single':
@@ -450,8 +498,8 @@ let fteOverrideManager = {
                 `;
                 break;
             case 'forward':
-                title.textContent = `Edit ${category} FTE - From FN${fortnight.toString().padStart(2, '0')} Forward`;
-                rangeInfo.textContent = `From FN${fortnight.toString().padStart(2, '0')} onwards (rest of year)`;
+                title.textContent = `Edit ${category} FTE - From ${year} FN${fortnight.toString().padStart(2, '0')} Forward`;
+                rangeInfo.textContent = `From ${year} FN${fortnight.toString().padStart(2, '0')} onwards (all future time)`;
                 break;
         }
         
@@ -467,7 +515,7 @@ let fteOverrideManager = {
     
     populateCategories() {
         const container = document.getElementById('override-categories-container');
-        const { category, fortnight, location } = this.currentContext;
+        const { category, fortnight, year, location } = this.currentContext;
         
         container.innerHTML = '';
         
@@ -475,14 +523,12 @@ let fteOverrideManager = {
         const inputGroup = document.createElement('div');
         inputGroup.className = 'override-input-group';
         
-        // Get the current viewing year instead of hardcoding 2025
-        const range = getTimeRangeForView();
-        const currentYear = range.startYear;
-        const currentValue = calculateFTEForFortnight(location, currentYear, fortnight, category, viewState.currentScenarioId);
+        // Use the specific year from context instead of range.startYear
+        const currentValue = calculateFTEForFortnight(location, year, fortnight, category, viewState.currentScenarioId);
         
         inputGroup.innerHTML = `
             <label>${category} FTE per fortnight:</label>
-            <input type="number" id="override-${category}" value="${currentValue.toFixed(1)}" min="0" step="0.1">
+            <input type="number" id="override-${category}" value="${Math.round(currentValue)}" min="0" step="0.1">
             <button type="button" class="override-clear-btn" onclick="fteOverrideManager.clearCategoryInput('${category}')">Clear</button>
         `;
         
@@ -498,15 +544,13 @@ let fteOverrideManager = {
     
     updatePreview() {
         const preview = document.getElementById('override-preview-content');
-        const { category, fortnight, location, mode } = this.currentContext;
+        const { category, fortnight, year, location, mode } = this.currentContext;
         
         const input = document.getElementById(`override-${category}`);
         const newValue = parseFloat(input.value) || 0;
         
-        // Get the current viewing year instead of hardcoding 2025
-        const range = getTimeRangeForView();
-        const currentYear = range.startYear;
-        const currentValue = calculateFTEForFortnight(location, currentYear, fortnight, category, viewState.currentScenarioId);
+        // Use the specific year from context instead of range.startYear
+        const currentValue = calculateFTEForFortnight(location, year, fortnight, category, viewState.currentScenarioId);
         
         let rangeText = '';
         let dateRangeText = '';
@@ -536,8 +580,8 @@ let fteOverrideManager = {
                 break;
         }
         
-        const difference = (newValue - currentValue).toFixed(1);
-        const diffText = difference >= 0 ? `+${difference}` : difference;
+        const difference = (newValue - currentValue);
+        const diffText = difference >= 0 ? `+${Math.round(difference)}` : Math.round(difference);
         
         preview.innerHTML = `
             <div class="override-preview-compact">
@@ -545,7 +589,7 @@ let fteOverrideManager = {
                     <strong>${rangeText}</strong> <span class="date-range">(${dateRangeText})</span>
                 </div>
                 <div class="preview-row">
-                    <span>${category}:</span> ${currentValue.toFixed(1)} → ${newValue.toFixed(1)} FTE 
+                    <span>${category}:</span> ${Math.round(currentValue)} → ${Math.round(newValue)} FTE 
                     <span class="change-indicator" style="color: ${difference >= 0 ? '#27ae60' : '#e74c3c'}">${diffText}</span>
                 </div>
                 <div class="preview-row minor">
@@ -582,16 +626,15 @@ let fteOverrideManager = {
     clearCategoryInput(category) {
         const input = document.getElementById(`override-${category}`);
         
-        // Get the current viewing year instead of hardcoding 2025
-        const range = getTimeRangeForView();
-        const currentYear = range.startYear;
-        const currentValue = calculateFTEForFortnight(this.currentContext.location, currentYear, this.currentContext.fortnight, category);
-        input.value = currentValue.toFixed(1);
+        // Use the specific year from context instead of range.startYear
+        const { year, fortnight, location } = this.currentContext;
+        const currentValue = calculateFTEForFortnight(location, year, fortnight, category);
+        input.value = Math.round(currentValue);
         this.updatePreview();
     },
     
     applyOverride() {
-        const { category, fortnight, location, mode } = this.currentContext;
+        const { category, fortnight, year, location, mode } = this.currentContext;
         const input = document.getElementById(`override-${category}`);
         const newValue = parseFloat(input.value);
         
@@ -600,28 +643,42 @@ let fteOverrideManager = {
             return false;
         }
         
-        // Determine which fortnights to update
-        let fortnightsToUpdate = [];
+        // Determine which year-fortnight combinations to update
+        let yearFortnightsToUpdate = [];
         
         switch (mode) {
             case 'single':
-                fortnightsToUpdate = [fortnight];
+                // Only edit the specific year-fortnight clicked
+                yearFortnightsToUpdate = [{ year, fortnight }];
                 break;
             case 'range':
+                // Edit range within the same year only
                 const startFN = parseInt(document.getElementById('range-start').value);
                 const endFN = parseInt(document.getElementById('range-end').value);
                 for (let fn = startFN; fn <= endFN; fn++) {
-                    fortnightsToUpdate.push(fn);
+                    yearFortnightsToUpdate.push({ year, fortnight: fn });
                 }
                 break;
             case 'forward':
-                for (let fn = fortnight; fn <= FORTNIGHTS_PER_YEAR; fn++) {
-                    fortnightsToUpdate.push(fn);
+                // Edit from the specific year-fortnight forward through all future time
+                let currentYear = year;
+                let currentFN = fortnight;
+                
+                // Continue until we reach a reasonable future limit (e.g., 10 years ahead)
+                const maxYear = year + 10;
+                
+                while (currentYear <= maxYear) {
+                    for (let fn = currentFN; fn <= FORTNIGHTS_PER_YEAR; fn++) {
+                        yearFortnightsToUpdate.push({ year: currentYear, fortnight: fn });
+                    }
+                    // After first year, start from FN01 for subsequent years
+                    currentYear++;
+                    currentFN = 1;
                 }
                 break;
         }
         
-        // Apply overrides
+        // Apply overrides with year-specific keys
         const isScenarioSpecific = viewState.currentScenarioId ? true : false;
         const targetOverrides = isScenarioSpecific ? 
             window.locationData[location].fortnightOverrides.scenarios :
@@ -631,27 +688,41 @@ let fteOverrideManager = {
             targetOverrides[viewState.currentScenarioId] = {};
         }
         
-        fortnightsToUpdate.forEach(fn => {
-            const fnKey = `FN${fn.toString().padStart(2, '0')}`;
+        yearFortnightsToUpdate.forEach(({ year: targetYear, fortnight: targetFN }) => {
+            const fnKey = `FN${targetFN.toString().padStart(2, '0')}`;
             const target = isScenarioSpecific ? targetOverrides[viewState.currentScenarioId] : targetOverrides;
             
-            if (!target[fnKey]) {
-                target[fnKey] = {};
+            // Create year-specific container if it doesn't exist
+            if (!target[targetYear]) {
+                target[targetYear] = {};
             }
-            target[fnKey][category] = newValue;
+            if (!target[targetYear][fnKey]) {
+                target[targetYear][fnKey] = {};
+            }
+            target[targetYear][fnKey][category] = newValue;
         });
         
-        // Close modal and refresh
+        // Close modal and refresh all tables
         this.closeModal();
-        renderFTESummaryTable();
+        updateAllTables();
         
         // Mark scenario as dirty since FTE was changed
         markDirty();
         
+        // Add verification that overrides are properly stored before updating charts
+        const verification = calculateFTEForFortnight(location, year, fortnight, category, viewState.currentScenarioId);
+        console.log(`Override verification: Expected ${newValue}, Got ${verification}, Match: ${Math.abs(verification - newValue) < 0.001}`);
+        
+        // Update dashboard charts with slight delay to ensure data structures are fully updated
+        setTimeout(() => {
+            updateChartsV2();
+            console.log('Charts updated after FTE override application');
+        }, 50);
+        
         // Debug log to verify overrides are being stored
         console.log('FTE Override applied:', {
             location,
-            fortnights: fortnightsToUpdate,
+            yearFortnights: yearFortnightsToUpdate,
             category,
             value: newValue,
             isScenarioSpecific,
@@ -659,31 +730,47 @@ let fteOverrideManager = {
         });
         
         const overrideType = isScenarioSpecific ? 'scenario-specific' : 'global';
-        showNotification(`${category} FTE override applied (${overrideType})`, 'success');
+        const affectedCount = yearFortnightsToUpdate.length;
+        showNotification(`${category} FTE override applied to ${affectedCount} period${affectedCount > 1 ? 's' : ''} (${overrideType})`, 'success');
         
         return true;
     },
     
     clearOverride() {
-        const { category, fortnight, location } = this.currentContext;
+        const { category, fortnight, year, location } = this.currentContext;
         const fnKey = `FN${fortnight.toString().padStart(2, '0')}`;
+        let cleared = false;
         
-        // Check scenario-specific first
+        // Check year-aware scenario-specific first
         if (viewState.currentScenarioId && 
+            window.locationData[location].fortnightOverrides.scenarios[viewState.currentScenarioId]?.[year]?.[fnKey]?.[category] !== undefined) {
+            delete window.locationData[location].fortnightOverrides.scenarios[viewState.currentScenarioId][year][fnKey][category];
+            showNotification(`Scenario-specific ${category} override cleared for ${year} ${fnKey}`, 'success');
+            cleared = true;
+        }
+        // Then check year-aware global
+        else if (window.locationData[location].fortnightOverrides.global[year]?.[fnKey]?.[category] !== undefined) {
+            delete window.locationData[location].fortnightOverrides.global[year][fnKey][category];
+            showNotification(`Global ${category} override cleared for ${year} ${fnKey}`, 'success');
+            cleared = true;
+        }
+        // Fallback to legacy non-year-aware overrides
+        else if (viewState.currentScenarioId && 
             window.locationData[location].fortnightOverrides.scenarios[viewState.currentScenarioId]?.[fnKey]?.[category] !== undefined) {
             delete window.locationData[location].fortnightOverrides.scenarios[viewState.currentScenarioId][fnKey][category];
-            showNotification(`Scenario-specific ${category} override cleared for ${fnKey}`, 'success');
+            showNotification(`Legacy scenario-specific ${category} override cleared for ${fnKey}`, 'success');
+            cleared = true;
         }
-        // Then check global
         else if (window.locationData[location].fortnightOverrides.global[fnKey]?.[category] !== undefined) {
             delete window.locationData[location].fortnightOverrides.global[fnKey][category];
-            showNotification(`Global ${category} override cleared for ${fnKey}`, 'success');
+            showNotification(`Legacy global ${category} override cleared for ${fnKey}`, 'success');
+            cleared = true;
         }
         
-        renderFTESummaryTable();
-        
-        // Mark scenario as dirty since FTE override was cleared
-        markDirty();
+        if (cleared) {
+            renderFTESummaryTable();
+            markDirty();
+        }
     },
     
     closeModal() {
@@ -706,6 +793,32 @@ let activeCohorts = [
     }
 ];
 let nextCohortId = 2;
+
+// CRITICAL FIX: Add ID uniqueness validation
+function validateCohortId(id) {
+    // Check global activeCohorts array
+    if (activeCohorts.some(c => c.id === id)) {
+        return false;
+    }
+    
+    // Check all location data arrays
+    for (const location in locationData) {
+        if (locationData[location].activeCohorts.some(c => c.id === id)) {
+            return false;
+        }
+    }
+    
+    return true;
+}
+
+function generateUniqueCohortId() {
+    let id = nextCohortId++;
+    // Ensure uniqueness (safety check for corrupted data)
+    while (!validateCohortId(id)) {
+        id = nextCohortId++;
+    }
+    return id;
+}
 
 // View state for filters and grouping
 let viewState = {
@@ -800,7 +913,7 @@ function ensureScenarios() {
 
 // DOM Elements - will be initialized after DOM loads
 let dashboardView, plannerView, settingsView, scenariosView;
-let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, toggleFTEBtn, editPriorityBtn;
+let navTabs, addCohortForm, pathwaySelect, editFTEBtn, addPathwayBtn, editPriorityBtn;
 let fteModal, pathwayModal, cohortModal, priorityModal, modalCloseButtons, modalCancelButtons;
 
 // Initialize DOM elements after DOMContentLoaded
@@ -815,7 +928,7 @@ function initializeDOMElements() {
     editFTEBtn = document.getElementById('edit-fte-btn');
     // saveDefaultFTEBtn removed - default functionality removed
     addPathwayBtn = document.getElementById('add-pathway-btn');
-    toggleFTEBtn = document.getElementById('toggle-fte-btn');
+    // toggleFTEBtn removed - FTE summary no longer collapsible
     editPriorityBtn = document.getElementById('edit-priority-btn');
     
     // Modal Elements
@@ -1269,9 +1382,8 @@ function calculateMetricsForPeriod(year, fortnight) {
     
     // Calculate trainer utilization
     const { demand } = calculateDemand();
-    const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
     const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-        sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        sum + calculateFTEForFortnight(currentLocation, year, fortnight, cat, viewState.currentScenarioId), 0);
     const currentDemand = demand[year]?.[fortnight]?.total || 0;
     const utilization = totalSupply > 0 ? Math.round((currentDemand / totalSupply) * 100) : 0;
     
@@ -1657,21 +1769,30 @@ function init() {
     perfMonitor.end('init.dashboardToggle');
     
     perfMonitor.start('init.loadScenario');
-    // Auto-load last scenario BEFORE initial render
+    // Auto-load scenario BEFORE initial render
     const lastScenarioId = localStorage.getItem('lastScenarioId');
     let scenarioLoaded = false;
     const loadedScenarios = getScenarios();
     console.log('Auto-load check:', { lastScenarioId, scenariosCount: loadedScenarios.length });
-    if (lastScenarioId && loadedScenarios.length > 0) {
+    
+    // Priority 1: Auto-load primary scenario if we have multiple scenarios
+    const primaryScenario = loadedScenarios.find(s => s.isPrimary);
+    if (primaryScenario && loadedScenarios.length > 1) {
+        console.log(`Auto-loading primary scenario: ${primaryScenario.name} (ID: ${primaryScenario.id})`);
+        loadScenarioDataOnly(primaryScenario);
+        scenarioLoaded = true;
+        setTimeout(() => {
+            showNotification(`Loaded primary scenario: ${primaryScenario.name}`, 'success');
+        }, 500);
+    }
+    // Priority 2: Auto-load last scenario if no primary scenario
+    else if (lastScenarioId && loadedScenarios.length > 0) {
         const scenario = loadedScenarios.find(s => s.id === parseInt(lastScenarioId));
         if (scenario) {
             console.log(`Auto-loading last scenario: ${scenario.name} (ID: ${scenario.id})`);
             // Load scenario data directly without UI updates
             loadScenarioDataOnly(scenario);
             scenarioLoaded = true;
-            // console.log('After loading scenario:');
-            // console.log('AU FTE after scenario:', locationData.AU.trainerFTE);
-            // console.log('Global trainerFTE after scenario:', trainerFTE);
             // Delay notification until after UI is ready
             setTimeout(() => {
                 showNotification(`Loaded: ${scenario.name}`, 'info');
@@ -1898,9 +2019,7 @@ function setupEventListeners() {
     }
 
     // Toggle FTE Summary button
-    if (toggleFTEBtn) {
-        toggleFTEBtn.addEventListener('click', toggleFTESummary);
-    }
+    // FTE Summary toggle removed - now always expanded
     
     // Render commencement summary on page load (no longer collapsible)
     renderCommencementSummary();
@@ -2040,16 +2159,39 @@ function setupEventListeners() {
         groupByFilter.addEventListener('change', handleGroupByChange);
     }
     
-    // Gantt height toggle
+    // Gantt height toggle - now switches between auto and fixed modes
     const toggleGanttHeightBtn = document.getElementById('toggle-gantt-height');
     if (toggleGanttHeightBtn) {
         toggleGanttHeightBtn.addEventListener('click', function() {
             const ganttContainer = document.getElementById('gantt-chart-container');
             if (ganttContainer) {
-                ganttContainer.classList.toggle('expanded');
-                // Update button text
-                const isExpanded = ganttContainer.classList.contains('expanded');
-                this.innerHTML = isExpanded ? '📏 Collapse Height' : '📏 Expand Height';
+                // Toggle between auto height and fixed 500px
+                const isManualFixed = ganttContainer.classList.contains('manual-fixed');
+                
+                if (isManualFixed) {
+                    // Switch to auto height mode
+                    ganttContainer.classList.remove('manual-fixed');
+                    ganttContainer.classList.remove('expanded');
+                    
+                    // Calculate and apply optimal height
+                    const optimalHeight = calculateOptimalGanttHeight();
+                    ganttContainer.style.height = `${optimalHeight}px`;
+                    ganttContainer.style.maxHeight = `${optimalHeight}px`;
+                    
+                    this.innerHTML = '📏 Fixed Height';
+                    this.title = 'Switch to fixed 500px height';
+                } else {
+                    // Switch to fixed 500px mode
+                    ganttContainer.classList.add('manual-fixed');
+                    ganttContainer.classList.remove('expanded');
+                    
+                    // Apply fixed height
+                    ganttContainer.style.height = '500px';
+                    ganttContainer.style.maxHeight = '500px';
+                    
+                    this.innerHTML = '📏 Auto Height';
+                    this.title = 'Switch to automatic height based on content';
+                }
             }
         });
     }
@@ -2527,10 +2669,8 @@ function setupEventListeners() {
     if (navLeft) {
         navLeft.addEventListener('click', () => {
             if (viewState.currentView !== 'all') {
-                // Move view by appropriate amount based on current view
-                const monthsToMove = viewState.currentView === '6months' ? 3 : 
-                                   viewState.currentView === '12months' ? 6 :
-                                   viewState.currentView === '18months' ? 9 : 1;
+                // Move view by 1 month at a time
+                const monthsToMove = 1;
                 viewState.viewOffset -= monthsToMove;
                 updateNavigationButtons();
                 updateAllTables();
@@ -2542,10 +2682,8 @@ function setupEventListeners() {
     if (navRight) {
         navRight.addEventListener('click', () => {
             if (viewState.currentView !== 'all') {
-                // Move view by appropriate amount based on current view
-                const monthsToMove = viewState.currentView === '6months' ? 3 : 
-                                   viewState.currentView === '12months' ? 6 :
-                                   viewState.currentView === '18months' ? 9 : 1;
+                // Move view by 1 month at a time
+                const monthsToMove = 1;
                 viewState.viewOffset += monthsToMove;
                 updateNavigationButtons();
                 updateAllTables();
@@ -3054,7 +3192,7 @@ function handleAddCohort(e) {
     const formData = new FormData(addCohortForm);
     
     const cohort = {
-        id: nextCohortId++,
+        id: generateUniqueCohortId(),
         numTrainees: parseInt(formData.get('numTrainees')),
         pathwayId: formData.get('pathway'),
         startYear: parseInt(formData.get('startYear')),
@@ -3063,7 +3201,10 @@ function handleAddCohort(e) {
         crossLocationTraining: {}  // Initialize empty cross-location training
     };
 
-    activeCohorts.push(cohort);
+    // Add to location-specific array first
+    locationData[currentLocation].activeCohorts.push(cohort);
+    // Sync global array with location array
+    activeCohorts = locationData[currentLocation].activeCohorts;
     
     // Keep form values for easy multiple additions
     // Only reset the number of trainees to default
@@ -3247,22 +3388,7 @@ function setupSynchronizedScrolling() {
     // console.log(`Sync established for ${containers.filter(c => c).length} containers`);
 }
 
-// Toggle FTE Summary
-function toggleFTESummary() {
-    const icon = toggleFTEBtn.querySelector('.toggle-icon');
-    const isExpanded = toggleFTEBtn.getAttribute('aria-expanded') === 'true';
-    
-    if (isExpanded) {
-        toggleFTEBtn.setAttribute('aria-expanded', 'false');
-        icon.textContent = '+';
-    } else {
-        toggleFTEBtn.setAttribute('aria-expanded', 'true');
-        icon.textContent = '−';
-    }
-    
-    // Re-render the table with the new expanded state
-    renderFTESummaryTable();
-}
+// FTE Summary toggle function removed - table now always expanded
 
 // Render Commencement Summary table
 function renderCommencementSummary() {
@@ -3494,7 +3620,6 @@ function renderCommencementSummary() {
 function renderFTESummaryTable() {
     const container = document.getElementById('fte-summary-table-container');
     const headers = generateTableHeaders(true, true);
-    const isExpanded = toggleFTEBtn.getAttribute('aria-expanded') === 'true';
     const range = getTimeRangeForView();
     
     let html = '<div class="table-wrapper"><table class="data-table">';
@@ -3583,9 +3708,8 @@ function renderFTESummaryTable() {
     }
     html += '</tr>';
     
-    // Category details (only shown when expanded)
-    if (isExpanded) {
-        TRAINER_CATEGORIES.forEach(category => {
+    // Category details (always shown)
+    TRAINER_CATEGORIES.forEach(category => {
             html += '<tr class="category-detail">';
             html += `<td class="sticky-first-column category-detail-cell">${category} Supply</td>`;
             
@@ -3644,8 +3768,7 @@ function renderFTESummaryTable() {
             }
             
             html += '</tr>';
-        });
-    }
+    });
     
     html += '</tbody></table></div>';
     container.innerHTML = html;
@@ -4197,17 +4320,17 @@ function renderSurplusDeficitTableDetailed() {
             
             if (type === 'LT-CAD') {
                 availableCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                    sum + calculateFTEForFortnight(currentLocation, currentYear, currentFn, cat, viewState.currentScenarioId), 0);
             } else if (type === 'LT-CP') {
-                const rhsCapacity = (locationFTE[currentYear]?.['RHS'] || 0) / FORTNIGHTS_PER_YEAR;
+                const rhsCapacity = calculateFTEForFortnight(currentLocation, currentYear, currentFn, 'RHS', viewState.currentScenarioId);
                 const universalCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                    sum + calculateFTEForFortnight(currentLocation, currentYear, currentFn, cat, viewState.currentScenarioId), 0);
                 const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
                 const universalSurplus = Math.max(0, universalCapacity - cadDemand);
                 availableCapacity = rhsCapacity + universalSurplus;
             } else if (type === 'LT-FO') {
                 const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                    sum + calculateFTEForFortnight(currentLocation, currentYear, currentFn, cat, viewState.currentScenarioId), 0);
                 const higherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
                                            (demandData?.byTrainingType['LT-CP'] || 0);
                 availableCapacity = Math.max(0, totalSupply - higherPriorityDemand);
@@ -4243,7 +4366,7 @@ function renderSurplusDeficitTableDetailed() {
             let catFn = range.startFortnight;
             
             while (catYear < range.endYear || (catYear === range.endYear && catFn <= range.endFortnight)) {
-                const categorySupply = (locationFTE[catYear]?.[category] || 0) / FORTNIGHTS_PER_YEAR;
+                const categorySupply = calculateFTEForFortnight(currentLocation, catYear, catFn, category, viewState.currentScenarioId);
                 const allocated = demand[catYear]?.[catFn]?.allocated?.[category] || 0;
                 const available = categorySupply - allocated;
                 
@@ -4294,8 +4417,16 @@ function renderSurplusDeficitTableDetailed() {
     let netFn = range.startFortnight;
     
     while (netYear < range.endYear || (netYear === range.endYear && netFn <= range.endFortnight)) {
-        const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[netYear]?.[cat] || 0), 0);
-        const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
+        // Use override-aware calculation for total FTE
+        const totalFortnightlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(
+                currentLocation, 
+                netYear, 
+                netFn, 
+                cat, 
+                viewState.currentScenarioId
+            );
+        }, 0);
         
         const demandData = demand[netYear]?.[netFn] || { byTrainingType: {} };
         const totalLineTrainingDemand = 
@@ -4363,19 +4494,19 @@ function renderSurplusDeficitTableSimple() {
             if (type === 'LT-CAD') {
                 // CAD can only use CATB, CATA, STP
                 availableCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                    sum + calculateFTEForFortnight(currentLocation, currentYear, currentFn, cat, viewState.currentScenarioId), 0);
             } else if (type === 'LT-CP') {
                 // CP uses RHS first, then surplus from CATB/CATA/STP after CAD
-                const rhsCapacity = (locationFTE[currentYear]?.['RHS'] || 0) / FORTNIGHTS_PER_YEAR;
+                const rhsCapacity = calculateFTEForFortnight(currentLocation, currentYear, currentFn, 'RHS', viewState.currentScenarioId);
                 const universalCapacity = ['CATB', 'CATA', 'STP'].reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                    sum + calculateFTEForFortnight(currentLocation, currentYear, currentFn, cat, viewState.currentScenarioId), 0);
                 const cadDemand = demandData?.byTrainingType['LT-CAD'] || 0;
                 const universalSurplus = Math.max(0, universalCapacity - cadDemand);
                 availableCapacity = rhsCapacity + universalSurplus;
             } else if (type === 'LT-FO') {
                 // FO can use all trainers, but only after higher priority demands are met
                 const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-                    sum + (locationFTE[currentYear]?.[cat] || 0) / FORTNIGHTS_PER_YEAR, 0);
+                    sum + calculateFTEForFortnight(currentLocation, currentYear, currentFn, cat, viewState.currentScenarioId), 0);
                 const higherPriorityDemand = (demandData?.byTrainingType['LT-CAD'] || 0) + 
                                            (demandData?.byTrainingType['LT-CP'] || 0);
                 
@@ -4409,8 +4540,16 @@ function renderSurplusDeficitTableSimple() {
     let netFn = range.startFortnight;
     
     while (netYear < range.endYear || (netYear === range.endYear && netFn <= range.endFortnight)) {
-        const totalYearlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => sum + (trainerFTE[netYear]?.[cat] || 0), 0);
-        const totalFortnightlyFTE = totalYearlyFTE / FORTNIGHTS_PER_YEAR;
+        // Use override-aware calculation for total FTE
+        const totalFortnightlyFTE = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(
+                currentLocation, 
+                netYear, 
+                netFn, 
+                cat, 
+                viewState.currentScenarioId
+            );
+        }, 0);
         
         const demandData = demand[netYear]?.[netFn] || { byTrainingType: {} };
         const totalLineTrainingDemand = 
@@ -4442,7 +4581,7 @@ function calculateCapacityForTrainingType(trainingType, year, fortnight, demandD
     
     const supply = {};
     TRAINER_CATEGORIES.forEach(cat => {
-        supply[cat] = (locationFTE[year]?.[cat] || 0) / FORTNIGHTS_PER_YEAR;
+        supply[cat] = calculateFTEForFortnight(currentLocation, year, fortnight, cat, viewState.currentScenarioId);
     });
     
     // Calculate capacity based on training type and trainer qualifications
@@ -4646,9 +4785,8 @@ function calculateDemand() {
             const supply = {};
             
             // Get available supply for this fortnight
-            const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
             TRAINER_CATEGORIES.forEach(cat => {
-                supply[cat] = locationFTE[year][cat] / FORTNIGHTS_PER_YEAR;
+                supply[cat] = calculateFTEForFortnight(currentLocation, year, fn, cat, viewState.currentScenarioId);
             });
             
             // Allocate by priority order defined in priorityConfig
@@ -4821,6 +4959,16 @@ function renderGanttChart() {
     
     if (activeCohorts.length === 0) {
         container.innerHTML = '<p style="padding: 20px; text-align: center; color: #666;">No cohorts added yet. Add a cohort to see the Gantt chart.</p>';
+        
+        // Apply minimum height for empty state in auto mode
+        const toggleBtn = document.getElementById('toggle-gantt-height');
+        const isAutoMode = !container.classList.contains('manual-fixed');
+        if (isAutoMode && toggleBtn) {
+            container.style.height = '300px';
+            container.style.maxHeight = '300px';
+            toggleBtn.innerHTML = '📏 Fixed Height';
+            toggleBtn.title = 'Switch to fixed 500px height';
+        }
         return;
     }
     
@@ -5084,17 +5232,17 @@ function renderGanttChart() {
                 let usesCrossLocation = false;
                 let crossLocationTo = null;
                 
-                if (cohort.crossLocationTraining && phase.trainerDemandType) {
+                if (cohort.crossLocationTraining && phase.name) {
                     // Calculate globalFortnight for comparison (same as demand calculation)
                     const globalFortnight = (tempYear - 2024) * FORTNIGHTS_PER_YEAR + tempFortnight;
                     
                     Object.entries(cohort.crossLocationTraining).forEach(([location, data]) => {
-                        if (data.phases && data.phases[phase.trainerDemandType] && 
-                            data.phases[phase.trainerDemandType].includes(globalFortnight)) {
+                        if (data.phases && data.phases[phase.name] && 
+                            data.phases[phase.name].includes(globalFortnight)) {
                             usesCrossLocation = true;
                             crossLocationTo = location;
                             if (DEBUG_MODE) {
-                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.trainerDemandType}, Global Fortnight ${globalFortnight}, To: ${location}`);
+                                console.log(`Cross-location found: Cohort ${cohort.id}, Phase ${phase.name}, Global Fortnight ${globalFortnight}, To: ${location}`);
                             }
                         }
                     });
@@ -5370,6 +5518,9 @@ function renderGanttChart() {
     // Add fixed legend at the bottom of the container
     addGanttLegend();
     
+    // Apply dynamic height if in auto mode
+    applyDynamicGanttHeight();
+    
     // Setup drag and drop event listeners
     setupGanttDragAndDrop();
     
@@ -5420,6 +5571,56 @@ function addGanttLegend() {
     
     // Insert legend after the gantt container (as a sibling)
     container.parentNode.insertBefore(legend, container.nextSibling);
+}
+
+// Calculate optimal Gantt chart height based on content
+function calculateOptimalGanttHeight() {
+    const container = document.getElementById('gantt-chart-container');
+    if (!container) return 500;
+    
+    // Count rows in the rendered table
+    const table = container.querySelector('.gantt-table');
+    if (!table) return 500;
+    
+    const headerRows = table.querySelectorAll('thead tr').length; // Usually 2 (months + fortnights)
+    const bodyRows = table.querySelectorAll('tbody tr').length; // Group headers + cohort rows
+    const totalDataRows = headerRows + bodyRows;
+    
+    // Calculate height based on content
+    const rowHeight = 35; // Approximate height per row
+    const headerHeight = 80; // Month/fortnight headers
+    const paddingHeight = 40; // Container padding
+    const legendHeight = 60; // Legend space at bottom
+    const scrollbarHeight = 20; // Account for horizontal scrollbar
+    
+    const estimatedHeight = (totalDataRows * rowHeight) + headerHeight + paddingHeight + legendHeight + scrollbarHeight;
+    
+    // Apply min/max constraints
+    const minHeight = 500; // Current default
+    const maxHeight = 1000; // Current expanded max
+    
+    return Math.min(Math.max(estimatedHeight, minHeight), maxHeight);
+}
+
+// Apply dynamic height to Gantt container
+function applyDynamicGanttHeight() {
+    const container = document.getElementById('gantt-chart-container');
+    const toggleBtn = document.getElementById('toggle-gantt-height');
+    
+    if (!container || !toggleBtn) return;
+    
+    // Check if we're in auto height mode (not manually expanded)
+    const isAutoMode = !container.classList.contains('manual-fixed');
+    
+    if (isAutoMode) {
+        const optimalHeight = calculateOptimalGanttHeight();
+        container.style.height = `${optimalHeight}px`;
+        container.style.maxHeight = `${optimalHeight}px`;
+        
+        // Update button text to reflect current mode
+        toggleBtn.innerHTML = '📏 Fixed Height';
+        toggleBtn.title = 'Switch to fixed 500px height';
+    }
 }
 
 // Setup Gantt Drag and Drop
@@ -7080,6 +7281,10 @@ function editCohort(cohortId) {
     const hasCrossLocation = cohort.crossLocationTraining && 
         Object.keys(cohort.crossLocationTraining).length > 0;
     
+    // Debug: Log what cross-location data is being displayed
+    console.log('DEBUG: Edit modal for cohort', cohort.id, 'cross-location data:', JSON.stringify(cohort.crossLocationTraining, null, 2));
+    console.log('DEBUG: Has cross-location training:', hasCrossLocation);
+    
     enableCrossLocationCheckbox.checked = hasCrossLocation;
     // Always hide the separate cross-location section since we integrate it into the main LT table
     crossLocationConfig.style.display = 'none';
@@ -7624,9 +7829,14 @@ function handleCohortUpdate(e) {
         let crossLocationTraining = {};
         // console.log('enableCrossLocation checkbox value:', formData.get('enableCrossLocation'));
         if (formData.get('enableCrossLocation')) {
-            // console.log('Cross-location enabled, processing radio buttons...');
-            const radioButtons = document.querySelectorAll('#cross-location-config input[type="radio"]:checked');
-            // console.log(`Found ${radioButtons.length} checked radio buttons`);
+            console.log('DEBUG: Cross-location enabled, processing radio buttons...');
+            // Look for radio buttons in the LT configuration table, not cross-location-config
+            const radioButtons = document.querySelectorAll('#cohort-lt-config input[type="radio"]:checked');
+            console.log(`DEBUG: Found ${radioButtons.length} checked radio buttons in LT config table`);
+            
+            // Debug: Check all radio buttons
+            const allRadios = document.querySelectorAll('#cohort-lt-config input[type="radio"]');
+            console.log(`DEBUG: Total radio buttons in LT config table: ${allRadios.length}`);
             
             radioButtons.forEach(radio => {
                 const location = radio.value;
@@ -7677,6 +7887,12 @@ function handleCohortUpdate(e) {
             ltExtension: ltExtension,
             inductionGroup: formData.get('inductionGroup') || ''
         };
+
+        // CRITICAL FIX: Also update in location-specific array to keep them synchronized
+        locationData[currentLocation].activeCohorts[cohortIndex] = activeCohorts[cohortIndex];
+        
+        // Debug: Log cross-location save
+        console.log('DEBUG: Cross-location save for cohort', activeCohorts[cohortIndex].id, ':', JSON.stringify(crossLocationTraining, null, 2));
         
         // console.log('Updated cohort:', activeCohorts[cohortIndex]);
         // console.log('Cohort cross-location config:', JSON.stringify(activeCohorts[cohortIndex].crossLocationTraining, null, 2));
@@ -7728,9 +7944,33 @@ function removeCohort(cohortId) {
         'Remove Cohort',
         `Are you sure you want to remove ${cohortLabel} from the Gantt chart?`,
         () => {
+            // CRITICAL FIX: Add verification before deletion
+            const beforeCountLocation = locationData[currentLocation].activeCohorts.length;
+            const beforeCountGlobal = activeCohorts.length;
+            
             // Remove from both location-specific and global arrays
             locationData[currentLocation].activeCohorts = locationData[currentLocation].activeCohorts.filter(c => c.id !== cohortId);
             activeCohorts = activeCohorts.filter(c => c.id !== cohortId);
+            
+            // Verify deletion worked correctly
+            const afterCountLocation = locationData[currentLocation].activeCohorts.length;
+            const afterCountGlobal = activeCohorts.length;
+            
+            const deletedFromLocation = beforeCountLocation - afterCountLocation;
+            const deletedFromGlobal = beforeCountGlobal - afterCountGlobal;
+            
+            if (deletedFromLocation !== deletedFromGlobal || deletedFromLocation === 0) {
+                console.warn('Deletion verification failed:', {
+                    cohortId,
+                    deletedFromLocation,
+                    deletedFromGlobal,
+                    beforeCountLocation,
+                    afterCountLocation,
+                    beforeCountGlobal,
+                    afterCountGlobal
+                });
+                showNotification('Warning: Deletion may have affected wrong cohorts', 'warning');
+            }
             
             updateAllTables();
             renderGanttChart();
@@ -8052,6 +8292,22 @@ function initSplitCohort() {
         }
         
         if (totalTrainees > 0) {
+            // Check for single trainee - cannot split
+            if (totalTrainees === 1) {
+                splitOutInput.disabled = true;
+                splitBtn.disabled = true;
+                splitOutInput.value = 1;
+                if (splitPreview) {
+                    splitPreview.textContent = '❌ Cannot split a single trainee';
+                    splitPreview.classList.add('has-variation');
+                }
+                return;
+            }
+            
+            // Enable inputs if previously disabled
+            splitOutInput.disabled = false;
+            splitBtn.disabled = false;
+            
             const remaining = totalTrainees - splitOutAmount;
             
             // Ensure split amount is valid
@@ -8075,6 +8331,8 @@ function initSplitCohort() {
             }
         } else {
             // Clear all displays when no trainees
+            splitOutInput.disabled = true;
+            splitBtn.disabled = true;
             if (splitPreview) {
                 splitPreview.textContent = '';
                 splitPreview.classList.remove('has-variation');
@@ -8102,19 +8360,19 @@ function initSplitCohort() {
         
         const remainingTrainees = totalTrainees - splitOutAmount;
         
-        // Create two new cohorts
+        // Create two new cohorts - remaining first to keep original position
         const newCohorts = [
             {
                 ...cohort,
-                id: Date.now(), // Generate unique ID for split out cohort
-                numTrainees: splitOutAmount,
-                inductionGroup: '' // Split out cohort gets no induction group
+                id: generateUniqueCohortId(), // CRITICAL FIX: Use unique ID generation
+                numTrainees: remainingTrainees
+                // Remaining cohort keeps the original induction group
             },
             {
                 ...cohort,
-                id: Date.now() + 1, // Generate unique ID for remaining cohort
-                numTrainees: remainingTrainees
-                // Remaining cohort keeps the original induction group
+                id: generateUniqueCohortId(), // CRITICAL FIX: Use unique ID generation
+                numTrainees: splitOutAmount,
+                inductionGroup: '' // Split out cohort gets no induction group
             }
         ];
         
@@ -10005,6 +10263,11 @@ function getCurrentState() {
     locationData[currentLocation].priorityConfig = priorityConfig;
     locationData[currentLocation].activeCohorts = activeCohorts;
     
+    // Debug: Log cross-location data being saved
+    const allCohorts = [...(locationData.AU.activeCohorts || []), ...(locationData.NZ.activeCohorts || [])];
+    const cohortsWithCrossLocation = allCohorts.filter(c => c.crossLocationTraining && Object.keys(c.crossLocationTraining).length > 0);
+    console.log('DEBUG: Saving', cohortsWithCrossLocation.length, 'cohorts with cross-location training to scenario');
+    
     // Debug log to verify overrides are being saved
     console.log('getCurrentState - saving FTE overrides:', {
         currentLocation,
@@ -10501,6 +10764,11 @@ function loadScenarioDataOnly(scenario) {
         priorityConfig = locationData[currentLocation].priorityConfig;
         activeCohorts = locationData[currentLocation].activeCohorts;
         
+        // Debug: Log cross-location data during load
+        const cohortsWithCrossLocation = activeCohorts.filter(c => c.crossLocationTraining && Object.keys(c.crossLocationTraining).length > 0);
+        console.log('DEBUG: Loaded', cohortsWithCrossLocation.length, 'cohorts with cross-location training:', 
+                   cohortsWithCrossLocation.map(c => ({id: c.id, crossLocation: c.crossLocationTraining})));
+        
         // Debug log to verify overrides are being loaded (loadScenarioDataOnly)
         console.log('Scenario auto-loaded - FTE overrides:', {
             scenarioId: scenario.id,
@@ -10996,8 +11264,12 @@ function renderScenarioList() {
         const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
         
         const isSelected = selectedForComparison.has(scenario.id);
+        const isPrimary = scenario.isPrimary || false;
         return `
-            <div class="scenario-card ${isSelected ? 'selected-for-compare' : ''}" data-scenario-id="${scenario.id}" onclick="handleCardClick(event, ${scenario.id})">
+            <div class="scenario-card ${isSelected ? 'selected-for-compare' : ''} ${isPrimary ? 'primary-scenario' : ''}" 
+                 data-scenario-id="${scenario.id}" 
+                 onclick="handleCardClick(event, ${scenario.id})"
+                 oncontextmenu="showScenarioContextMenu(event, ${scenario.id}); return false;">
                 <input type="checkbox" class="select-checkbox" ${isSelected ? 'checked' : ''} 
                        style="display: none; position: absolute; top: 10px; right: 10px;">
                 <div class="scenario-card-header">
@@ -11011,7 +11283,7 @@ function renderScenarioList() {
                                 </svg>
                             </button>
                         </div>
-                        <div class="scenario-date">${dateStr}</div>
+                        <div class="scenario-date">${dateStr}${isPrimary ? ' <span class="primary-pill">MASTER</span>' : ''}</div>
                     </div>
                 </div>
                 ${scenario.description ? `<div class="scenario-description">${scenario.description}</div>` : ''}
@@ -11133,6 +11405,94 @@ function filterScenarios() {
 function markDirty() {
     viewState.isDirty = true;
     updateCurrentScenarioDisplay();
+}
+
+// Show scenario context menu
+function showScenarioContextMenu(event, scenarioId) {
+    event.preventDefault();
+    event.stopPropagation();
+    
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+    
+    // Remove existing context menu
+    const existingMenu = document.querySelector('.scenario-context-menu');
+    if (existingMenu) {
+        existingMenu.remove();
+    }
+    
+    // Create context menu
+    const menu = document.createElement('div');
+    menu.className = 'scenario-context-menu';
+    menu.innerHTML = `
+        <div class="context-menu-item" onclick="makePrimaryScenario(${scenarioId})">
+            <span class="context-menu-icon">⭐</span>
+            ${scenario.isPrimary ? 'Remove as Primary' : 'Make Primary'}
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item" onclick="loadScenario(${scenarioId})">
+            <span class="context-menu-icon">📂</span>
+            Load Scenario
+        </div>
+        <div class="context-menu-item" onclick="duplicateScenario(${scenarioId})">
+            <span class="context-menu-icon">📋</span>
+            Duplicate
+        </div>
+        <div class="context-menu-item" onclick="exportScenario(${scenarioId})">
+            <span class="context-menu-icon">💾</span>
+            Export
+        </div>
+        <div class="context-menu-separator"></div>
+        <div class="context-menu-item context-menu-danger" onclick="deleteScenario(${scenarioId})">
+            <span class="context-menu-icon">🗑️</span>
+            Delete
+        </div>
+    `;
+    
+    // Position menu
+    menu.style.left = event.pageX + 'px';
+    menu.style.top = event.pageY + 'px';
+    
+    document.body.appendChild(menu);
+    
+    // Close menu when clicking elsewhere
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu() {
+            menu.remove();
+            document.removeEventListener('click', closeMenu);
+        });
+    }, 0);
+}
+
+// Make/unmake primary scenario
+function makePrimaryScenario(scenarioId) {
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    if (!scenario) return;
+    
+    if (scenario.isPrimary) {
+        // Remove primary status
+        scenario.isPrimary = false;
+        showNotification('Primary scenario removed', 'info');
+    } else {
+        // Remove primary from all other scenarios first
+        scenarios.forEach(s => s.isPrimary = false);
+        // Make this one primary
+        scenario.isPrimary = true;
+        showNotification(`"${scenario.name}" is now the primary scenario`, 'success');
+    }
+    
+    // Save scenarios to localStorage
+    localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+    renderScenarioList();
+}
+
+// Auto-load primary scenario on app start
+function autoLoadPrimaryScenario() {
+    const primaryScenario = scenarios.find(s => s.isPrimary);
+    if (primaryScenario && scenarios.length > 1) {
+        console.log('Auto-loading primary scenario:', primaryScenario.name);
+        loadScenario(primaryScenario.id);
+    }
 }
 
 // Export single scenario
@@ -12296,6 +12656,7 @@ function updateTrendDisplay(metricName, trend) {
 function updateChartsV2() {
     updateDemandChartV2();
     updateDistributionChartV2();
+    updateSupplyDemandChart();
 }
 
 function updateDemandChartV2() {
@@ -12335,9 +12696,14 @@ function updateDemandChartV2() {
                             (demand[year]?.[fn2]?.total || 0)) / 2;
         demandData.push(monthDemand);
         
-        // Calculate supply using location-specific FTE
-        const totalSupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR;
+        // Calculate supply using override-aware calculation (average of two fortnights in month)
+        const supply1 = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(currentLocation, year, fn1, cat, viewState.currentScenarioId);
+        }, 0);
+        const supply2 = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(currentLocation, year, fn2, cat, viewState.currentScenarioId);
+        }, 0);
+        const totalSupply = (supply1 + supply2) / 2;
         supplyData.push(totalSupply);
     }
     
@@ -12490,10 +12856,14 @@ function updateSupplyDemandOverviewV2() {
         const fn1 = (month * 2) + 1;
         const fn2 = (month * 2) + 2;
         
-        // Total supply from current location
-        const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
-        const monthlySupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR; // Use fortnightly FTE capacity
+        // Total supply from current location using override-aware calculation
+        const supply1 = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(currentLocation, year, fn1, cat, viewState.currentScenarioId);
+        }, 0);
+        const supply2 = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(currentLocation, year, fn2, cat, viewState.currentScenarioId);
+        }, 0);
+        const monthlySupply = (supply1 + supply2) / 2;
         
         // Get demand for current location
         const totalDemand1 = demand[year]?.[fn1]?.total || 0;
@@ -12531,12 +12901,21 @@ function updateSupplyDemandOverviewV2() {
         
         // Debug logging for first month
         if (i === 0) {
-            // console.log(`Supply/Demand Overview Debug for ${labels[i]}:`);
-            // console.log(`  Year:`, year);
-            // console.log(`  Location FTE for year:`, locationFTE[year]);
-            // console.log(`  Annual FTE total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
-            // console.log(`  Monthly Supply (fortnightly average):`, monthlySupply);
-            // console.log(`  Local Demand:`, localDemand);
+            console.log(`Supply/Demand Overview V2 Update - ${labels[i]}:`);
+            console.log(`  Location: ${currentLocation}`);
+            console.log(`  Scenario ID: ${viewState.currentScenarioId}`);
+            console.log(`  Supply1 (FN${fn1}): ${supply1}`);
+            console.log(`  Supply2 (FN${fn2}): ${supply2}`);
+            console.log(`  Monthly Supply (average): ${monthlySupply}`);
+            console.log(`  Local Demand: ${localDemand}`);
+            console.log(`  Cross-location Demand: ${crossDemand}`);
+            
+            // Log individual FTE values for override tracking
+            console.log(`  Individual FTE values for FN${fn1}:`);
+            TRAINER_CATEGORIES.forEach(cat => {
+                const fteValue = calculateFTEForFortnight(currentLocation, year, fn1, cat, viewState.currentScenarioId);
+                console.log(`    ${cat}: ${fteValue}`);
+            });
             // console.log(`  Cross-location Demand:`, crossDemand);
             // console.log(`  Total Demand:`, localDemand + crossDemand);
             // console.log(`  Raw demand data fn1:`, demand[year]?.[fn1]);
@@ -13231,10 +13610,14 @@ function updateSupplyDemandChart() {
         const fn1 = (month * 2) + 1;
         const fn2 = (month * 2) + 2;
         
-        // Total supply from current location
-        const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? locationData[currentLocation].trainerFTE : trainerFTE;
-        const monthlySupply = TRAINER_CATEGORIES.reduce((sum, cat) => 
-            sum + (locationFTE[year]?.[cat] || 0), 0) / FORTNIGHTS_PER_YEAR; // Use fortnightly FTE capacity // Convert annual to monthly
+        // Total supply using override-aware calculation (average of two fortnights in month)
+        const supply1 = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(currentLocation, year, fn1, cat, viewState.currentScenarioId);
+        }, 0);
+        const supply2 = TRAINER_CATEGORIES.reduce((sum, cat) => {
+            return sum + calculateFTEForFortnight(currentLocation, year, fn2, cat, viewState.currentScenarioId);
+        }, 0);
+        const monthlySupply = (supply1 + supply2) / 2;
         
         // Total demand (average of two fortnights)
         const monthlyDemand = ((demand[year]?.[fn1]?.total || 0) + 
@@ -13244,15 +13627,35 @@ function updateSupplyDemandChart() {
         demandData.push(monthlyDemand);
         surplusDeficitData.push(monthlySupply - monthlyDemand);
         
-        // Debug logging
+        // Enhanced debug logging for FTE override troubleshooting
         if (i === 0) {  // Log first month only to avoid spam
-            // console.log(`Supply/Demand Debug for ${MONTHS[month]} ${year}:`);
-            // console.log(`  Location: ${currentLocation}`);
-            // console.log(`  Annual FTE Total:`, TRAINER_CATEGORIES.reduce((sum, cat) => sum + (locationFTE[year]?.[cat] || 0), 0));
-            // console.log(`  Monthly Supply (fortnightly):`, monthlySupply);
-            // console.log(`  Monthly Demand:`, monthlyDemand);
-            // console.log(`  Demand data for fn1 (${fn1}):`, demand[year]?.[fn1]);
-            // console.log(`  Demand data for fn2 (${fn2}):`, demand[year]?.[fn2]);
+            console.log(`Supply/Demand Chart Update - ${MONTHS[month]} ${year}:`);
+            console.log(`  Location: ${currentLocation}`);
+            console.log(`  Scenario ID:`, viewState.currentScenarioId);
+            console.log(`  Supply1 (FN${fn1}):`, supply1);
+            console.log(`  Supply2 (FN${fn2}):`, supply2);
+            console.log(`  Monthly Supply (average):`, monthlySupply);
+            
+            // Log individual trainer category FTE values to track overrides
+            console.log(`  Individual FTE values for FN${fn1}:`);
+            TRAINER_CATEGORIES.forEach(cat => {
+                const fteValue = calculateFTEForFortnight(currentLocation, year, fn1, cat, viewState.currentScenarioId);
+                console.log(`    ${cat}: ${fteValue}`);
+            });
+            
+            // Check if any overrides exist for this location/scenario
+            const locData = window.locationData[currentLocation];
+            const hasScenarioOverrides = viewState.currentScenarioId && 
+                locData.fortnightOverrides?.scenarios?.[viewState.currentScenarioId];
+            const hasGlobalOverrides = Object.keys(locData.fortnightOverrides?.global || {}).length > 0;
+            
+            console.log(`  Override status:`);
+            console.log(`    Scenario overrides exist: ${!!hasScenarioOverrides}`);
+            console.log(`    Global overrides exist: ${hasGlobalOverrides}`);
+            
+            if (hasScenarioOverrides) {
+                console.log(`    Scenario override keys:`, Object.keys(locData.fortnightOverrides.scenarios[viewState.currentScenarioId]));
+            }
         }
     }
     

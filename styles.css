@@ -2266,6 +2266,19 @@ th[colspan] {
 #gantt-chart-container {
     max-height: 500px;
     overflow-x: auto;
+    position: relative;
+}
+
+/* Manual fixed mode for gantt-chart-container ID */
+#gantt-chart-container.manual-fixed {
+    height: 500px !important;
+    max-height: 500px !important;
+}
+
+/* Create space for the fixed legend by adjusting the scrollable area */
+#gantt-chart-container .table-wrapper {
+    padding-bottom: 70px; /* Space for legend */
+    box-sizing: border-box;
 }
 
 /* Force table layout and width constraints for gantt chart */
@@ -2284,13 +2297,19 @@ th[colspan] {
 
 /* Fixed legend below gantt container */
 .gantt-legend-fixed {
-    margin-top: 10px;
+    position: relative;
+    width: 100%;
+    height: 60px;
     padding: 10px;
     background: var(--bg-secondary);
     border-radius: 6px;
     font-size: 13px;
     color: var(--text-secondary);
     border: 1px solid var(--border-color);
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
 }
 
 .dark-mode .gantt-legend-fixed {
@@ -2395,6 +2414,24 @@ th[colspan] {
 :root {
     --column-width: 50px;
     --column-width-expanded: 70px;
+    
+    /* Light mode colors */
+    --bg-primary: #ffffff;
+    --bg-secondary: #f8f9fa;
+    --bg-tertiary: #e9ecef;
+    --border-color: #dee2e6;
+    --text-primary: #333333;
+    --text-secondary: #666666;
+}
+
+/* Dark mode color overrides */
+body.dark-mode {
+    --bg-primary: #2a2a2a;
+    --bg-secondary: #333333;
+    --bg-tertiary: #3a3a3a;
+    --border-color: #444444;
+    --text-primary: #e0e0e0;
+    --text-secondary: #cccccc;
 }
 
 /* 18-month view uses expanded container and column width */
@@ -2427,18 +2464,29 @@ html[data-view="18months"] .gantt-table th:not(.gantt-first-column) {
 .gantt-container {
     overflow-x: auto;
     overflow-y: auto;
-    height: 500px !important;
-    max-height: 500px !important;
+    height: 500px;
+    max-height: 500px;
     margin-top: 0;
     border: 1px solid #e0e0e0;
     border-radius: 4px;
     background-color: white;
     transition: height 0.3s ease, max-height 0.3s ease;
+    position: relative;
+}
+
+/* Manual fixed mode - forces 500px height */
+.gantt-container.manual-fixed {
+    height: 500px !important;
+    max-height: 500px !important;
 }
 
 .gantt-container.expanded {
     height: 1000px !important;
     max-height: 1000px !important; /* Double the height when expanded */
+}
+
+.gantt-container.expanded .table-wrapper {
+    padding-bottom: 70px; /* Space for legend in expanded view */
 }
 
 /* Ensure the table inside can use the full height */
@@ -3699,6 +3747,8 @@ body.dark-mode table tr td[style*="background-color"] {
     border-radius: 6px;
     padding: 15px;
     transition: box-shadow 0.2s ease;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .scenario-card:hover {
@@ -3710,12 +3760,23 @@ body.dark-mode table tr td[style*="background-color"] {
     justify-content: space-between;
     align-items: start;
     margin-bottom: 10px;
+    width: 100%;
+}
+
+.scenario-card-header > div {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .scenario-name-container {
     display: flex;
     align-items: center;
     gap: 8px;
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .scenario-name {
@@ -3727,6 +3788,7 @@ body.dark-mode table tr td[style*="background-color"] {
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
+    max-width: calc(100% - 30px);
 }
 
 .scenario-edit-btn {
@@ -3736,11 +3798,12 @@ body.dark-mode table tr td[style*="background-color"] {
     padding: 4px;
     border-radius: 3px;
     color: #666;
-    opacity: 0;
+    opacity: 0.6;
     transition: all 0.2s ease;
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
 }
 
 .scenario-card:hover .scenario-edit-btn {
@@ -3767,6 +3830,146 @@ body.dark-mode .scenario-edit-btn {
 body.dark-mode .scenario-edit-btn:hover {
     background-color: #444;
     color: #e0e0e0;
+}
+
+/* Primary Scenario Styling */
+.primary-pill {
+    background: linear-gradient(135deg, #ff6b35, #f7931e);
+    color: white;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 6px;
+    border-radius: 10px;
+    margin-left: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(255, 107, 53, 0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.primary-badge {
+    background: #ff6b35;
+    color: white;
+    font-size: 9px;
+    font-weight: 600;
+    padding: 1px 4px;
+    border-radius: 6px;
+    margin-left: 6px;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.primary-scenario {
+    border-left: 4px solid #ff6b35;
+    background: linear-gradient(135deg, rgba(255, 107, 53, 0.05), rgba(247, 147, 30, 0.05));
+}
+
+.primary-scenario:hover {
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.2);
+}
+
+/* Dark mode primary styling */
+body.dark-mode .primary-pill {
+    background: linear-gradient(135deg, #ff8c42, #ffa726);
+    box-shadow: 0 1px 3px rgba(255, 140, 66, 0.4);
+}
+
+body.dark-mode .primary-badge {
+    background: #ff8c42;
+}
+
+body.dark-mode .primary-scenario {
+    border-left-color: #ff8c42;
+    background: linear-gradient(135deg, rgba(255, 140, 66, 0.1), rgba(255, 167, 38, 0.1));
+}
+
+body.dark-mode .primary-scenario:hover {
+    box-shadow: 0 4px 12px rgba(255, 140, 66, 0.3);
+}
+
+/* Scenario Context Menu */
+.scenario-context-menu {
+    position: fixed;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    padding: 6px 0;
+    min-width: 180px;
+    z-index: 10000;
+    font-size: 14px;
+    animation: contextMenuAppear 0.15s ease-out;
+}
+
+@keyframes contextMenuAppear {
+    from {
+        opacity: 0;
+        transform: scale(0.95) translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+    }
+}
+
+.scenario-context-menu .context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+}
+
+.scenario-context-menu .context-menu-item:hover {
+    background-color: #f8f9fa;
+}
+
+.scenario-context-menu .context-menu-item.context-menu-danger:hover {
+    background-color: #fee;
+    color: #dc3545;
+}
+
+.scenario-context-menu .context-menu-separator {
+    height: 1px;
+    background-color: #e9ecef;
+    margin: 4px 0;
+}
+
+.scenario-context-menu .context-menu-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 12px;
+}
+
+/* Dark mode context menu */
+body.dark-mode .scenario-context-menu {
+    background: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .scenario-context-menu .context-menu-item:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .scenario-context-menu .context-menu-item.context-menu-danger:hover {
+    background-color: #4a2a2a;
+    color: #ff6b6b;
+}
+
+body.dark-mode .scenario-context-menu .context-menu-separator {
+    background-color: #444;
 }
 
 .scenario-date {
@@ -3819,17 +4022,18 @@ body.dark-mode .total-override-indicator {
     position: fixed;
     background: white;
     border: 1px solid #ddd;
-    border-radius: 6px;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    padding: 4px 0;
-    min-width: 200px;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.2);
+    padding: 6px 0;
+    width: 200px;
     z-index: 10000;
     display: none;
     font-size: 14px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
 .fte-context-menu-item {
-    padding: 8px 16px;
+    padding: 10px 16px;
     cursor: pointer;
     transition: background-color 0.2s ease;
     border: none;
@@ -3839,6 +4043,11 @@ body.dark-mode .total-override-indicator {
     display: flex;
     align-items: center;
     gap: 8px;
+    color: #333;
+    font-weight: 500;
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
 }
 
 .fte-context-menu-item:hover {
@@ -3858,15 +4067,22 @@ body.dark-mode .total-override-indicator {
 .fte-context-menu-icon {
     width: 16px;
     height: 16px;
-    display: flex;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
+    flex-shrink: 0;
+    font-size: 12px;
 }
 
 /* Dark mode context menu */
 body.dark-mode .fte-context-menu {
     background: #2a2a2a;
-    border-color: #444;
+    border-color: #555;
+    color: #e0e0e0;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+body.dark-mode .fte-context-menu-item {
     color: #e0e0e0;
 }
 
@@ -3883,42 +4099,77 @@ body.dark-mode .fte-context-menu-separator {
 }
 
 /* FTE Override Modal */
-#fte-override-modal .modal-content {
-    max-width: 450px;
+/* FTE Override Modal - Improved Styling */
+#fte-override-modal .fte-override-modal-content {
+    max-width: 500px;
     width: 90%;
+    padding: 0;
+    margin: 0 auto;
+}
+
+#fte-override-modal .modal-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+#fte-override-modal .fte-override-modal-body {
+    padding: 16px 20px;
+}
+
+.override-range-display {
+    background: rgba(13, 110, 253, 0.1);
+    border: 1px solid rgba(13, 110, 253, 0.3);
+    border-radius: 6px;
+    padding: 10px 12px;
+    margin-bottom: 16px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
 }
 
 .override-edit-section {
-    margin-bottom: 15px;
+    margin-bottom: 16px;
 }
 
 .override-edit-section h4 {
-    margin: 0 0 8px 0;
-    color: #2c3e50;
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
     font-size: 15px;
+    font-weight: 600;
+}
+
+.override-categories-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
 }
 
 .override-input-group {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 8px;
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
 }
 
 .override-input-group label {
     font-weight: 500;
-    color: #34495e;
+    color: var(--text-primary);
     min-width: 140px;
-    font-size: 14px;
+    font-size: 13px;
 }
 
 .override-input-group input[type="number"] {
-    padding: 6px 8px;
-    border: 1px solid #ddd;
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
     border-radius: 4px;
     font-size: 14px;
     width: 80px;
     text-align: center;
+    background: var(--bg-primary);
+    color: var(--text-primary);
 }
 
 .override-input-group input[type="number"]:focus {
@@ -3936,6 +4187,7 @@ body.dark-mode .fte-context-menu-separator {
     cursor: pointer;
     font-size: 11px;
     white-space: nowrap;
+    transition: background-color 0.2s;
 }
 
 .override-clear-btn:hover {
@@ -3943,17 +4195,23 @@ body.dark-mode .fte-context-menu-separator {
 }
 
 .override-summary {
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 4px;
-    padding: 12px;
-    margin-top: 15px;
+    margin-top: 16px;
 }
 
-.override-summary h5 {
-    margin: 0 0 8px 0;
-    color: #2c3e50;
-    font-size: 14px;
+.override-summary h4 {
+    margin: 0 0 10px 0;
+    color: var(--text-primary);
+    font-size: 15px;
+    font-weight: 600;
+}
+
+.override-preview-box {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
 .override-preview-compact {
@@ -4589,22 +4847,29 @@ body.dark-mode .capacity-warning li {
     font-size: 1.2em;
     background-color: transparent;
     border: 1px solid #ddd;
+    transition: all 0.2s ease;
 }
 
 #dark-mode-toggle:hover {
     background-color: #f8f9fa;
 }
 
-body.dark-mode #dark-mode-toggle {
-    border-color: #444;
+/* More specific selectors to override .btn-secondary styles */
+body.dark-mode #dark-mode-toggle.btn.btn-secondary {
+    background-color: #2a2a2a !important;
+    border-color: #444 !important;
+    color: #ccc !important;
 }
 
-body.dark-mode #dark-mode-toggle:hover {
-    background-color: #2a2a2a;
+body.dark-mode #dark-mode-toggle.btn.btn-secondary:hover {
+    background-color: #363636 !important;
+    border-color: #555 !important;
+    color: #ddd !important;
 }
 
 body.dark-mode #dark-mode-toggle .dark-mode-icon {
-    filter: brightness(1.5);
+    filter: brightness(0.8);
+    opacity: 0.7;
 }
 
 /* Dark Mode Component Styles */
@@ -4655,15 +4920,15 @@ body.dark-mode .btn-primary:hover {
 }
 
 body.dark-mode .btn-secondary {
-    background-color: #4a4a4a;
-    color: #e0e0e0;
-    border-color: #5a5a5a;
+    background-color: #2a2a2a !important;
+    color: #ccc !important;
+    border-color: #444 !important;
 }
 
 body.dark-mode .btn-secondary:hover {
-    background-color: #5a5a5a;
-    color: #f0f0f0;
-    border-color: #6a6a6a;
+    background-color: #363636 !important;
+    color: #ddd !important;
+    border-color: #555 !important;
 }
 
 /* New Scenario button */
@@ -6616,6 +6881,10 @@ body.dark-mode .preview-value {
 
 /* Split Cohort Section - Improved Professional Table Style */
 #cohort-modal .split-cohort-section {
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 12px;
     margin-top: 16px;
     text-align: left !important;
     width: 100% !important;

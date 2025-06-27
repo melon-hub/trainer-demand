@@ -213,6 +213,11 @@ Simply serve the files via any web server or open index.html directly in a brows
 - Never commit to main
 - When committing anything at users request, it must always have a tag
 
+## Build Policy
+- NEVER proactively offer to build standalone versions
+- Only build when explicitly requested by the user
+- User will ask for builds when ready
+
 ## Version History
 - **v1.5.1**: Cross-location fixes and enhancements
   - Fixed NZ cohorts display in AU Gantt cross-location section
