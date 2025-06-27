@@ -2277,11 +2277,43 @@ th[colspan] {
 
 /* Create space for the fixed legend by adjusting the scrollable area */
 #gantt-chart-container .table-wrapper {
-    padding-bottom: 70px; /* Space for legend */
+    padding-bottom: 10px; /* Small padding for visual comfort */
     box-sizing: border-box;
 }
 
 /* Force table layout and width constraints for gantt chart */
+/* Fix gantt scrollbar styling */
+#gantt-chart-container::-webkit-scrollbar {
+    width: 12px;
+    height: 12px;
+}
+
+#gantt-chart-container::-webkit-scrollbar-track {
+    background: transparent !important;
+    border-radius: 6px;
+}
+
+#gantt-chart-container::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 6px;
+}
+
+#gantt-chart-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
+
+#gantt-chart-container::-webkit-scrollbar-corner {
+    background: transparent !important;
+}
+
+/* Dark mode scrollbar */
+body.dark-mode #gantt-chart-container::-webkit-scrollbar-thumb {
+    background: #555;
+}
+
+body.dark-mode #gantt-chart-container::-webkit-scrollbar-thumb:hover {
+    background: #666;
+}
 #gantt-chart-container .gantt-table {
     table-layout: fixed !important;
     width: auto !important;

@@ -5589,17 +5589,18 @@ function calculateOptimalGanttHeight() {
     // Calculate height based on content
     const rowHeight = 35; // Approximate height per row
     const headerHeight = 80; // Month/fortnight headers
-    const paddingHeight = 40; // Container padding
-    const legendHeight = 60; // Legend space at bottom
+    const paddingHeight = 20; // Container padding (reduced)
+    // const legendHeight = 60; // Legend is outside container, not included
     const scrollbarHeight = 20; // Account for horizontal scrollbar
     
-    const estimatedHeight = (totalDataRows * rowHeight) + headerHeight + paddingHeight + legendHeight + scrollbarHeight;
+    const bodyHeight = bodyRows * rowHeight;
+    const estimatedHeight = bodyHeight + headerHeight + paddingHeight + scrollbarHeight;
     
     // Apply min/max constraints
-    const minHeight = 500; // Current default
+    const minHeightForUsability = 250; // Just enough to be usable
     const maxHeight = 1000; // Current expanded max
     
-    return Math.min(Math.max(estimatedHeight, minHeight), maxHeight);
+    return Math.min(Math.max(estimatedHeight, minHeightForUsability), 1000);
 }
 
 // Apply dynamic height to Gantt container
