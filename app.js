@@ -41,19 +41,22 @@ let priorityConfig = [
         priority: 'P1',
         trainingType: 'LT-CAD',
         primaryTrainers: ['CATB', 'CATA', 'STP'],  // Only these can do LT-CAD
-        cascadingFrom: []  // No cascading needed - only primary trainers can do this
+        cascadingFrom: [],  // No cascading needed - only primary trainers can do this
+        categoryPriority: ['CATB', 'CATA', 'STP']  // Order in which to consume trainers
     },
     {
         priority: 'P2',
         trainingType: 'LT-CP',
         primaryTrainers: ['RHS'],  // RHS is primary for LT-CP
-        cascadingFrom: ['CATB', 'CATA', 'STP']  // Can receive help from P1 pool surplus
+        cascadingFrom: ['CATB', 'CATA', 'STP'],  // Can receive help from P1 pool surplus
+        categoryPriority: ['RHS', 'CATB', 'CATA', 'STP']  // Order in which to consume trainers
     },
     {
         priority: 'P3',
         trainingType: 'LT-FO',
         primaryTrainers: ['LHS'],  // LHS is primary for LT-FO
-        cascadingFrom: ['CATB', 'CATA', 'STP', 'RHS']  // Can receive help from all other pools
+        cascadingFrom: ['CATB', 'CATA', 'STP', 'RHS'],  // Can receive help from all other pools
+        categoryPriority: ['LHS', 'RHS', 'CATB', 'CATA', 'STP']  // Order in which to consume trainers
     }
 ];
 
@@ -368,6 +371,50 @@ function hasFortnightOverride(location, fortnight, category, scenarioId = null, 
     return null;
 }
 
+// FTE Note Storage System
+let fteNotes = {
+    data: JSON.parse(localStorage.getItem('fte-notes') || '{}'),
+    
+    // Generate unique key for cell note
+    getKey(location, year, fortnight, category, scenarioId) {
+        return `${location}-${year}-${fortnight}-${category}-${scenarioId}`;
+    },
+    
+    // Save note
+    save(location, year, fortnight, category, scenarioId, note) {
+        const key = this.getKey(location, year, fortnight, category, scenarioId);
+        this.data[key] = {
+            note: note.trim(),
+            timestamp: new Date().toISOString(),
+            location,
+            year,
+            fortnight,
+            category,
+            scenarioId
+        };
+        localStorage.setItem('fte-notes', JSON.stringify(this.data));
+    },
+    
+    // Get note
+    get(location, year, fortnight, category, scenarioId) {
+        const key = this.getKey(location, year, fortnight, category, scenarioId);
+        return this.data[key];
+    },
+    
+    // Delete note
+    delete(location, year, fortnight, category, scenarioId) {
+        const key = this.getKey(location, year, fortnight, category, scenarioId);
+        delete this.data[key];
+        localStorage.setItem('fte-notes', JSON.stringify(this.data));
+    },
+    
+    // Check if note exists
+    has(location, year, fortnight, category, scenarioId) {
+        const key = this.getKey(location, year, fortnight, category, scenarioId);
+        return !!this.data[key];
+    }
+};
+
 // FTE Override Management System
 let fteOverrideManager = {
     currentContext: null,
@@ -390,6 +437,36 @@ let fteOverrideManager = {
         // Hide context menu on outside click
         document.addEventListener('click', () => {
             this.hideContextMenu();
+        });
+        
+        // Initialize note modal
+        this.initializeNoteModal();
+        
+        // Enhanced tooltips are handled by the existing setupFTETooltips system
+    },
+    
+    // Initialize note modal functionality
+    initializeNoteModal() {
+        const modal = document.getElementById('fte-note-modal');
+        const form = document.getElementById('fte-note-form');
+        const closeBtn = document.querySelector('.fte-note-modal-close');
+        const cancelBtn = document.getElementById('fte-note-cancel');
+        
+        // Form submission
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            this.saveNote();
+        });
+        
+        // Close modal handlers
+        closeBtn.addEventListener('click', () => this.closeNoteModal());
+        cancelBtn.addEventListener('click', () => this.closeNoteModal());
+        
+        // Close on backdrop click
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                this.closeNoteModal();
+            }
         });
     },
     
@@ -433,14 +510,33 @@ let fteOverrideManager = {
         // Check if override exists
         const hasOverride = hasFortnightOverride(currentLocation, fortnight, category, viewState.currentScenarioId, year);
         const clearItem = contextMenu.querySelector('[data-action="clear-override"]');
-        const separator = contextMenu.querySelector('.fte-context-menu-separator');
+        const overrideSeparator = contextMenu.querySelector('.fte-context-menu-separator');
         
         if (hasOverride) {
             clearItem.style.display = 'flex';
-            separator.style.display = 'block';
+            overrideSeparator.style.display = 'block';
         } else {
             clearItem.style.display = 'none';
-            separator.style.display = 'none';
+            overrideSeparator.style.display = 'none';
+        }
+        
+        // Check if note exists
+        const hasNote = fteNotes.has(currentLocation, year, fortnight, category, viewState.currentScenarioId);
+        const addNoteItem = contextMenu.querySelector('[data-action="add-note"]');
+        const editNoteItem = contextMenu.querySelector('[data-action="edit-note"]');
+        const deleteNoteItem = contextMenu.querySelector('[data-action="delete-note"]');
+        
+        // Show/hide note menu items based on whether note exists
+        if (hasNote) {
+            contextMenu.classList.add('has-note');
+            addNoteItem.style.display = 'none';
+            editNoteItem.style.display = 'flex';
+            deleteNoteItem.style.display = 'flex';
+        } else {
+            contextMenu.classList.remove('has-note');
+            addNoteItem.style.display = 'flex';
+            editNoteItem.style.display = 'none';
+            deleteNoteItem.style.display = 'none';
         }
         
         // Position and show menu
@@ -474,8 +570,155 @@ let fteOverrideManager = {
             case 'clear-override':
                 this.clearOverride();
                 break;
+            case 'add-note':
+                this.openNoteModal('add');
+                break;
+            case 'edit-note':
+                this.openNoteModal('edit');
+                break;
+            case 'delete-note':
+                this.deleteNote();
+                break;
         }
     },
+    
+    // Open note modal
+    openNoteModal(mode = 'add') {
+        if (!this.currentContext) return;
+        
+        const modal = document.getElementById('fte-note-modal');
+        const title = document.getElementById('note-modal-title');
+        const cellInfo = document.getElementById('fte-note-cell-info');
+        const existingSection = document.getElementById('fte-note-existing');
+        const textarea = document.getElementById('fte-note-text');
+        const saveBtn = document.getElementById('fte-note-save');
+        
+        const { category, fortnight, year, location } = this.currentContext;
+        const scenarioId = viewState.currentScenarioId;
+        
+        // Update modal title and save button text
+        if (mode === 'edit') {
+            title.textContent = 'Edit Note';
+            saveBtn.textContent = 'Update Note';
+        } else {
+            title.textContent = 'Add Note';
+            saveBtn.textContent = 'Save Note';
+        }
+        
+        // Show cell information
+        cellInfo.innerHTML = `
+            <strong>Location:</strong> ${location}<br>
+            <strong>Category:</strong> ${category}<br>
+            <strong>Period:</strong> ${year} FN${fortnight}
+        `;
+        
+        // Handle existing note
+        const existingNote = fteNotes.get(location, year, fortnight, category, scenarioId);
+        if (existingNote && mode === 'edit') {
+            existingSection.style.display = 'block';
+            existingSection.querySelector('.fte-note-existing-text').textContent = existingNote.note;
+            existingSection.querySelector('.fte-note-existing-meta').textContent = 
+                `Added: ${new Date(existingNote.timestamp).toLocaleString()}`;
+            textarea.value = existingNote.note;
+        } else {
+            existingSection.style.display = 'none';
+            textarea.value = '';
+        }
+        
+        // Show modal
+        modal.classList.add('active');
+        textarea.focus();
+    },
+    
+    // Close note modal
+    closeNoteModal() {
+        const modal = document.getElementById('fte-note-modal');
+        modal.classList.remove('active');
+        document.getElementById('fte-note-text').value = '';
+    },
+    
+    // Save note
+    saveNote() {
+        if (!this.currentContext) return;
+        
+        const textarea = document.getElementById('fte-note-text');
+        const noteText = textarea.value.trim();
+        
+        if (!noteText) {
+            alert('Please enter a note');
+            return;
+        }
+        
+        const { category, fortnight, year, location } = this.currentContext;
+        const scenarioId = viewState.currentScenarioId;
+        
+        // Save note
+        fteNotes.save(location, year, fortnight, category, scenarioId, noteText);
+        
+        // Update cell display
+        this.updateCellDisplay();
+        
+        // Close modal
+        this.closeNoteModal();
+        
+        // Show success notification
+        showNotification(`Note saved for ${category} - ${year} FN${fortnight}`, 'success');
+    },
+    
+    // Delete note
+    deleteNote() {
+        if (!this.currentContext) return;
+        
+        const { category, fortnight, year, location } = this.currentContext;
+        const scenarioId = viewState.currentScenarioId;
+        
+        // Use custom styled confirmation dialog
+        showConfirmDialog(
+            'Delete Note',
+            `Are you sure you want to delete the note for ${category} - ${year} FN${fortnight}?`,
+            () => {
+                // Yes callback - delete the note
+                fteNotes.delete(location, year, fortnight, category, scenarioId);
+                
+                // Update cell display
+                this.updateCellDisplay();
+                
+                // Show success notification
+                showNotification(`Note deleted for ${category} - ${year} FN${fortnight}`, 'success');
+            },
+            () => {
+                // No callback - do nothing (user cancelled)
+            }
+        );
+    },
+    
+    // Update cell display to show/hide note indicator
+    updateCellDisplay() {
+        if (!this.currentContext) return;
+        
+        const { cell, category, fortnight, year, location } = this.currentContext;
+        const scenarioId = viewState.currentScenarioId;
+        
+        const hasNote = fteNotes.has(location, year, fortnight, category, scenarioId);
+        
+        // Add or remove note indicator class (visual indicator handled by CSS)
+        if (hasNote) {
+            cell.classList.add('has-note');
+        } else {
+            cell.classList.remove('has-note');
+        }
+        
+        // Update tooltip if it exists
+        this.updateCellTooltip();
+    },
+    
+    // Update cell tooltip to include note information
+    updateCellTooltip() {
+        // This will be called when hovering over cells
+        // Integration with existing tooltip system will be handled by the hover events
+    },
+    
+
     
     openOverrideModal(mode) {
         const modal = document.getElementById('fte-override-modal');
@@ -780,19 +1023,9 @@ let fteOverrideManager = {
     }
 };
 
-// Initialize with demo data
-let activeCohorts = [
-    {
-        id: 1,
-        numTrainees: 12,
-        pathwayId: "A202",
-        startYear: 2024,
-        startFortnight: 3,
-        location: 'AU',
-        crossLocationTraining: {}
-    }
-];
-let nextCohortId = 2;
+// Initialize with empty cohorts for production
+let activeCohorts = [];
+let nextCohortId = 1;
 
 // CRITICAL FIX: Add ID uniqueness validation
 function validateCohortId(id) {
@@ -2178,7 +2411,7 @@ function setupEventListeners() {
                     ganttContainer.style.height = `${optimalHeight}px`;
                     ganttContainer.style.maxHeight = `${optimalHeight}px`;
                     
-                    this.innerHTML = '📏 Fixed Height';
+                    this.innerHTML = 'Fixed Height';
                     this.title = 'Switch to fixed 500px height';
                 } else {
                     // Switch to fixed 500px mode
@@ -2189,7 +2422,7 @@ function setupEventListeners() {
                     ganttContainer.style.height = '500px';
                     ganttContainer.style.maxHeight = '500px';
                     
-                    this.innerHTML = '📏 Auto Height';
+                    this.innerHTML = 'Auto Height';
                     this.title = 'Switch to automatic height based on content';
                 }
             }
@@ -2733,13 +2966,7 @@ function setupEventListeners() {
         btn.addEventListener('click', () => exportChart(btn.dataset.chart));
     });
     
-    // Load demo data button
-    const loadDemoBtn = document.getElementById('load-demo-data');
-    if (loadDemoBtn) {
-        loadDemoBtn.addEventListener('click', () => {
-            addDemoDashboardData();
-        });
-    }
+    // Demo data functionality removed for production
 }
 
 // Setup Grid Entry Event Listeners
@@ -3708,6 +3935,9 @@ function renderFTESummaryTable() {
     }
     html += '</tr>';
     
+    // Add category utilization row
+    const { demand } = calculateDemand();
+    
     // Category details (always shown)
     TRAINER_CATEGORIES.forEach(category => {
             html += '<tr class="category-detail">';
@@ -3752,13 +3982,26 @@ function renderFTESummaryTable() {
                     }
                 }
                 
-                // Add tooltip for changed values
+                // Add tooltip for changed values and notes
                 let cellContent = fortnightlyFTE;
+                
+                // Check for notes
+                const hasNote = fteNotes.has(currentLocation, currentYear, currentFn, category, viewState.currentScenarioId);
+                
+                // Handle change tooltips
                 if (cellStyle.includes('border-left') && prevFTE !== null) {
                     cellContent = `<span class="fte-changed" data-tooltip="Changed from ${prevFTE} to ${fortnightlyFTE}">${fortnightlyFTE}</span>`;
+                } else {
+                    cellContent = fortnightlyFTE;
                 }
                 
-                html += generateDataCell(currentYear, currentFn, cellContent, 'category-detail-cell', cellStyle);
+                // Add has-note class if note exists
+                let cellClasses = 'category-detail-cell';
+                if (hasNote) {
+                    cellClasses += ' has-note';
+                }
+                
+                html += generateDataCell(currentYear, currentFn, cellContent, cellClasses, cellStyle);
                 
                 currentFn++;
                 if (currentFn > FORTNIGHTS_PER_YEAR) {
@@ -3771,6 +4014,7 @@ function renderFTESummaryTable() {
     });
     
     html += '</tbody></table></div>';
+    
     container.innerHTML = html;
     
     // Add tooltip event listeners for changed values - use setTimeout to ensure DOM is fully rendered
@@ -3779,20 +4023,13 @@ function renderFTESummaryTable() {
     }, 0);
 }
 
-// Setup tooltip functionality for FTE changed values
+// Setup tooltip functionality for FTE changed values and notes
 function setupFTETooltips() {
     try {
         // Remove any existing tooltip
         const existingTooltip = document.getElementById('fte-tooltip');
         if (existingTooltip) {
             existingTooltip.remove();
-        }
-        
-        // Check if elements exist before proceeding
-        const fteChangedElements = document.querySelectorAll('.fte-changed');
-        if (fteChangedElements.length === 0) {
-            if (DEBUG_MODE) console.log('No .fte-changed elements found for tooltips');
-            return;
         }
         
         // Create tooltip element
@@ -3831,7 +4068,9 @@ function setupFTETooltips() {
         window.fteTooltip = tooltip;
         
         if (DEBUG_MODE) {
-            console.log(`Setup tooltips for ${fteChangedElements.length} .fte-changed elements`);
+            const fteChangedElements = document.querySelectorAll('.fte-changed');
+            const noteElements = document.querySelectorAll('.has-note');
+            console.log(`Setup tooltips for ${fteChangedElements.length} .fte-changed elements and ${noteElements.length} note cells`);
         }
         
     } catch (error) {
@@ -3843,31 +4082,67 @@ function setupFTETooltips() {
 
 // Event handlers for delegated FTE tooltip events
 function handleFTETooltipEnter(e) {
-    // Check if target is an element and has classList
-    if (!e.target || !e.target.classList || !e.target.classList.contains('fte-changed')) {
-        return;
-    }
-    
-    if (DEBUG_MODE) console.log('🎯 FTE Tooltip ENTER on .fte-changed element:', e.target);
-    
     if (!window.fteTooltip) {
-        if (DEBUG_MODE) console.log('No fteTooltip found on window');
         return;
     }
     
-    const tooltipText = e.target.getAttribute('data-tooltip');
-    if (DEBUG_MODE) console.log('Tooltip text:', tooltipText);
+    let tooltipText = '';
+    let targetElement = e.target;
+    
+    // Check if target is a .fte-changed element (for change tooltips)
+    if (e.target && e.target.classList && e.target.classList.contains('fte-changed')) {
+        tooltipText = e.target.getAttribute('data-tooltip');
+        if (DEBUG_MODE) console.log('🎯 FTE Tooltip ENTER on .fte-changed element');
+    }
+    // Check if target is a data cell in the FTE table (for note tooltips)
+    else if (e.target && e.target.closest) {
+        const cell = e.target.closest('.data-cell');
+        if (cell && cell.closest('#fte-summary-table-container .data-table')) {
+            const row = cell.closest('tr');
+            if (row && row.classList.contains('category-detail')) {
+                // Check if this cell has a note
+                if (cell.classList.contains('has-note')) {
+                    // Extract note information
+                    const categoryCell = row.querySelector('.sticky-first-column');
+                    const categoryText = categoryCell.textContent.trim();
+                    const category = categoryText.replace(' Supply', '');
+                    
+                    const cellIndex = Array.from(row.children).indexOf(cell);
+                    const headerRow = cell.closest('table').querySelector('thead tr:last-child');
+                    const fortnightHeaderIndex = cellIndex - 1;
+                    const fortnightHeader = headerRow.children[fortnightHeaderIndex];
+                    const columnData = fortnightHeader.getAttribute('data-column');
+                    const [year, fortnight] = columnData.split('-').map(Number);
+                    
+                    const note = fteNotes.get(currentLocation, year, fortnight, category, viewState.currentScenarioId);
+                    if (note) {
+                        tooltipText = `Note: ${note.note}`;
+                        targetElement = cell;
+                        if (DEBUG_MODE) console.log('🎯 FTE Tooltip ENTER on cell with note');
+                    }
+                }
+            }
+        }
+    }
     
     if (tooltipText) {
         const tooltip = window.fteTooltip;
-        tooltip.textContent = tooltipText;
+        
+        // Check if this is a note tooltip to apply bold formatting
+        if (tooltipText.startsWith('Note: ')) {
+            const noteText = tooltipText.replace('Note: ', '');
+            tooltip.innerHTML = `<strong>Note:</strong> ${noteText}`;
+        } else {
+            tooltip.textContent = tooltipText;
+        }
+        
         tooltip.style.opacity = '1';
         
         if (DEBUG_MODE) console.log('Setting tooltip visible with text:', tooltipText);
         
         // Position tooltip with error handling
         try {
-            const rect = e.target.getBoundingClientRect();
+            const rect = targetElement.getBoundingClientRect();
             
             // Position tooltip above the element
             let left = rect.left + rect.width / 2;
@@ -3894,14 +4169,18 @@ function handleFTETooltipEnter(e) {
 }
 
 function handleFTETooltipLeave(e) {
-    // Check if target is an element and has classList
-    if (!e.target || !e.target.classList || !e.target.classList.contains('fte-changed') || !window.fteTooltip) {
+    if (!window.fteTooltip) {
         return;
     }
     
-    if (DEBUG_MODE) console.log('🎯 FTE Tooltip LEAVE from .fte-changed element:', e.target);
+    // Handle leaving from .fte-changed elements OR data cells with notes
+    const isChangedElement = e.target && e.target.classList && e.target.classList.contains('fte-changed');
+    const isDataCell = e.target && e.target.closest && e.target.closest('.data-cell');
     
-    window.fteTooltip.style.opacity = '0';
+    if (isChangedElement || isDataCell) {
+        if (DEBUG_MODE) console.log('🎯 FTE Tooltip LEAVE');
+        window.fteTooltip.style.opacity = '0';
+    }
 }
 
 // Render Demand Table
@@ -4285,6 +4564,17 @@ function renderSurplusDeficitTableDetailed() {
     const headers = generateTableHeaders(true, true);
     const range = getTimeRangeForView();
     
+    // Debug logging for NZ issues
+    if (currentLocation === 'NZ') {
+        console.log('NZ Debug - renderSurplusDeficitTableDetailed:');
+        console.log('  currentLocation:', currentLocation);
+        console.log('  priorityConfig exists:', !!priorityConfig);
+        console.log('  priorityConfig length:', priorityConfig?.length);
+        console.log('  demand exists:', !!demand);
+        console.log('  locationData[NZ] exists:', !!(locationData && locationData.NZ));
+        console.log('  locationData[NZ].trainerFTE exists:', !!(locationData && locationData.NZ && locationData.NZ.trainerFTE));
+    }
+    
     let html = '<div class="table-wrapper"><table class="data-table">';
     html += '<thead>';
     html += headers.monthRow;
@@ -4302,6 +4592,12 @@ function renderSurplusDeficitTableDetailed() {
     // Get current location's FTE data
     const locationFTE = (locationData && currentLocation && locationData[currentLocation]) ? 
         locationData[currentLocation].trainerFTE : trainerFTE;
+    
+    // Additional NZ debugging
+    if (currentLocation === 'NZ') {
+        console.log('  locationFTE source:', locationFTE === trainerFTE ? 'global trainerFTE' : 'locationData[NZ].trainerFTE');
+        console.log('  locationFTE for 2025:', locationFTE?.[2025]);
+    }
     
     trainingTypes.forEach(({ type, label }) => {
         // Main training type row
@@ -4350,15 +4646,34 @@ function renderSurplusDeficitTableDetailed() {
         }
         html += '</tr>';
         
-        // Trainer category breakdown rows
-        const relevantCategories = type === 'LT-CAD' ? ['CATB', 'CATA', 'STP'] :
-                                  type === 'LT-CP' ? ['RHS', 'CATB', 'CATA', 'STP'] :
-                                  TRAINER_CATEGORIES;
+        // Trainer category breakdown rows - showing localized deficits
+        // Get the consumption order for this training type from priorityConfig
+        const priorityConfigForType = priorityConfig?.find(config => config.trainingType === type);
+        let consumptionOrder = priorityConfigForType?.categoryPriority || [];
+        
+        // Debug logging for NZ issues
+        if (currentLocation === 'NZ' && !priorityConfigForType) {
+            console.warn(`No priority config found for ${type} in location ${currentLocation}. Available configs:`, priorityConfig);
+        }
+        
+        // FIX: Ensure we have a valid consumption order for category breakdown
+        if (!consumptionOrder || consumptionOrder.length === 0) {
+            console.warn(`Empty consumption order for ${type} in location ${currentLocation}. Using default order.`);
+            // Use default consumption order based on training type
+            const defaultOrder = {
+                'LT-CAD': ['CATB', 'CATA', 'STP'],
+                'LT-CP': ['RHS', 'CATB', 'CATA', 'STP'],
+                'LT-FO': ['LHS', 'RHS', 'CATB', 'CATA', 'STP']
+            };
+            consumptionOrder = defaultOrder[type] || [];
+        }
+        
+        // Only show categories that can perform this training and are in consumption order
+        const relevantCategories = consumptionOrder.filter(category => 
+            TRAINER_QUALIFICATIONS[category].includes(type)
+        );
         
         relevantCategories.forEach(category => {
-            const canPerformTraining = TRAINER_QUALIFICATIONS[category].includes(type);
-            if (!canPerformTraining) return;
-            
             html += '<tr class="category-breakdown">';
             html += `<td class="sticky-first-column category-indent">&nbsp;&nbsp;↳ ${category}</td>`;
             
@@ -4366,30 +4681,82 @@ function renderSurplusDeficitTableDetailed() {
             let catFn = range.startFortnight;
             
             while (catYear < range.endYear || (catYear === range.endYear && catFn <= range.endFortnight)) {
-                const categorySupply = calculateFTEForFortnight(currentLocation, catYear, catFn, category, viewState.currentScenarioId);
-                const allocated = demand[catYear]?.[catFn]?.allocated?.[category] || 0;
-                const available = categorySupply - allocated;
+                const demandData = demand[catYear]?.[catFn];
+                const demandForType = demandData?.byTrainingType[type] || 0;
                 
-                // For this training type, show how much of this category could contribute
-                let contribution = 0;
-                if (type === 'LT-CAD' && (category === 'CATB' || category === 'CATA' || category === 'STP')) {
-                    contribution = Math.max(0, available);
-                } else if (type === 'LT-CP') {
-                    if (category === 'RHS') {
-                        contribution = Math.max(0, available);
-                    } else {
-                        // Universal trainers contribute only after CAD demand
-                        const cadDemand = demand[catYear]?.[catFn]?.byTrainingType['LT-CAD'] || 0;
-                        const catShare = categorySupply / 3; // Split evenly among CATB/CATA/STP
-                        contribution = Math.max(0, catShare - (cadDemand / 3));
+                // Calculate localized deficit for this specific category at this step
+                let remainingDemand = demandForType;
+                
+                // Subtract capacity already consumed by earlier categories in the chain
+                const categoryIndex = consumptionOrder.indexOf(category);
+                for (let i = 0; i < categoryIndex; i++) {
+                    const earlierCategory = consumptionOrder[i];
+                    if (TRAINER_QUALIFICATIONS[earlierCategory].includes(type)) {
+                        const earlierCategorySupply = calculateFTEForFortnight(currentLocation, catYear, catFn, earlierCategory, viewState.currentScenarioId);
+                        remainingDemand = Math.max(0, remainingDemand - earlierCategorySupply);
                     }
-                } else if (type === 'LT-FO') {
-                    // FO gets whatever is left after higher priorities
-                    contribution = Math.max(0, available);
                 }
                 
-                const cellClass = contribution > 0 ? 'available' : '';
-                html += generateDataCell(catYear, catFn, contribution > 0 ? contribution.toFixed(0) : '-', `category-cell ${cellClass}`);
+                // Calculate localized balance for this category
+                const categorySupply = calculateFTEForFortnight(currentLocation, catYear, catFn, category, viewState.currentScenarioId);
+                const localizedBalance = categorySupply - remainingDemand;
+                
+                // Apply styling based on localized balance
+                let cellClass = 'category-cell';
+                let statusText = '';
+                if (localizedBalance < 0) {
+                    cellClass += ' localized-deficit';
+                    statusText = 'EXHAUSTED';
+                } else if (localizedBalance <= 2 && localizedBalance > 0) {
+                    cellClass += ' localized-critical';
+                    statusText = 'CRITICAL';
+                } else {
+                    // Surplus - no special styling needed, normal cell appearance
+                    statusText = 'SURPLUS';
+                }
+                
+                // Create detailed tooltip with logical explanations for planning decisions
+                const originalDemand = demandForType;
+                const demandConsumedByEarlier = originalDemand - remainingDemand;
+                
+                let tooltip = `RESOURCE ANALYSIS: ${category} Trainers\n`;
+                tooltip += `Training Type: ${type}\n`;
+                tooltip += `\n--- CAPACITY vs DEMAND ---\n`;
+                tooltip += `Available trainers: ${categorySupply.toFixed(0)}\n`;
+                tooltip += `Training demand: ${originalDemand.toFixed(0)}\n`;
+                
+                if (demandConsumedByEarlier > 0) {
+                    tooltip += `Already allocated: ${demandConsumedByEarlier.toFixed(0)} (by higher priority trainers)\n`;
+                    tooltip += `Demand for ${category}: ${remainingDemand.toFixed(0)}\n`;
+                } else {
+                    tooltip += `Demand for ${category}: ${remainingDemand.toFixed(0)}\n`;
+                }
+                
+                tooltip += `\n--- CALCULATION ---\n`;
+                tooltip += `${categorySupply.toFixed(0)} trainers - ${remainingDemand.toFixed(0)} demand = ${localizedBalance.toFixed(0)}\n`;
+                
+                tooltip += `\n--- PLANNING IMPACT ---\n`;
+                if (localizedBalance < 0) {
+                    tooltip += `❌ ${category} POOL EXHAUSTED\n`;
+                    tooltip += `• ${Math.abs(localizedBalance).toFixed(0)} unmet demand rolls to next trainer type\n`;
+                    tooltip += `• Consider: Adding more ${category} trainers or reducing demand\n`;
+                    tooltip += `• Risk: Dependency on lower-priority trainer pools`;
+                } else if (localizedBalance <= 2 && localizedBalance > 0) {
+                    tooltip += `⚠️ ${category} POOL AT CRITICAL CAPACITY\n`;
+                    tooltip += `• Only ${localizedBalance.toFixed(0)} trainers remain unused\n`;
+                    tooltip += `• Risk: Very vulnerable to demand changes\n`;
+                    tooltip += `• Consider: Adding buffer capacity or redistributing demand`;
+                } else {
+                    tooltip += `✅ ${category} POOL HAS HEALTHY SURPLUS\n`;
+                    tooltip += `• ${localizedBalance.toFixed(0)} trainers available for additional demand\n`;
+                    tooltip += `• This pool can absorb ${localizedBalance.toFixed(0)} more trainees\n`;
+                    tooltip += `• Opportunity: Consider increasing utilization or training efficiency`;
+                }
+                
+                // Display the localized balance (can be negative) with enhanced tooltip
+                const displayValue = localizedBalance.toFixed(0);
+                const cellContent = `<span title="${tooltip}">${displayValue}</span>`;
+                html += generateDataCell(catYear, catFn, cellContent, cellClass);
                 
                 catFn++;
                 if (catFn > FORTNIGHTS_PER_YEAR) {
@@ -4447,6 +4814,7 @@ function renderSurplusDeficitTableDetailed() {
     
     html += '</tr>';
     html += '</tbody></table></div>';
+    
     container.innerHTML = html;
 }
 
@@ -4645,7 +5013,9 @@ function calculateDemand() {
                 byCategory: {},
                 allocated: {},
                 unallocated: {},
-                crossLocation: {} // Track cross-location usage
+                crossLocation: {}, // Track cross-location usage
+                categoryUtilization: {}, // Track category-specific utilization
+                categoryExhausted: {} // Track which categories are fully utilized
             };
             ltCpDeficit[year][fn] = 0;
             crossLocationDemand[year][fn] = {};
@@ -4787,6 +5157,13 @@ function calculateDemand() {
             // Get available supply for this fortnight
             TRAINER_CATEGORIES.forEach(cat => {
                 supply[cat] = calculateFTEForFortnight(currentLocation, year, fn, cat, viewState.currentScenarioId);
+                // Initialize utilization tracking
+                fortnightDemand.categoryUtilization[cat] = {
+                    supply: supply[cat],
+                    allocated: 0,
+                    remaining: supply[cat],
+                    utilization: 0
+                };
             });
             
             // Allocate by priority order defined in priorityConfig
@@ -4795,31 +5172,30 @@ function calculateDemand() {
                 if (trainingDemand > 0) {
                     let remainingDemand = trainingDemand;
                     
-                    // First, allocate from primary trainers
-                    config.primaryTrainers.forEach(cat => {
+                    // Use categoryPriority order if available, otherwise fall back to old logic
+                    const categoryOrder = config.categoryPriority || [...config.primaryTrainers, ...config.cascadingFrom];
+                    
+                    // Allocate based on category priority order
+                    categoryOrder.forEach(cat => {
                         if (remainingDemand > 0 && TRAINER_QUALIFICATIONS[cat].includes(config.trainingType)) {
                             const available = supply[cat] - fortnightDemand.allocated[cat];
                             const toAllocate = Math.min(available, remainingDemand);
                             if (toAllocate > 0) {
                                 fortnightDemand.allocated[cat] += toAllocate;
                                 remainingDemand -= toAllocate;
+                                
+                                // Update category utilization
+                                fortnightDemand.categoryUtilization[cat].allocated += toAllocate;
+                                fortnightDemand.categoryUtilization[cat].remaining = supply[cat] - fortnightDemand.allocated[cat];
+                                fortnightDemand.categoryUtilization[cat].utilization = (fortnightDemand.allocated[cat] / supply[cat]) * 100;
+                                
+                                // Mark category as exhausted if fully utilized
+                                if (fortnightDemand.categoryUtilization[cat].remaining < 0.1) {
+                                    fortnightDemand.categoryExhausted[cat] = true;
+                                }
                             }
                         }
                     });
-                    
-                    // Then, if needed, cascade from other pools
-                    if (remainingDemand > 0) {
-                        config.cascadingFrom.forEach(cat => {
-                            if (remainingDemand > 0 && TRAINER_QUALIFICATIONS[cat].includes(config.trainingType)) {
-                                const available = supply[cat] - fortnightDemand.allocated[cat];
-                                const toAllocate = Math.min(available, remainingDemand);
-                                if (toAllocate > 0) {
-                                    fortnightDemand.allocated[cat] += toAllocate;
-                                    remainingDemand -= toAllocate;
-                                }
-                            }
-                        });
-                    }
                     
                     // Track unallocated demand
                     fortnightDemand.unallocated[config.trainingType] = remainingDemand;
@@ -4966,7 +5342,7 @@ function renderGanttChart() {
         if (isAutoMode && toggleBtn) {
             container.style.height = '300px';
             container.style.maxHeight = '300px';
-            toggleBtn.innerHTML = '📏 Fixed Height';
+            toggleBtn.innerHTML = 'Fixed Height';
             toggleBtn.title = 'Switch to fixed 500px height';
         }
         return;
@@ -5619,7 +5995,7 @@ function applyDynamicGanttHeight() {
         container.style.maxHeight = `${optimalHeight}px`;
         
         // Update button text to reflect current mode
-        toggleBtn.innerHTML = '📏 Fixed Height';
+        toggleBtn.innerHTML = 'Fixed Height';
         toggleBtn.title = 'Switch to fixed 500px height';
     }
 }
@@ -5805,6 +6181,7 @@ function renderPrioritySettingsTable() {
     priorityConfig.forEach(config => {
         const primaryList = config.primaryTrainers.join(', ');
         const cascadeList = config.cascadingFrom.length > 0 ? config.cascadingFrom.join(', ') : 'None';
+        const categoryOrder = config.categoryPriority ? config.categoryPriority.join(' → ') : 'Not set';
         
         html += `
             <tr>
@@ -5812,6 +6189,11 @@ function renderPrioritySettingsTable() {
                 <td>${config.trainingType}</td>
                 <td>${primaryList}</td>
                 <td>${cascadeList}</td>
+            </tr>
+            <tr>
+                <td colspan="4" style="padding-left: 20px; font-size: 0.9em; color: #666;">
+                    <strong>Consumption Order:</strong> ${categoryOrder}
+                </td>
             </tr>
         `;
     });
@@ -6734,6 +7116,30 @@ function openPriorityModal() {
         html += `
                     </div>
                 </div>
+                <div class="form-group">
+                    <label>Category Priority Order (drag to reorder):</label>
+                    <div class="category-priority-list" data-priority-index="${index}">
+        `;
+        
+        // Show all categories in the order they should be consumed
+        const categoryOrder = config.categoryPriority || [...config.primaryTrainers, ...config.cascadingFrom];
+        categoryOrder.forEach((cat, catIndex) => {
+            const canDoTraining = TRAINER_QUALIFICATIONS[cat].includes(config.trainingType);
+            if (canDoTraining) {
+                const isPrimary = config.primaryTrainers.includes(cat);
+                html += `
+                    <div class="category-priority-item" draggable="true" data-category="${cat}" data-index="${catIndex}">
+                        <span class="drag-handle">☰</span>
+                        <span class="category-name">${cat}</span>
+                        <span class="category-type">${isPrimary ? '(Primary)' : '(Cascading)'}</span>
+                    </div>
+                `;
+            }
+        });
+        
+        html += `
+                    </div>
+                </div>
             </div>
         `;
     });
@@ -6742,12 +7148,99 @@ function openPriorityModal() {
     container.innerHTML = html;
     priorityModal.classList.add('active');
     
+    // Add drag and drop functionality for category priority ordering
+    initializeCategoryPriorityDragDrop();
+    
     // Add event listener for the form if not already added
     const form = document.getElementById('priority-edit-form');
     if (!form.dataset.listenerAdded) {
         form.addEventListener('submit', handlePriorityUpdate);
         form.dataset.listenerAdded = 'true';
     }
+}
+
+function initializeCategoryPriorityDragDrop() {
+    const priorityLists = document.querySelectorAll('.category-priority-list');
+    
+    priorityLists.forEach(list => {
+        const items = list.querySelectorAll('.category-priority-item');
+        
+        items.forEach(item => {
+            item.addEventListener('dragstart', handleCategoryDragStart);
+            item.addEventListener('dragend', handleCategoryDragEnd);
+            item.addEventListener('dragover', handleCategoryDragOver);
+            item.addEventListener('drop', handleCategoryDrop);
+            item.addEventListener('dragenter', handleCategoryDragEnter);
+            item.addEventListener('dragleave', handleCategoryDragLeave);
+        });
+    });
+}
+
+let draggedCategory = null;
+let draggedFromList = null;
+
+function handleCategoryDragStart(e) {
+    draggedCategory = e.target;
+    draggedFromList = e.target.parentElement;
+    e.target.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/html', e.target.innerHTML);
+}
+
+function handleCategoryDragEnd(e) {
+    e.target.classList.remove('dragging');
+    
+    // Remove all drag-over classes
+    document.querySelectorAll('.category-priority-item').forEach(item => {
+        item.classList.remove('drag-over');
+    });
+}
+
+function handleCategoryDragOver(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    e.dataTransfer.dropEffect = 'move';
+    return false;
+}
+
+function handleCategoryDragEnter(e) {
+    if (e.target.classList.contains('category-priority-item') && e.target !== draggedCategory) {
+        e.target.classList.add('drag-over');
+    }
+}
+
+function handleCategoryDragLeave(e) {
+    if (e.target.classList.contains('category-priority-item')) {
+        e.target.classList.remove('drag-over');
+    }
+}
+
+function handleCategoryDrop(e) {
+    if (e.preventDefault) {
+        e.preventDefault();
+    }
+    if (e.stopPropagation) {
+        e.stopPropagation();
+    }
+    
+    const dropTarget = e.target.closest('.category-priority-item');
+    const dropList = e.target.closest('.category-priority-list');
+    
+    if (dropTarget && dropTarget !== draggedCategory && dropList === draggedFromList) {
+        // Reorder within the same list
+        const allItems = Array.from(dropList.children);
+        const draggedIndex = allItems.indexOf(draggedCategory);
+        const targetIndex = allItems.indexOf(dropTarget);
+        
+        if (draggedIndex < targetIndex) {
+            dropTarget.parentNode.insertBefore(draggedCategory, dropTarget.nextSibling);
+        } else {
+            dropTarget.parentNode.insertBefore(draggedCategory, dropTarget);
+        }
+    }
+    
+    return false;
 }
 
 function closeModals() {
@@ -6833,7 +7326,23 @@ function handlePriorityUpdate(e) {
                 }
             });
         }
+        
+        // Update category priority order from the drag-drop list
+        const priorityList = document.querySelector(`.category-priority-list[data-priority-index="${index}"]`);
+        if (priorityList) {
+            const categoryItems = priorityList.querySelectorAll('.category-priority-item');
+            config.categoryPriority = [];
+            categoryItems.forEach(item => {
+                const category = item.getAttribute('data-category');
+                if (category) {
+                    config.categoryPriority.push(category);
+                }
+            });
+        }
     });
+    
+    // Mark scenario as dirty since settings have changed
+    markDirty();
     
     // Close modal and refresh
     closeModals();
@@ -10657,10 +11166,21 @@ function updateCurrentScenario() {
         return;
     }
     
-    if (!confirm('Are you sure you want to update the current scenario? This will overwrite the saved version.')) {
-        return;
-    }
-    
+    // Use custom styled confirmation dialog
+    showConfirmDialog(
+        'Update Scenario',
+        'Are you sure you want to update the current scenario? This will overwrite the saved version.',
+        () => {
+            // Yes callback - proceed with update
+            updateScenarioConfirmed();
+        },
+        () => {
+            // No callback - do nothing (user cancelled)
+        }
+    );
+}
+
+function updateScenarioConfirmed() {
     // Find the current scenario
     const scenarioIndex = getScenarios().findIndex(s => s.id === viewState.currentScenarioId);
     if (scenarioIndex === -1) {
@@ -10860,9 +11380,19 @@ function loadScenario(scenarioId) {
     if (!scenario) return;
     
     if (viewState.isDirty) {
-        if (!confirm('You have unsaved changes. Load scenario anyway?')) {
-            return;
-        }
+        // Use custom styled confirmation dialog
+        showConfirmDialog(
+            'Unsaved Changes',
+            'You have unsaved changes. Load scenario anyway?',
+            () => {
+                // Yes callback - proceed with loading
+                loadScenarioData(scenario);
+            },
+            () => {
+                // No callback - do nothing (user cancelled)
+            }
+        );
+        return;
     }
     
     loadScenarioData(scenario);
@@ -11137,21 +11667,33 @@ function editScenarioName(scenarioId) {
 }
 
 function deleteScenario(scenarioId) {
-    if (!confirm('Are you sure you want to delete this scenario?')) return;
+    const scenario = scenarios.find(s => s.id === scenarioId);
+    const scenarioName = scenario?.name || 'Unknown';
     
-    ensureScenarios();
-    const deletedScenario = scenarios.find(s => s.id === scenarioId);
-    scenarios = scenarios.filter(s => s.id !== scenarioId);
-    localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
-    
-    if (viewState.currentScenarioId === scenarioId) {
-        viewState.currentScenarioId = null;
-    }
-    
-    renderScenarioList();
-    
-    // Show success message
-    showNotification(`Deleted scenario: ${deletedScenario?.name || 'Unknown'}`, 'success');
+    // Use custom styled confirmation dialog
+    showConfirmDialog(
+        'Delete Scenario',
+        `Are you sure you want to delete the scenario "${scenarioName}"? This action cannot be undone.`,
+        () => {
+            // Yes callback - proceed with deletion
+            ensureScenarios();
+            const deletedScenario = scenarios.find(s => s.id === scenarioId);
+            scenarios = scenarios.filter(s => s.id !== scenarioId);
+            localStorage.setItem('pilotTrainerScenarios', JSON.stringify(scenarios));
+            
+            if (viewState.currentScenarioId === scenarioId) {
+                viewState.currentScenarioId = null;
+            }
+            
+            renderScenarioList();
+            
+            // Show success message
+            showNotification(`Deleted scenario: ${deletedScenario?.name || 'Unknown'}`, 'success');
+        },
+        () => {
+            // No callback - do nothing (user cancelled)
+        }
+    );
 }
 
 function duplicateScenario(scenarioId) {
@@ -11190,17 +11732,28 @@ function duplicateScenario(scenarioId) {
 function createNewScenario() {
     // Check if there are unsaved changes
     if (viewState.isDirty) {
-        const choice = confirm('You have unsaved changes. Would you like to save the current scenario first?\n\nClick OK to save first, or Cancel to discard changes.');
-        
-        if (choice) {
-            // User wants to save first
-            showScenarioSaveModal();
-            // Set a flag to create new scenario after save
-            window.pendingNewScenario = true;
-            return;
-        }
+        // Use custom styled confirmation dialog
+        showConfirmDialog(
+            'Unsaved Changes',
+            'You have unsaved changes. Would you like to save the current scenario first before creating a new one?',
+            () => {
+                // Yes callback - save first
+                showScenarioSaveModal();
+                // Set a flag to create new scenario after save
+                window.pendingNewScenario = true;
+            },
+            () => {
+                // No callback - discard changes and proceed
+                proceedWithNewScenario();
+            }
+        );
+        return;
     }
     
+    proceedWithNewScenario();
+}
+
+function proceedWithNewScenario() {
     // Reset to default state
     // Clear all cohorts
     activeCohorts = [];
@@ -14695,53 +15248,7 @@ window.addTestCohorts = function() {
     // console.log('Current cohorts:', activeCohorts);
 };
 
-// Function to add demo data for dashboard
-window.addDemoDashboardData = function() {
-    // Clear and add varied cohorts for better visualization
-    const demoYear = new Date().getFullYear();
-    const demoMonth = new Date().getMonth();
-    const demoFortnight = (demoMonth * 2) + 1;
-    
-    const demoCohorts = [
-        // CAD cohorts
-        { id: 100, numTrainees: 12, pathwayId: "A209", startYear: demoYear, startFortnight: demoFortnight - 8, location: currentLocation, crossLocationTraining: {} },
-        { id: 101, numTrainees: 8, pathwayId: "A211", startYear: demoYear, startFortnight: demoFortnight - 6, location: currentLocation, crossLocationTraining: {} },
-        { id: 102, numTrainees: 10, pathwayId: "A212", startYear: demoYear, startFortnight: demoFortnight - 4, location: currentLocation, crossLocationTraining: {} },
-        
-        // FO cohorts
-        { id: 103, numTrainees: 15, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight - 7, location: currentLocation, crossLocationTraining: {} },
-        { id: 104, numTrainees: 12, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight - 3, location: currentLocation, crossLocationTraining: {} },
-        { id: 105, numTrainees: 10, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight + 1, location: currentLocation, crossLocationTraining: {} },
-        
-        // CP cohorts
-        { id: 106, numTrainees: 6, pathwayId: "A202", startYear: demoYear, startFortnight: demoFortnight - 5, location: currentLocation, crossLocationTraining: {} },
-        { id: 107, numTrainees: 8, pathwayId: "A203", startYear: demoYear, startFortnight: demoFortnight - 2, location: currentLocation, crossLocationTraining: {} },
-        { id: 108, numTrainees: 4, pathwayId: "A202", startYear: demoYear, startFortnight: demoFortnight, location: currentLocation, crossLocationTraining: {} },
-        
-        // Future cohorts
-        { id: 109, numTrainees: 14, pathwayId: "A209", startYear: demoYear, startFortnight: demoFortnight + 3, location: currentLocation, crossLocationTraining: {} },
-        { id: 110, numTrainees: 16, pathwayId: "A210", startYear: demoYear, startFortnight: demoFortnight + 5, location: currentLocation, crossLocationTraining: {} },
-        { id: 111, numTrainees: 6, pathwayId: "A203", startYear: demoYear, startFortnight: demoFortnight + 7, location: currentLocation, crossLocationTraining: {} }
-    ];
-    
-    // Update the location data
-    locationData[currentLocation].activeCohorts = demoCohorts;
-    activeCohorts = demoCohorts;
-    nextCohortId = 112;
-    
-    // Update all views
-    updateAllTables();
-    renderGanttChart();
-    
-    // Update dashboard if on dashboard view
-    if (dashboardView.classList.contains('active')) {
-        // Always use enhanced dashboard
-        updateDashboardV2();
-    }
-    
-    showNotification('Demo data loaded successfully', 'success');
-    return 'Demo data added';
-};
+// Demo data functionality removed for production
 
 // Global function for toggling dashboard view
 window.toggleDashboardView = function(version) {

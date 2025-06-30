@@ -109,9 +109,7 @@ body.dark-mode .help-icon:hover {
 }
 
 /* Help Modal Styles */
-.help-modal {
-    /* When shown, it will use flex display from JavaScript */
-}
+/* .help-modal - styles applied dynamically via JavaScript */
 
 .help-modal[style*="display: block"],
 .help-modal[style*="display: flex"] {
@@ -1651,6 +1649,7 @@ input[type="number"]::-webkit-inner-spin-button {
 
 input[type="number"] {
     -moz-appearance: textfield;
+    appearance: textfield;
 }
 
 input[type="number"]:focus,
@@ -2168,6 +2167,46 @@ th[colspan] {
 .surplus {
     color: #27ae60;
     font-weight: 600;
+}
+
+/* Localized Deficit Styling for Category Breakdown */
+.localized-deficit {
+    background-color: #ffebee;
+    color: #c62828;
+    font-weight: 600;
+}
+
+.localized-critical {
+    background-color: #fff3e0;
+    color: #ef6c00;
+    font-weight: 500;
+}
+
+.localized-surplus {
+    background-color: inherit;
+    color: inherit;
+}
+
+/* Dark mode adjustments for localized styling - toned down colors with white text */
+body.dark-mode .data-table td.localized-deficit,
+body.dark-mode .data-table .localized-deficit {
+    background-color: #5d1a1a !important;
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+body.dark-mode .data-table td.localized-critical,
+body.dark-mode .data-table .localized-critical {
+    background-color: #4a2c00 !important;
+    color: #ffffff !important;
+    font-weight: 500 !important;
+}
+
+body.dark-mode .data-table td.localized-surplus,
+body.dark-mode .data-table .localized-surplus {
+    background-color: inherit !important;
+    color: inherit !important;
+    font-weight: normal !important;
 }
 
 /* Surplus/Deficit Controls */
@@ -9695,8 +9734,7 @@ body.dark-mode #trainee-summary:hover {
     border-color: #34495e !important;
 }
 
-.training-type-main td {
-}
+/* .training-type-main td - styles defined elsewhere */
 
 /* FINAL OVERRIDE - Light mode secondary button styles - MUST BE LAST */
 body:not(.dark-mode) .btn-secondary,
@@ -9837,6 +9875,554 @@ body.dark-mode .fte-hint {
 
 /* Visual indicator for FTE change values */
 .fte-changed {
-    cursor: help;
+    cursor: pointer;
     border-bottom: 1px dotted currentColor;
+}
+
+/* Category Priority Drag and Drop Styles */
+.category-priority-list {
+    margin-top: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    padding: 8px;
+    min-height: 50px;
+    background-color: #f9f9f9;
+}
+
+.category-priority-item {
+    display: flex;
+    align-items: center;
+    padding: 8px 12px;
+    margin: 4px 0;
+    background-color: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 4px;
+    cursor: move;
+    transition: all 0.2s ease;
+}
+
+.category-priority-item:hover {
+    background-color: #f0f0f0;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.category-priority-item.dragging {
+    opacity: 0.5;
+    background-color: #e3f2fd;
+}
+
+.category-priority-item.drag-over {
+    border-color: #1a73e8;
+    background-color: #e8f0fe;
+}
+
+.drag-handle {
+    margin-right: 12px;
+    color: #999;
+    font-size: 14px;
+    user-select: none;
+}
+
+.category-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.category-type {
+    font-size: 0.9em;
+    color: #666;
+    font-style: italic;
+}
+
+/* Dark mode styles for category priority */
+body.dark-mode .category-priority-list {
+    background-color: #2a2a2a;
+    border-color: #444;
+}
+
+body.dark-mode .category-priority-item {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .category-priority-item:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .category-priority-item.drag-over {
+    border-color: #4285f4;
+    background-color: #3a4a5a;
+}
+
+body.dark-mode .drag-handle {
+    color: #666;
+}
+
+body.dark-mode .category-type {
+    color: #999;
+}
+
+/* FTE Cell Notes Functionality - Note indicator handled by .has-note class and CSS pseudo-element */
+
+/* Enhanced FTE tooltip that can show both changes and notes */
+.fte-tooltip-enhanced {
+    position: absolute;
+    background-color: #2c3e50;
+    color: white;
+    padding: 12px;
+    border-radius: 6px;
+    font-size: 0.85em;
+    line-height: 1.4;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    z-index: 1000;
+    max-width: 300px;
+    min-width: 200px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.fte-tooltip-enhanced.visible {
+    opacity: 1;
+}
+
+.fte-tooltip-enhanced .tooltip-section {
+    margin-bottom: 8px;
+}
+
+.fte-tooltip-enhanced .tooltip-section:last-child {
+    margin-bottom: 0;
+}
+
+.fte-tooltip-enhanced .tooltip-title {
+    font-weight: 600;
+    color: #3498db;
+    margin-bottom: 4px;
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    padding-bottom: 2px;
+}
+
+.fte-tooltip-enhanced .change-info {
+    color: #e74c3c;
+}
+
+.fte-tooltip-enhanced .note-info {
+    color: #f39c12;
+}
+
+.fte-tooltip-enhanced .note-text {
+    font-style: italic;
+    background-color: rgba(255,255,255,0.1);
+    padding: 4px 8px;
+    border-radius: 4px;
+    margin-top: 4px;
+}
+
+.fte-tooltip-enhanced .note-meta {
+    font-size: 0.75em;
+    color: #bdc3c7;
+    margin-top: 4px;
+}
+
+body.dark-mode .fte-tooltip-enhanced {
+    background-color: #1a252f;
+    border: 1px solid #34495e;
+}
+
+body.dark-mode .fte-tooltip-enhanced .tooltip-title {
+    color: #58a6ff;
+}
+
+/* FTE Cell Context Menu - Enhanced with Note Functionality */
+.fte-cell-context-menu {
+    position: absolute;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 1001;
+    min-width: 160px;
+    padding: 4px 0;
+    font-size: 0.9em;
+}
+
+.fte-cell-context-menu-item {
+    padding: 8px 16px;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border: none;
+    background: none;
+    width: 100%;
+    text-align: left;
+    color: inherit;
+}
+
+.fte-cell-context-menu-item:hover {
+    background-color: #f8f9fa;
+}
+
+.fte-cell-context-menu-item.disabled {
+    color: #999;
+    cursor: not-allowed;
+}
+
+.fte-cell-context-menu-item.disabled:hover {
+    background-color: transparent;
+}
+
+.fte-cell-context-menu-item.hidden {
+    display: none !important;
+}
+
+.fte-cell-context-menu-icon {
+    width: 16px;
+    text-align: center;
+    color: #666;
+    flex-shrink: 0;
+}
+
+.fte-cell-context-menu-separator {
+    height: 1px;
+    background-color: #eee;
+    margin: 4px 0;
+}
+
+/* Conditional visibility classes for note menu items */
+.fte-cell-context-menu-item[data-action="add-note"] {
+    /* Shows when no note exists */
+}
+
+.fte-cell-context-menu-item[data-action="edit-note"] {
+    /* Shows when note exists */
+    display: none;
+}
+
+.fte-cell-context-menu-item[data-action="delete-note"] {
+    /* Shows when note exists */
+    display: none;
+}
+
+.fte-cell-context-menu.has-note .fte-cell-context-menu-item[data-action="add-note"] {
+    display: none;
+}
+
+.fte-cell-context-menu.has-note .fte-cell-context-menu-item[data-action="edit-note"] {
+    display: flex;
+}
+
+.fte-cell-context-menu.has-note .fte-cell-context-menu-item[data-action="delete-note"] {
+    display: flex;
+}
+
+/* Special styling for delete note action */
+.fte-cell-context-menu-item[data-action="delete-note"] {
+    color: #dc3545;
+}
+
+.fte-cell-context-menu-item[data-action="delete-note"]:hover {
+    background-color: #f8d7da;
+}
+
+body.dark-mode .fte-cell-context-menu {
+    background-color: #2a2a2a;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-cell-context-menu-item:hover {
+    background-color: #333;
+}
+
+body.dark-mode .fte-cell-context-menu-item[data-action="delete-note"] {
+    color: #ff6b6b;
+}
+
+body.dark-mode .fte-cell-context-menu-item[data-action="delete-note"]:hover {
+    background-color: #4a2a2a;
+}
+
+body.dark-mode .fte-cell-context-menu-separator {
+    background-color: #444;
+}
+
+body.dark-mode .fte-cell-context-menu-icon {
+    color: #999;
+}
+
+/* Note Addition Modal */
+.fte-note-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1002;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.3s ease;
+}
+
+.fte-note-modal.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.fte-note-modal-content {
+    background-color: white;
+    border-radius: 8px;
+    padding: 24px;
+    max-width: 500px;
+    width: 90%;
+    max-height: 90%;
+    overflow-y: auto;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.fte-note-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #eee;
+}
+
+.fte-note-modal-header h3 {
+    margin: 0;
+    color: #2c3e50;
+}
+
+.fte-note-modal-close {
+    background: none;
+    border: none;
+    font-size: 24px;
+    cursor: pointer;
+    color: #999;
+    padding: 0;
+    width: 30px;
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.fte-note-modal-close:hover {
+    color: #666;
+}
+
+.fte-note-form-group {
+    margin-bottom: 16px;
+}
+
+.fte-note-form-group label {
+    display: block;
+    margin-bottom: 6px;
+    font-weight: 500;
+    color: #333;
+}
+
+.fte-note-form-group textarea {
+    width: 100%;
+    min-height: 100px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 0.9em;
+    resize: vertical;
+}
+
+.fte-note-form-group textarea:focus {
+    outline: none;
+    border-color: #3498db;
+    box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+}
+
+.fte-note-cell-info {
+    background-color: #f8f9fa;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+    font-size: 0.9em;
+}
+
+.fte-note-cell-info strong {
+    color: #2c3e50;
+}
+
+.fte-note-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #eee;
+}
+
+.fte-note-btn {
+    padding: 8px 16px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    background-color: white;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: all 0.2s ease;
+}
+
+.fte-note-btn-primary {
+    background-color: #3498db;
+    color: white;
+    border-color: #3498db;
+}
+
+.fte-note-btn-primary:hover {
+    background-color: #2980b9;
+}
+
+.fte-note-btn:hover {
+    background-color: #f8f9fa;
+}
+
+.fte-note-existing {
+    background-color: #fff3cd;
+    border: 1px solid #ffeaa7;
+    padding: 12px;
+    border-radius: 4px;
+    margin-bottom: 16px;
+}
+
+.fte-note-existing h4 {
+    margin: 0 0 8px 0;
+    color: #856404;
+}
+
+.fte-note-existing-text {
+    font-style: italic;
+    color: #856404;
+    margin-bottom: 8px;
+}
+
+.fte-note-existing-meta {
+    font-size: 0.8em;
+    color: #6c6c6c;
+}
+
+/* Dark mode styles for note modal */
+body.dark-mode .fte-note-modal-content {
+    background-color: #2a2a2a;
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-modal-header {
+    border-bottom-color: #444;
+}
+
+body.dark-mode .fte-note-modal-header h3 {
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-modal-close {
+    color: #999;
+}
+
+body.dark-mode .fte-note-modal-close:hover {
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-form-group label {
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-form-group textarea {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-form-group textarea:focus {
+    border-color: #58a6ff;
+    box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.2);
+}
+
+body.dark-mode .fte-note-cell-info {
+    background-color: #333;
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-cell-info strong {
+    color: #58a6ff;
+}
+
+body.dark-mode .fte-note-modal-footer {
+    border-top-color: #444;
+}
+
+body.dark-mode .fte-note-btn {
+    background-color: #333;
+    border-color: #444;
+    color: #e0e0e0;
+}
+
+body.dark-mode .fte-note-btn:hover {
+    background-color: #3a3a3a;
+}
+
+body.dark-mode .fte-note-btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+body.dark-mode .fte-note-btn-primary:hover {
+    background-color: #0a58ca;
+}
+
+body.dark-mode .fte-note-existing {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-color: rgba(255, 193, 7, 0.3);
+}
+
+body.dark-mode .fte-note-existing h4 {
+    color: #ffc107;
+}
+
+body.dark-mode .fte-note-existing-text {
+    color: #e0e0e0;
+}
+
+/* Enhanced data cells with note capability */
+.data-cell.has-note {
+    position: relative;
+}
+
+.data-cell.has-note::before {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    width: 6px;
+    height: 6px;
+    background-color: #ffa726;
+    border-radius: 50%;
+    z-index: 2;
+}
+
+body.dark-mode .data-cell.has-note::before {
+    background-color: #ff9800;
+}
+
+/* Highlight data cells that have both changes and notes */
+.data-cell.has-note.has-change {
+    background-color: rgba(255, 167, 38, 0.1) !important;
+}
+
+body.dark-mode .data-cell.has-note.has-change {
+    background-color: rgba(255, 152, 0, 0.15) !important;
 }

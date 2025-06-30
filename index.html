@@ -377,9 +377,6 @@
                     <button class="btn btn-secondary" id="export-dashboard">
                         Export Dashboard
                     </button>
-                    <button class="btn btn-secondary" id="load-demo-data" style="margin-left: 10px;">
-                        Load Demo Data
-                    </button>
                 </div>
             </div>
         </div>
@@ -455,9 +452,9 @@
                             <option value="type" selected>Group by Type</option>
                             <option value="rank">Group by Rank</option>
                         </select>
-                        <button id="copy-table-data" class="btn btn-secondary" style="margin-left: 10px;">📋 Copy Tables</button>
-                        <button id="merge-cohorts-btn" class="btn btn-secondary" style="margin-left: 10px;">🔀 Merge Cohorts</button>
-                        <button id="toggle-gantt-height" class="btn btn-secondary" style="margin-left: 10px;" title="Switch to fixed 500px height">📏 Fixed Height</button>
+                        <button id="copy-table-data" class="btn btn-secondary" style="margin-left: 10px;">Copy Tables</button>
+                        <button id="merge-cohorts-btn" class="btn btn-secondary" style="margin-left: 10px;">Merge Cohorts</button>
+                        <button id="toggle-gantt-height" class="btn btn-secondary" style="margin-left: 10px;" title="Switch to fixed 500px height">Fixed Height</button>
                     </div>
                 </div>
                 <div id="gantt-chart-container" class="gantt-container">
@@ -855,7 +852,20 @@
             <div class="fte-context-menu-separator"></div>
             <button class="fte-context-menu-item" data-action="clear-override">
                 <span class="fte-context-menu-icon">❌</span>
-                Clear
+                Clear override
+            </button>
+            <div class="fte-context-menu-separator"></div>
+            <button class="fte-context-menu-item" data-action="add-note">
+                <span class="fte-context-menu-icon">📝</span>
+                Add note
+            </button>
+            <button class="fte-context-menu-item" data-action="edit-note">
+                <span class="fte-context-menu-icon">✏️</span>
+                Edit note
+            </button>
+            <button class="fte-context-menu-item" data-action="delete-note">
+                <span class="fte-context-menu-icon">🗑️</span>
+                Delete note
             </button>
         </div>
 
@@ -892,6 +902,37 @@
                 </div>
             </div>
         </div>
+
+        <!-- FTE Note Modal -->
+        <div id="fte-note-modal" class="fte-note-modal">
+            <div class="fte-note-modal-content">
+                <div class="fte-note-modal-header">
+                    <h3 id="note-modal-title">Add Note</h3>
+                    <button class="fte-note-modal-close">&times;</button>
+                </div>
+                <div class="fte-note-modal-body">
+                    <div id="fte-note-cell-info" class="fte-note-cell-info">
+                        <!-- Cell information will be populated here -->
+                    </div>
+                    <div id="fte-note-existing" class="fte-note-existing" style="display: none;">
+                        <h4>Current Note</h4>
+                        <div class="fte-note-existing-text"></div>
+                        <div class="fte-note-existing-meta"></div>
+                    </div>
+                    <form id="fte-note-form">
+                        <div class="fte-note-form-group">
+                            <label for="fte-note-text">Note:</label>
+                            <textarea id="fte-note-text" placeholder="Enter your note here..." required></textarea>
+                        </div>
+                        <div class="fte-note-modal-footer">
+                            <button type="button" class="fte-note-btn" id="fte-note-cancel">Cancel</button>
+                            <button type="submit" class="fte-note-btn fte-note-btn-primary" id="fte-note-save">Save Note</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
         <!-- Training Planner Modal -->
         <div id="training-planner-modal" class="modal">
             <div class="modal-content" style="max-width: 800px;">
@@ -1295,7 +1336,7 @@ May 2025: 2 CAD A212, 4 FO A210"></textarea>
             </div>
             <div class="help-footer">
                 <button id="help-tour-btn" class="btn btn-secondary">Start Interactive Tour</button>
-                <span class="help-version">Version 1.14.0</span>
+                <span class="help-version">Version 1.16.0</span>
             </div>
         </div>
     </div>

@@ -1,5 +1,46 @@
 # Changelog
 
+## [1.16.0] - 2025-01-06
+
+### ✨ **UI/UX Enhancements**
+- **Unified Confirmation Dialogs** - Replaced all native browser confirm dialogs with custom styled modals
+  - FTE note deletion confirmation
+  - Scenario update confirmation  
+  - Load scenario with unsaved changes
+  - Delete scenario confirmation
+  - Create new scenario with unsaved changes
+  - All dialogs now match application aesthetic with dark mode support
+
+### 🐛 **Bug Fixes**
+- **Priority Settings Save Issue** - Fixed priority configuration changes not marking scenario as dirty
+  - Priority updates now properly trigger save state
+  - Users can now save priority changes correctly
+- **Duplicate Note Indicators** - Cleaned up FTE note visual indicators
+  - Removed duplicate emoji indicators (📝)
+  - Only shows clean orange circle indicator via CSS
+  - Improved note tooltip system consistency
+- **Visual Polish** - Surplus cells no longer show green styling (user preference)
+  - Maintains normal cell appearance for better visual consistency
+
+### 🧹 **Production Cleanup**
+- **Removed Demo Data** - Eliminated development artifacts for production
+  - Removed "Load Demo Data" button from dashboard
+  - Removed demo data generation function
+  - Users now start with clean empty state
+  - Removed initial sample cohort
+- **Interface Cleanup** - Removed emoji icons from planner buttons
+  - "Copy Tables" button (removed 📋 icon)
+  - "Merge Cohorts" button (removed 🔀 icon)  
+  - "Fixed Height"/"Auto Height" button (removed 📏 icon)
+  - Cleaner, more professional button appearance
+
+### 🔧 **Technical Improvements**
+- **Consistent Modal System** - All confirmation dialogs use unified styling
+- **Improved State Management** - Better tracking of scenario modifications
+- **Code Quality** - Removed unused demo functionality (~50 lines cleaned up)
+
+---
+
 ## [1.12.4] - 2025-01-30
 
 ### 🔄 **MAJOR: FTE System Simplification**
